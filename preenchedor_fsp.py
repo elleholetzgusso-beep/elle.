@@ -18,7 +18,7 @@ COL_DESCRIPCION = "C"   # Descripcion
 COL_REF         = "B"   # Ref. Documento  <-- o script preenche aqui
 
 SKIP_PREFIXES   = []
-SKIP_CODE_LIST  = []    # ex.: ["[DE-34]", "[DE-35]"] p/ pular planos
+SKIP_CODE_LIST  = []
 
 OVERWRITE_FILLED = False
 MATCH_THRESHOLD  = 0.55
