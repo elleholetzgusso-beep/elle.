@@ -25,13 +25,13 @@ from openpyxl.utils import get_column_letter
 
 # ========================== CONFIG ==========================
 # Pasta onde estao os ficheiros gerados (PES, LPA, IES)
-PASTA_DOCS_GERADOS = r"3_Doc_Generada"
+PASTA_DOCS_GERADOS = r"2025-4263-1-PC POSADAS\3_Doc Generada\Doc"
 
 # Template FSP (o teu FSP de referencia)
 FSP_TEMPLATE = r"FSP_template.xlsx"
 
 # Nome do ficheiro de saida
-OUTPUT = r"FSP_GERADO.xlsx"
+OUTPUT = r"2025-4263-1-PC POSADAS\FSP_GERADO.xlsx"
 
 # Remitente padrao (quem envia os documentos ao cliente)
 REMITENTE_PADRAO = "UTE PASOS ANDENES LOTE 3"
@@ -264,9 +264,9 @@ def limpar_sheet(ws, min_row=2):
 
 def unmerge_sheet(ws, min_row=2):
     """Remove merges que toquem nas linhas de dados para poder escrever livremente."""
-    to_remove = [r for r in list(ws.merged_cells.ranges) if r.max_row >= min_row]
+    to_remove = [str(r) for r in list(ws.merged_cells.ranges) if r.max_row >= min_row]
     for r in to_remove:
-        ws.merged_cells.remove(str(r))
+        ws.unmerge_cells(r)
 
 
 def popular_envios(ws, dados):
