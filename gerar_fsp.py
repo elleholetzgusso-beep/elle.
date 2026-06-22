@@ -22,24 +22,15 @@ from copy import copy
 import datetime
 import openpyxl
 from openpyxl.utils import get_column_letter
+from openpyxl.cell.cell import MergedCell
 
 # ========================== CONFIG ==========================
-# Pasta onde estao os ficheiros gerados (PES, LPA, IES)
 PASTA_DOCS_GERADOS = r"3_Doc_Generada"
-
-# Template FSP (o teu FSP de referencia)
 FSP_TEMPLATE = r"FSP_template.xlsx"
-
-# Nome do ficheiro de saida
 OUTPUT = r"FSP_GERADO.xlsx"
-
-# Remitente padrao (quem envia os documentos ao cliente)
 REMITENTE_PADRAO = "UTE PASOS ANDENES LOTE 3"
-
-# Comentario padrao na aba Envios de Cliente
 COMENTARIO_ENVIO = "Documentos recibidos para evaluacion, apoyo o justificacion"
 
-# Etapas por tipo de documento
 ETAPAS = {
     "PES": "Planificacion / Act. 2. Redaccion del Plan de la Evaluacion.",
     "LPA": "Planificacion / Act. 3. Revision de los Planes del Solicitante.",
@@ -53,8 +44,6 @@ NOMES_DOCS = {
 }
 # ============================================================
 
-
-# ---- helpers -----------------------------------------------
 
 def fmt_date(d):
     if isinstance(d, datetime.datetime):
@@ -77,7 +66,6 @@ def parse_nome_ficheiro(nome):
       -> cod_doc    = 002
       -> tipo       = LPA
       -> versao     = 05
-    Devolve None se nao corresponde ao padrao.
     """
     m = re.match(
         r"(EXC\d{4}-[\d]+-\d+)-(\d{3})-([A-Z]+)-(\d+)",
@@ -94,10 +82,7 @@ def parse_nome_ficheiro(nome):
     }
 
 
-# ---- leitura do LPA ----------------------------------------
-
 def encontrar_ultimo_lpa(pasta):
-    """Devolve o Path do LPA .xlsm com maior numero de versao."""
     lpas = []
     for f in Path(pasta).iterdir():
         if not f.is_file():
@@ -117,7 +102,6 @@ def ler_lpa(path):
     wb = openpyxl.load_workbook(path, keep_vba=True, data_only=True)
     dados = {}
 
-    # --- Portada ---
     ws = wb["Portada"]
     rows = [r for r in ws.iter_rows(values_only=True) if any(v for v in r)]
     dados["projeto"] = rows[0][1] if rows else ""
@@ -134,19 +118,13 @@ def ler_lpa(path):
     m = re.match(r"(EXC\d{4}-[\d-]+\d)", ref)
     dados["expediente"] = m.group(1) if m else ""
 
-    # --- Control de versiones ---
     ws_cv = wb["Control de versiones"]
     versoes_lpa = []
     for r in ws_cv.iter_rows(min_row=3, values_only=True):
         if r[0] and str(r[0]).strip().isdigit():
-            versoes_lpa.append({
-                "num": int(r[0]),
-                "fecha": r[1],
-                "desc": r[2],
-            })
+            versoes_lpa.append({"num": int(r[0]), "fecha": r[1], "desc": r[2]})
     dados["versoes_lpa"] = versoes_lpa
 
-    # --- Doc Evaluados ---
     ws_de = wb["Doc Evaluados"]
     rows_de = list(ws_de.iter_rows(min_row=2, values_only=True))
     docs = []
@@ -159,23 +137,13 @@ def ler_lpa(path):
         if doc_atual is not None and ref_doc:
             doc_atual["versoes"].append({
                 "ref": str(ref_doc).strip() if ref_doc else "",
-                "ver": ver,
-                "fecha": fecha,
-                "autor": autor,
-                "envio": envio,
-                "fecha_envio": fecha_envio,
-                "firmado": firmado,
-                "estado": estado,
-                "comentario": comentario,
+                "ver": ver, "fecha": fecha, "autor": autor,
+                "envio": envio, "fecha_envio": fecha_envio,
+                "firmado": firmado, "estado": estado, "comentario": comentario,
             })
     dados["docs_avaliados"] = docs
 
-    todas_datas = [
-        v["fecha_envio"]
-        for d in docs
-        for v in d["versoes"]
-        if v.get("fecha_envio")
-    ]
+    todas_datas = [v["fecha_envio"] for d in docs for v in d["versoes"] if v.get("fecha_envio")]
     todas_datas = [d for d in todas_datas if isinstance(d, datetime.datetime)]
     dados["fecha_apertura"] = min(todas_datas) if todas_datas else None
     dados["fecha_cierre"] = max(todas_datas) if todas_datas else None
@@ -184,10 +152,7 @@ def ler_lpa(path):
     return dados
 
 
-# ---- escanear pasta de docs gerados ------------------------
-
 def escanear_pasta(pasta):
-    """Devolve lista de dicts para cada ficheiro gerado (PES/LPA/IES)."""
     resultado = []
     for f in sorted(Path(pasta).iterdir()):
         if not f.is_file() or f.suffix.lower() not in (".xlsm", ".xlsx", ".docx", ".pdf"):
@@ -208,8 +173,6 @@ def escanear_pasta(pasta):
     return sorted(visto.values(), key=lambda x: (x["tipo"], ordenar_num(x["versao"])))
 
 
-# ---- encontrar celula por texto ----------------------------
-
 def encontrar_celula(ws, texto, col_max=5):
     for row in ws.iter_rows(max_col=col_max):
         for cell in row:
@@ -218,7 +181,13 @@ def encontrar_celula(ws, texto, col_max=5):
     return None
 
 
-# ---- popular sheets ----------------------------------------
+def limpar_sheet(ws, min_row=2):
+    """Limpa valores a partir de min_row, ignorando MergedCells."""
+    for row in ws.iter_rows(min_row=min_row):
+        for cell in row:
+            if not isinstance(cell, MergedCell):
+                cell.value = None
+
 
 def popular_portada(ws, dados, ref_fsp):
     updates = {
@@ -228,26 +197,20 @@ def popular_portada(ws, dados, ref_fsp):
         "Fecha de Cierre": dados.get("fecha_cierre"),
         "Normativa": "UE/402/2013, UE/2015/1136",
     }
-
     for row in ws.iter_rows():
         for cell in row:
             if cell.value and len(str(cell.value)) > 30 and "cruce" in str(cell.value).lower():
                 cell.value = dados.get("projeto", cell.value)
                 break
-
     for label, valor in updates.items():
         c = encontrar_celula(ws, label)
         if c:
             ws.cell(row=c.row, column=c.column + 1).value = valor
-
     print("  Portada: OK")
 
 
 def popular_envios(ws, dados):
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.value = None
-
+    limpar_sheet(ws)
     envios = {}
     for doc in dados["docs_avaliados"]:
         for v in doc["versoes"]:
@@ -268,15 +231,11 @@ def popular_envios(ws, dados):
         ws.cell(row_num, 4).value = docs_str
         ws.cell(row_num, 5).value = COMENTARIO_ENVIO
         row_num += 1
-
     print(f"  Envios de Cliente: {row_num - 2} envios")
 
 
 def popular_doc_aportados(ws, dados):
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.value = None
-
+    limpar_sheet(ws)
     row_num = 2
     de_num = 1
     for doc in dados["docs_avaliados"]:
@@ -296,28 +255,18 @@ def popular_doc_aportados(ws, dados):
             row_num += 1
             primeira = False
         de_num += 1
-
     print(f"  Control doc. Aportados: {de_num - 1} documentos")
 
 
 def popular_doc_generados(ws, arquivos, versoes_lpa):
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.value = None
-
+    limpar_sheet(ws)
     lpa_cv = {v["num"]: v for v in versoes_lpa}
-
     row_num = 2
     for arq in arquivos:
         tipo = arq["tipo"]
         ver_num = int(arq["versao"])
         ver_str = str(ver_num).zfill(2)
-
-        if tipo == "LPA" and ver_num in lpa_cv:
-            ctrl_ver = lpa_cv[ver_num].get("desc", "")
-        else:
-            ctrl_ver = ""
-
+        ctrl_ver = lpa_cv[ver_num].get("desc", "") if tipo == "LPA" and ver_num in lpa_cv else ""
         ws.cell(row_num, 1).value = ETAPAS.get(tipo, "")
         ws.cell(row_num, 2).value = arq["ref"]
         ws.cell(row_num, 3).value = NOMES_DOCS.get(tipo, tipo)
@@ -328,13 +277,10 @@ def popular_doc_generados(ws, arquivos, versoes_lpa):
         ws.cell(row_num, 8).value = arq.get("mtime")
         ws.cell(row_num, 9).value = ctrl_ver
         row_num += 1
-
     print(f"  Control doc. Generados: {row_num - 2} entradas")
     if row_num > 2:
         print("  NOTA: preenche Redactor/Revisor manualmente na aba Control doc. Generados")
 
-
-# ---- main --------------------------------------------------
 
 def main():
     pasta = Path(PASTA_DOCS_GERADOS)
