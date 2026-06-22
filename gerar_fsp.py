@@ -72,15 +72,14 @@ def ordenar_num(v):
 def parse_nome_ficheiro(nome):
     """
     Padrao: EXC{ANO}-{CODIGO_OFERTA}-{COD_DOC}-{NOME_DOC}-{VERSAO}
-    Exemplo: EXC2025-16126-1-002-LPA-05
-      -> expediente = EXC2025-16126-1
-      -> cod_doc    = 002
-      -> tipo       = LPA
-      -> versao     = 05
+    Exemplos:
+      EXC2025-16126-1-002-LPA-05  -> expediente=EXC2025-16126-1, cod_doc=002, tipo=LPA, versao=05
+      EXC2025-04019-002-LPA-03    -> expediente=EXC2025-04019,   cod_doc=002, tipo=LPA, versao=03
+    Ancorado pelo fim: os 3 ultimos campos sao sempre COD_DOC-TIPO-VERSAO.
     Devolve None se nao corresponde ao padrao.
     """
     m = re.match(
-        r"(EXC\d{4}-[\d]+-\d+)-(\d{3})-([A-Z]+)-(\d+)",
+        r"(EXC\d{4}-.+)-(\d{3})-([A-Z]+)-(\d+)$",
         nome.upper()
     )
     if not m:
