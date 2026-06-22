@@ -24,14 +24,13 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 
 # ========================== CONFIG ==========================
-# Pasta onde estao os ficheiros gerados (PES, LPA, IES)
-PASTA_DOCS_GERADOS = r"2025-4263-1-PC POSADAS\3_Doc Generada\Doc"
+# Pasta do PROJETO (a que contem 3_Doc Generada, etc.).
+# Podes mudar aqui OU passar como argumento:
+#   py gerar_fsp.py "2025-04019-1 ESTEYCO AsBo PC Cruce Estacion Alegia"
+PASTA_PROJETO = r"2025-4263-1-PC POSADAS"
 
 # Template FSP (o teu FSP de referencia)
 FSP_TEMPLATE = r"FSP_template.xlsx"
-
-# Nome do ficheiro de saida
-OUTPUT = r"2025-4263-1-PC POSADAS\FSP_GERADO.xlsx"
 
 # Remitente padrao (quem envia os documentos ao cliente)
 REMITENTE_PADRAO = "UTE PASOS ANDENES LOTE 3"
@@ -362,20 +361,53 @@ def popular_doc_generados(ws, arquivos, versoes_lpa):
         print("  NOTA: preenche Redactor/Revisor manualmente na aba Control doc. Generados")
 
 
+# ---- localizar pasta de docs gerados -----------------------
+
+def encontrar_pasta_docs(pasta_projeto):
+    """
+    Dentro da pasta do projeto, procura a subpasta '3_Doc Generada'
+    (tolera variacoes de espaco/acento) e dentro dela a pasta 'Doc'.
+    Devolve o Path da pasta com os ficheiros gerados.
+    """
+    raiz = Path(pasta_projeto)
+    if not raiz.exists():
+        raise SystemExit(f"ERRO: Pasta do projeto nao encontrada: {raiz}")
+
+    # procura subpasta que contenha "doc generada" no nome
+    gerada = None
+    for sub in raiz.iterdir():
+        if sub.is_dir() and "doc generada" in sub.name.lower().replace("_", " "):
+            gerada = sub
+            break
+    if gerada is None:
+        raise SystemExit(f"ERRO: Nao encontrei '3_Doc Generada' dentro de '{raiz}'")
+
+    # dentro dela, procura subpasta 'Doc'
+    doc = gerada / "Doc"
+    if doc.is_dir():
+        return doc
+    # se nao houver subpasta Doc, usa a propria pasta Generada
+    return gerada
+
+
 # ---- main --------------------------------------------------
 
 def main():
-    pasta = Path(PASTA_DOCS_GERADOS)
-    template = Path(FSP_TEMPLATE)
+    import sys
+    pasta_projeto = sys.argv[1] if len(sys.argv) > 1 else PASTA_PROJETO
 
-    if not pasta.exists():
-        raise SystemExit(f"ERRO: Pasta nao encontrada: {pasta}")
+    pasta = encontrar_pasta_docs(pasta_projeto)
+    template = Path(FSP_TEMPLATE)
+    output = Path(pasta_projeto) / "FSP_GERADO.xlsx"
+
     if not template.exists():
         raise SystemExit(f"ERRO: Template FSP nao encontrado: {template}")
 
     print("=" * 55)
     print("GERADOR DE FSP")
     print("=" * 55)
+    print(f"Projeto: {pasta_projeto}")
+    print(f"Pasta docs: {pasta}")
 
     # 1. Ler LPA
     lpa_path = encontrar_ultimo_lpa(pasta)
@@ -415,9 +447,8 @@ def main():
     print("  M.C.S.: mantida do template (preencher manualmente no final)")
 
     # 9. Guardar
-    saida = Path(OUTPUT)
-    wb.save(saida)
-    print(f"\nGuardado em: {saida.resolve()}")
+    wb.save(output)
+    print(f"\nGuardado em: {output.resolve()}")
     print("=" * 55)
     print("Proximos passos:")
     print("  1. Abre FSP_GERADO.xlsx e revisa cada aba")
