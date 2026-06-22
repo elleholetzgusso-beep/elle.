@@ -263,10 +263,10 @@ def limpar_sheet(ws, min_row=2):
 
 
 def unmerge_sheet(ws, min_row=2):
-    """Remove merges nas linhas de dados para poder escrever livremente."""
-    to_remove = [r for r in list(ws.merged_cells.ranges) if r.min_row >= min_row]
+    """Remove merges que toquem nas linhas de dados para poder escrever livremente."""
+    to_remove = [r for r in list(ws.merged_cells.ranges) if r.max_row >= min_row]
     for r in to_remove:
-        ws.merged_cells.remove(r)
+        ws.merged_cells.remove(str(r))
 
 
 def popular_envios(ws, dados):
