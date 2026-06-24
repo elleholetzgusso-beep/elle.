@@ -5,46 +5,30 @@ GERADOR DE FSP  —  Exceltic
 ------------------------------------------------------------
 Uso:
   1. Coloca este script na pasta automacao\
-  2. Ajusta o bloco CONFIG abaixo
+  2. Ajusta PASTA_PROJETO abaixo (ou passa como argumento)
   3. py gerar_fsp.py
-
-Gera FSP_GERADO.xlsx a partir de:
-  - O LPA mais recente (.xlsm) da pasta 3_Doc_Generada
-  - Os ficheiros PES / LPA / IES presentes nessa pasta
+     py gerar_fsp.py "2025-04019-1 ESTEYCO AsBo PC Cruce Estacion Alegia"
 
 Dependencias:  pip install openpyxl
 """
 
 import re
-import os
+import sys
+import unicodedata
 from pathlib import Path
-from copy import copy
 import datetime
 import openpyxl
-from openpyxl.utils import get_column_letter
 
 # ========================== CONFIG ==========================
-# Pasta do PROJETO (a que contem 3_Doc Generada, etc.).
-# Podes mudar aqui OU passar como argumento:
-#   py gerar_fsp.py "2025-04019-1 ESTEYCO AsBo PC Cruce Estacion Alegia"
-PASTA_PROJETO = r"2025-4263-1-PC POSADAS"
-
-# Template FSP (o teu FSP de referencia)
-FSP_TEMPLATE = r"FSP_template.xlsx"
-
-# Remitente padrao (quem envia os documentos ao cliente)
-REMITENTE_PADRAO = "UTE PASOS ANDENES LOTE 3"
-
-# Comentario padrao na aba Envios de Cliente
+PASTA_PROJETO   = r"2025-4263-1-PC POSADAS"
+FSP_TEMPLATE    = r"FSP_template.xlsx"
 COMENTARIO_ENVIO = "Documentos recibidos para evaluacion, apoyo o justificacion"
 
-# Etapas por tipo de documento
 ETAPAS = {
     "PES": "Planificacion / Act. 2. Redaccion del Plan de la Evaluacion.",
     "LPA": "Planificacion / Act. 3. Revision de los Planes del Solicitante.",
     "IES": "Ejecucion / Act. 8. Redaccion del Informe de Evaluacion.",
 }
-
 NOMES_DOCS = {
     "PES": "Plan de Evaluacion de Seguridad",
     "LPA": "Listado de Puntos Abiertos",
@@ -55,10 +39,13 @@ NOMES_DOCS = {
 
 # ---- helpers -----------------------------------------------
 
-def fmt_date(d):
-    if isinstance(d, datetime.datetime):
-        return d.strftime("%d/%m/%Y")
-    return str(d) if d else ""
+def norm(txt):
+    """Minusculas sem acentos para comparacao."""
+    if txt is None:
+        return ""
+    txt = str(txt)
+    txt = unicodedata.normalize("NFKD", txt).encode("ascii", "ignore").decode()
+    return txt.lower()
 
 
 def ordenar_num(v):
@@ -69,33 +56,40 @@ def ordenar_num(v):
 
 
 def parse_nome_ficheiro(nome):
-    """
-    Padrao: EXC{ANO}-{CODIGO_OFERTA}-{COD_DOC}-{NOME_DOC}-{VERSAO}
-    Exemplos:
-      EXC2025-16126-1-002-LPA-05  -> expediente=EXC2025-16126-1, cod_doc=002, tipo=LPA, versao=05
-      EXC2025-04019-002-LPA-03    -> expediente=EXC2025-04019,   cod_doc=002, tipo=LPA, versao=03
-    Ancorado pelo fim: os 3 ultimos campos sao sempre COD_DOC-TIPO-VERSAO.
-    Devolve None se nao corresponde ao padrao.
-    """
-    m = re.match(
-        r"(EXC\d{4}-.+)-(\d{3})-([A-Z]+)-(\d+)$",
-        nome.upper()
-    )
+    m = re.match(r"(EXC\d{4}-.+)-(\d{3})-([A-Z]+)-(\d+)$", nome.upper())
     if not m:
         return None
     return {
         "expediente": m.group(1),
-        "cod_doc": m.group(2),
-        "tipo": m.group(3),
-        "versao": m.group(4),
-        "ref": nome,
+        "cod_doc":    m.group(2),
+        "tipo":       m.group(3),
+        "versao":     m.group(4),
+        "ref":        nome,
     }
+
+
+def extrair_iniciais(papel):
+    """'Roberto Abad (RAM)' -> 'RAM'"""
+    m = re.search(r"\(([A-Z]+)\)", str(papel))
+    return m.group(1) if m else ""
+
+
+def iniciais_avaliadores(avaliadores):
+    """Devolve string 'SM/RAM' com todas as iniciais."""
+    return "/".join(extrair_iniciais(av["papel"]) for av in avaliadores if extrair_iniciais(av["papel"]))
+
+
+def iniciais_por_papel(avaliadores, palavra):
+    """Devolve iniciais do primeiro avaliador cujo papel contenha 'palavra'."""
+    for av in avaliadores:
+        if palavra.lower() in norm(av["papel"]):
+            return extrair_iniciais(av["papel"])
+    return ""
 
 
 # ---- leitura do LPA ----------------------------------------
 
 def encontrar_ultimo_lpa(pasta):
-    """Devolve o Path do LPA .xlsm com maior numero de versao."""
     lpas = []
     for f in Path(pasta).iterdir():
         if not f.is_file():
@@ -117,10 +111,10 @@ def ler_lpa(path):
 
     # --- Portada ---
     ws = wb["Portada"]
-    rows = [r for r in ws.iter_rows(values_only=True) if any(v for v in r)]
-    # nome do projeto: primeira celula com texto longo
+
+    # nome do projeto: primeira celula com texto longo (> 30 chars)
     dados["projeto"] = ""
-    for r in rows:
+    for r in ws.iter_rows(values_only=True):
         for v in r:
             if v and len(str(v)) > 30:
                 dados["projeto"] = str(v).strip()
@@ -128,10 +122,10 @@ def ler_lpa(path):
         if dados["projeto"]:
             break
 
-    # lpa_ref: procura celula com padrao EXC.../NNN/LPA/NN
+    # ref do LPA: celula com padrao EXC.../NNN/TIPO/NN
     dados["lpa_ref"] = ""
-    for cell in ws.iter_rows(max_col=6, values_only=True):
-        for v in cell:
+    for r in ws.iter_rows(max_col=8, values_only=True):
+        for v in r:
             if v and re.search(r"EXC\d{4}-.+/\d+/[A-Z]+/\d+", str(v)):
                 dados["lpa_ref"] = str(v).strip()
                 break
@@ -140,16 +134,15 @@ def ler_lpa(path):
 
     # avaliadores: linhas com nome (col B) e papel entre parenteses (col C)
     avaliadores = []
-    for r in rows:
-        nome = r[1] if len(r) > 1 else None
+    for r in ws.iter_rows(values_only=True):
+        nome  = r[1] if len(r) > 1 else None
         papel = r[2] if len(r) > 2 else None
         if nome and papel and "(" in str(papel):
             avaliadores.append({"nome": str(nome).strip(), "papel": str(papel).strip()})
     dados["avaliadores"] = avaliadores
 
-    # expediente a partir do ref do LPA
-    ref = str(dados["lpa_ref"])
-    m = re.match(r"(EXC\d{4}-[\d-]+\d)", ref)
+    # expediente
+    m = re.match(r"(EXC\d{4}-[\d-]+\d)", str(dados["lpa_ref"]))
     dados["expediente"] = m.group(1) if m else ""
 
     # --- Control de versiones ---
@@ -157,62 +150,47 @@ def ler_lpa(path):
     versoes_lpa = []
     for r in ws_cv.iter_rows(min_row=3, values_only=True):
         if r[0] and str(r[0]).strip().isdigit():
-            versoes_lpa.append({
-                "num": int(r[0]),
-                "fecha": r[1],
-                "desc": r[2],
-            })
+            versoes_lpa.append({"num": int(r[0]), "fecha": r[1], "desc": r[2]})
     dados["versoes_lpa"] = versoes_lpa
 
     # --- Doc Evaluados ---
-    ws_de = wb["Doc Evaluados"]
+    ws_de   = wb["Doc Evaluados"]
     rows_de = list(ws_de.iter_rows(min_row=2, values_only=True))
-    # cabecalho na linha 2: Nombre, Referencia, Version, Fecha, Autor, Envio, FechaEnvio, Firmado, Estado, Comentarios
-    docs = []
-    doc_atual = None
+    docs, doc_atual = [], None
     for r in rows_de[1:]:  # pula cabecalho
-        nome, ref_doc, ver, fecha, autor, envio, fecha_envio, firmado, estado, comentario = (r + (None,) * 10)[:10]
+        nome, ref_doc, ver, fecha, autor, envio, fecha_envio, firmado, estado, comentario = (r + (None,)*10)[:10]
         if nome:
-            doc_atual = {
-                "nome": str(nome).strip(),
-                "versoes": [],
-            }
+            doc_atual = {"nome": str(nome).strip(), "versoes": []}
             docs.append(doc_atual)
         if doc_atual is not None and ref_doc:
             doc_atual["versoes"].append({
-                "ref": str(ref_doc).strip() if ref_doc else "",
-                "ver": ver,
-                "fecha": fecha,
-                "autor": autor,
-                "envio": envio,
+                "ref":        str(ref_doc).strip(),
+                "ver":        ver,
+                "fecha":      fecha,
+                "autor":      autor,
+                "envio":      envio,
                 "fecha_envio": fecha_envio,
-                "firmado": firmado,
-                "estado": estado,
+                "firmado":    firmado,
+                "estado":     estado,
                 "comentario": comentario,
             })
     dados["docs_avaliados"] = docs
 
-    # --- Remitente: primeiro autor nao vazio dos docs aportados ---
-    remitente = ""
+    # remitente: primeiro autor nao vazio
+    dados["remitente"] = ""
     for d in docs:
         for v in d["versoes"]:
             if v.get("autor"):
-                remitente = str(v["autor"]).strip()
+                dados["remitente"] = str(v["autor"]).strip()
                 break
-        if remitente:
+        if dados["remitente"]:
             break
-    dados["remitente"] = remitente
 
-    # --- Datas do projeto ---
-    todas_datas = [
-        v["fecha_envio"]
-        for d in docs
-        for v in d["versoes"]
-        if v.get("fecha_envio")
-    ]
-    todas_datas = [d for d in todas_datas if isinstance(d, datetime.datetime)]
-    dados["fecha_apertura"] = min(todas_datas) if todas_datas else None
-    dados["fecha_cierre"] = max(todas_datas) if todas_datas else None
+    # datas abertura/fecho
+    todas = [v["fecha_envio"] for d in docs for v in d["versoes"] if v.get("fecha_envio")]
+    todas = [x for x in todas if isinstance(x, datetime.datetime)]
+    dados["fecha_apertura"] = min(todas) if todas else None
+    dados["fecha_cierre"]   = max(todas) if todas else None
 
     wb.close()
     return dados
@@ -221,7 +199,6 @@ def ler_lpa(path):
 # ---- escanear pasta de docs gerados ------------------------
 
 def escanear_pasta(pasta):
-    """Devolve lista de dicts para cada ficheiro gerado (PES/LPA/IES)."""
     resultado = []
     for f in sorted(Path(pasta).iterdir()):
         if not f.is_file() or f.suffix.lower() not in (".xlsm", ".xlsx", ".docx", ".pdf"):
@@ -230,11 +207,9 @@ def escanear_pasta(pasta):
         if not parsed or parsed["tipo"] not in ("PES", "LPA", "IES"):
             continue
         mtime = datetime.datetime.fromtimestamp(f.stat().st_mtime)
-        parsed["mtime"] = mtime
+        parsed["mtime"]    = mtime
         parsed["extensao"] = f.suffix.lower()
         resultado.append(parsed)
-
-    # deduplica: para o mesmo tipo+versao, prefere .xlsm/.docx sobre .pdf
     visto = {}
     for p in resultado:
         chave = (p["tipo"], p["versao"])
@@ -243,12 +218,13 @@ def escanear_pasta(pasta):
     return sorted(visto.values(), key=lambda x: (x["tipo"], ordenar_num(x["versao"])))
 
 
-# ---- encontrar celula por texto ----------------------------
+# ---- encontrar celula por texto (normalizado) ---------------
 
 def encontrar_celula(ws, texto, col_max=5):
+    alvo = norm(texto)
     for row in ws.iter_rows(max_col=col_max):
         for cell in row:
-            if cell.value and texto.lower() in str(cell.value).lower():
+            if cell.value and alvo in norm(cell.value):
                 return cell
     return None
 
@@ -257,35 +233,34 @@ def encontrar_celula(ws, texto, col_max=5):
 
 def popular_portada(ws, dados):
     lpa_ref = str(dados.get("lpa_ref", ""))
-    # Referencia FSP com travessoes: EXC2025-04019-1/002/LPA/05 -> EXC2025-04019-1-000-FSP-01
-    ref_fsp = re.sub(r"/(\d+)/([A-Z]+)/(\d+)$", r"-000-FSP-01", lpa_ref)
+    # Referencia FSP com travessoes: EXC2025-04019/002/LPA/03 -> EXC2025-04019-000-FSP-01
+    ref_fsp = re.sub(r"/\d+/[A-Z]+/\d+$", "-000-FSP-01", lpa_ref)
 
     updates = {
         "Codigo de Proyecto": lpa_ref,
-        "Referencia": ref_fsp,
-        "Fecha de Apertura": dados.get("fecha_apertura"),
-        "Fecha de Cierre": dados.get("fecha_cierre"),
-        "Normativa": "UE/402/2013, UE/2015/1136",
+        "Referencia":         ref_fsp,
+        "Fecha de Apertura":  dados.get("fecha_apertura"),
+        "Fecha de Cierre":    dados.get("fecha_cierre"),
+        "Normativa":          "UE/402/2013, UE/2015/1136",
     }
 
-    # Substitui nome do projeto: so a primeira celula com texto > 30 chars
-    for row in ws.iter_rows():
-        replaced = False
-        for cell in row:
-            if cell.value and len(str(cell.value)) > 30:
-                cell.value = dados.get("projeto", cell.value)
-                replaced = True
-                break
-        if replaced:
-            break
+    # Substitui TODAS as celulas com texto longo (nome do projeto)
+    projeto = dados.get("projeto", "")
+    if projeto:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value and len(str(cell.value)) > 30 and not isinstance(
+                    cell, openpyxl.cell.cell.MergedCell
+                ):
+                    cell.value = projeto
 
-    # Substitui valores pelos labels
+    # Preenche campos por label
     for label, valor in updates.items():
         c = encontrar_celula(ws, label)
         if c:
             ws.cell(row=c.row, column=c.column + 1).value = valor
 
-    # Escreve evaluadores nas linhas abaixo do label "Evaluador"
+    # Escreve nomes dos avaliadores abaixo do label "Evaluador"
     c_eval = encontrar_celula(ws, "Evaluador", col_max=10)
     if c_eval:
         for i, av in enumerate(dados.get("avaliadores", [])):
@@ -295,7 +270,6 @@ def popular_portada(ws, dados):
 
 
 def limpar_sheet(ws, min_row=2):
-    """Limpa valores a partir de min_row, ignorando MergedCells."""
     from openpyxl.cell.cell import MergedCell
     for row in ws.iter_rows(min_row=min_row):
         for cell in row:
@@ -304,7 +278,6 @@ def limpar_sheet(ws, min_row=2):
 
 
 def unmerge_sheet(ws, min_row=2):
-    """Remove merges que toquem nas linhas de dados para poder escrever livremente."""
     to_remove = [str(r) for r in list(ws.merged_cells.ranges) if r.max_row >= min_row]
     for r in to_remove:
         ws.unmerge_cells(r)
@@ -314,7 +287,7 @@ def popular_envios(ws, dados):
     unmerge_sheet(ws)
     limpar_sheet(ws)
 
-    # Agrupa versoes por envio
+    # Agrupa por numero de envio; guarda ref + nome do doc
     envios = {}
     for doc in dados["docs_avaliados"]:
         for v in doc["versoes"]:
@@ -322,11 +295,10 @@ def popular_envios(ws, dados):
             if not n:
                 continue
             if n not in envios:
-                envios[n] = {
-                    "fecha": v.get("fecha_envio"),
-                    "docs": [],
-                }
-            envios[n]["docs"].append(v.get("ref", ""))
+                envios[n] = {"fecha": v.get("fecha_envio"), "docs": []}
+            ref  = v.get("ref", "")
+            nome = doc["nome"]
+            envios[n]["docs"].append(f"{ref} {nome}" if ref else nome)
 
     row_num = 2
     for n in sorted(envios.keys(), key=ordenar_num):
@@ -334,7 +306,7 @@ def popular_envios(ws, dados):
         docs_str = "\n".join(d for d in e["docs"] if d)
         ws.cell(row_num, 1).value = n
         ws.cell(row_num, 2).value = e["fecha"]
-        ws.cell(row_num, 3).value = dados.get("remitente") or REMITENTE_PADRAO
+        ws.cell(row_num, 3).value = dados.get("remitente") or ""
         ws.cell(row_num, 4).value = docs_str
         ws.cell(row_num, 5).value = COMENTARIO_ENVIO
         row_num += 1
@@ -346,78 +318,69 @@ def popular_doc_aportados(ws, dados):
     unmerge_sheet(ws)
     limpar_sheet(ws)
 
+    avs     = dados.get("avaliadores", [])
+    eval_str = iniciais_avaliadores(avs)  # ex: "SM/RAM"
+
     row_num = 2
-    de_num = 1
+    de_num  = 1
     for doc in dados["docs_avaliados"]:
-        id_str = f"[DE-{de_num}]"
+        id_str   = f"[DE-{de_num}]"
         primeira = True
         for v in doc["versoes"]:
-            ws.cell(row_num, 1).value = id_str if primeira else None
-            ws.cell(row_num, 2).value = v.get("ref", "")
-            ws.cell(row_num, 3).value = doc["nome"] if primeira else None
-            ws.cell(row_num, 4).value = v.get("envio")
-            ws.cell(row_num, 5).value = v.get("fecha_envio")
-            ws.cell(row_num, 6).value = v.get("ver")
-            ws.cell(row_num, 7).value = v.get("fecha")
-            avs = dados.get("avaliadores", [])
-            ws.cell(row_num, 8).value = avs[0]["nome"] if avs else ""
-            ws.cell(row_num, 9).value = v.get("estado", "")
+            ws.cell(row_num, 1).value  = id_str if primeira else None
+            ws.cell(row_num, 2).value  = v.get("ref", "")
+            ws.cell(row_num, 3).value  = doc["nome"] if primeira else None
+            ws.cell(row_num, 4).value  = v.get("envio")
+            ws.cell(row_num, 5).value  = v.get("fecha_envio")
+            ws.cell(row_num, 6).value  = v.get("ver")
+            ws.cell(row_num, 7).value  = v.get("fecha")
+            ws.cell(row_num, 8).value  = eval_str          # Evaluador (SM/RAM)
+            ws.cell(row_num, 9).value  = v.get("estado", "")
             ws.cell(row_num, 10).value = v.get("comentario", "")
-            row_num += 1
-            primeira = False
+            row_num  += 1
+            primeira  = False
         de_num += 1
 
     print(f"  Control doc. Aportados: {de_num - 1} documentos")
 
 
-def popular_doc_generados(ws, arquivos, versoes_lpa):
+def popular_doc_generados(ws, arquivos, versoes_lpa, avaliadores):
     unmerge_sheet(ws)
     limpar_sheet(ws)
 
-    # Indice de versoes LPA por numero
     lpa_cv = {v["num"]: v for v in versoes_lpa}
+
+    # Redactor = Evaluador Tecnico; Revisor = Responsable de Evaluacion
+    redactor = iniciais_por_papel(avaliadores, "tecnico")
+    revisor  = iniciais_por_papel(avaliadores, "responsable")
 
     row_num = 2
     for arq in arquivos:
-        tipo = arq["tipo"]
+        tipo    = arq["tipo"]
         ver_num = int(arq["versao"])
         ver_str = str(ver_num).zfill(2)
-
-        # Descricao da versao
-        if tipo == "LPA" and ver_num in lpa_cv:
-            ctrl_ver = lpa_cv[ver_num].get("desc", "")
-        else:
-            ctrl_ver = ""
+        ctrl_ver = lpa_cv[ver_num].get("desc", "") if tipo == "LPA" and ver_num in lpa_cv else ""
 
         ws.cell(row_num, 1).value = ETAPAS.get(tipo, "")
         ws.cell(row_num, 2).value = arq["ref"]
         ws.cell(row_num, 3).value = NOMES_DOCS.get(tipo, tipo)
         ws.cell(row_num, 4).value = ver_str
-        ws.cell(row_num, 5).value = ""   # Redactor — preencher manualmente
-        ws.cell(row_num, 6).value = ""   # Revisor — preencher manualmente
+        ws.cell(row_num, 5).value = redactor
+        ws.cell(row_num, 6).value = revisor
         ws.cell(row_num, 7).value = arq.get("mtime")
         ws.cell(row_num, 8).value = arq.get("mtime")
         ws.cell(row_num, 9).value = ctrl_ver
         row_num += 1
 
     print(f"  Control doc. Generados: {row_num - 2} entradas")
-    if row_num > 2:
-        print("  NOTA: preenche Redactor/Revisor manualmente na aba Control doc. Generados")
 
 
 # ---- localizar pasta de docs gerados -----------------------
 
 def encontrar_pasta_docs(pasta_projeto):
-    """
-    Dentro da pasta do projeto, procura a subpasta '3_Doc Generada'
-    (tolera variacoes de espaco/acento) e dentro dela a pasta 'Doc'.
-    Devolve o Path da pasta com os ficheiros gerados.
-    """
     raiz = Path(pasta_projeto)
     if not raiz.exists():
         raise SystemExit(f"ERRO: Pasta do projeto nao encontrada: {raiz}")
-
-    # procura subpasta que contenha "doc generada" no nome
     gerada = None
     for sub in raiz.iterdir():
         if sub.is_dir() and "doc generada" in sub.name.lower().replace("_", " "):
@@ -425,24 +388,18 @@ def encontrar_pasta_docs(pasta_projeto):
             break
     if gerada is None:
         raise SystemExit(f"ERRO: Nao encontrei '3_Doc Generada' dentro de '{raiz}'")
-
-    # dentro dela, procura subpasta 'Doc'
     doc = gerada / "Doc"
-    if doc.is_dir():
-        return doc
-    # se nao houver subpasta Doc, usa a propria pasta Generada
-    return gerada
+    return doc if doc.is_dir() else gerada
 
 
 # ---- main --------------------------------------------------
 
 def main():
-    import sys
     pasta_projeto = sys.argv[1] if len(sys.argv) > 1 else PASTA_PROJETO
 
-    pasta = encontrar_pasta_docs(pasta_projeto)
+    pasta    = encontrar_pasta_docs(pasta_projeto)
     template = Path(FSP_TEMPLATE)
-    output = Path(pasta_projeto) / "FSP_GERADO.xlsx"
+    output   = Path(pasta_projeto) / "FSP_GERADO.xlsx"
 
     if not template.exists():
         raise SystemExit(f"ERRO: Template FSP nao encontrado: {template}")
@@ -453,51 +410,45 @@ def main():
     print(f"Projeto: {pasta_projeto}")
     print(f"Pasta docs: {pasta}")
 
-    # 1. Ler LPA
     lpa_path = encontrar_ultimo_lpa(pasta)
-    dados = ler_lpa(lpa_path)
+    dados    = ler_lpa(lpa_path)
     print(f"Projeto: {str(dados.get('projeto', ''))[:70]}")
     print(f"Expediente: {dados.get('expediente', '')}")
+    print(f"Avaliadores: {iniciais_avaliadores(dados.get('avaliadores', []))}")
+    print(f"Remitente: {dados.get('remitente', '')}")
     print(f"Docs avaliados: {len(dados['docs_avaliados'])}")
 
-    # 2. Escanear pasta
     arquivos = escanear_pasta(pasta)
-    print(f"Ficheiros gerados encontrados: {len(arquivos)}")
+    print(f"Ficheiros gerados: {len(arquivos)}")
 
-    # 3. Carregar template
     wb = openpyxl.load_workbook(template)
     print("\nPopulando sheets:")
 
-    # 4. Portada
     if "Portada" in wb.sheetnames:
         popular_portada(wb["Portada"], dados)
 
-    # 5. Envios de Cliente
     aba_envios = next((s for s in wb.sheetnames if "envio" in s.lower()), None)
     if aba_envios:
         popular_envios(wb[aba_envios], dados)
 
-    # 6. Control doc. Aportados
     aba_aportados = next((s for s in wb.sheetnames if "aportado" in s.lower()), None)
     if aba_aportados:
         popular_doc_aportados(wb[aba_aportados], dados)
 
-    # 7. Control doc. Generados
     aba_generados = next((s for s in wb.sheetnames if "generado" in s.lower()), None)
     if aba_generados:
-        popular_doc_generados(wb[aba_generados], arquivos, dados.get("versoes_lpa", []))
+        popular_doc_generados(wb[aba_generados], arquivos,
+                              dados.get("versoes_lpa", []),
+                              dados.get("avaliadores", []))
 
-    # 8. M.C.S. — mantida do template, nao alterada
     print("  M.C.S.: mantida do template (preencher manualmente no final)")
 
-    # 9. Guardar
     wb.save(output)
     print(f"\nGuardado em: {output.resolve()}")
     print("=" * 55)
     print("Proximos passos:")
     print("  1. Abre FSP_GERADO.xlsx e revisa cada aba")
-    print("  2. Preenche Redactor/Revisor em Control doc. Generados")
-    print("  3. Preenche M.C.S. no final do projeto")
+    print("  2. Preenche M.C.S. no final do projeto")
     print("=" * 55)
 
 
