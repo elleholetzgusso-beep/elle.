@@ -29,6 +29,17 @@ PASTA_PROJETO   = r"2025-4263-1-PC POSADAS"
 FSP_TEMPLATE    = r"FSP_template.xlsx"
 COMENTARIO_ENVIO = "Documentos recibidos para evaluacion, apoyo o justificacion"
 
+# Mapeia valores de estado do LPA para os valores padrao do FSP
+ESTADO_MAP = {
+    "cerrado":     "Conforme",
+    "conforme":    "Conforme",
+    "abierto":     "Abierto",
+    "informativo": "Informativo",
+    "resuelto":    "Resuelto",
+    "resuelto/cerrado": "Conforme",
+    "cerrado/conforme": "Conforme",
+}
+
 ETAPAS = {
     "PES": "Planificacion / Act. 2. Redaccion del Plan de la Evaluacion.",
     "LPA": "Planificacion / Act. 3. Revision de los Planes del Solicitante.",
@@ -456,7 +467,8 @@ def popular_doc_aportados(ws, dados):
             ws.cell(row_num, 6).value  = v.get("ver")
             escrever_data(ws.cell(row_num, 7), v.get("fecha"))
             ws.cell(row_num, 8).value  = eval_str          # Evaluador (SM/RAM)
-            ws.cell(row_num, 9).value  = v.get("estado", "")
+            estado_raw = str(v.get("estado") or "").strip()
+            ws.cell(row_num, 9).value  = ESTADO_MAP.get(norm(estado_raw), estado_raw)
             ws.cell(row_num, 10).value = v.get("comentario", "")
             row_num  += 1
             primeira  = False
