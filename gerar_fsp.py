@@ -150,13 +150,40 @@ def ler_lpa(path):
         if dados["lpa_ref"]:
             break
 
-    # avaliadores: linhas com nome (col B) e papel entre parenteses (col C)
+    # avaliadores: localiza "Equipo Evaluador" e le as linhas abaixo
     avaliadores = []
-    for r in ws.iter_rows(values_only=True):
-        nome  = r[1] if len(r) > 1 else None
-        papel = r[2] if len(r) > 2 else None
-        if nome and papel and "(" in str(papel):
-            avaliadores.append({"nome": str(nome).strip(), "papel": str(papel).strip()})
+    eval_start_row = None
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value and "equipo evaluador" in norm(str(cell.value)):
+                eval_start_row = cell.row
+                break
+        if eval_start_row:
+            break
+
+    if eval_start_row:
+        for r in ws.iter_rows(min_row=eval_start_row, values_only=True):
+            nome  = r[1] if len(r) > 1 else None
+            papel = r[2] if len(r) > 2 else None
+            if not nome or not papel:
+                if avaliadores:  # linha vazia apos encontrar alguns — para
+                    break
+                continue
+            nome_s  = str(nome).strip()
+            papel_s = str(papel).strip()
+            # ignora linhas de cabecalho ("Nombre", "Papel", "Cargo", etc.)
+            if any(norm(nome_s) == x for x in ("nombre", "nome", "evaluador", "equipo evaluador")):
+                continue
+            if len(nome_s) > 3 and len(papel_s) > 3:
+                avaliadores.append({"nome": nome_s, "papel": papel_s})
+    else:
+        # fallback: qualquer linha com nome e papel que contenha palavra-chave de papel
+        keywords = ("evaluador", "responsable", "coordinador", "tecnico", "supervisor", "revisor")
+        for r in ws.iter_rows(values_only=True):
+            nome  = r[1] if len(r) > 1 else None
+            papel = r[2] if len(r) > 2 else None
+            if nome and papel and any(k in norm(str(papel)) for k in keywords):
+                avaliadores.append({"nome": str(nome).strip(), "papel": str(papel).strip()})
     dados["avaliadores"] = avaliadores
 
     # expediente
