@@ -231,11 +231,43 @@ def encontrar_celula(ws, texto, col_max=5):
 
 # ---- popular sheets ----------------------------------------
 
+def _celula_valor_label(ws, label):
+    """
+    Encontra a primeira celula nao-MergedCell que contem `label` (normalizado).
+    Devolve a celula ADJACENTE (mesma linha, coluna+1) onde o valor deve ir,
+    saltando MergedCells ate encontrar uma celula editavel.
+    """
+    from openpyxl.cell.cell import MergedCell
+    c = encontrar_celula(ws, label)
+    if not c:
+        return None
+    # percorre para a direita ate encontrar celula editavel
+    col = c.column + 1
+    while col <= ws.max_column + 5:
+        candidate = ws.cell(row=c.row, column=col)
+        if not isinstance(candidate, MergedCell):
+            return candidate
+        col += 1
+    return None
+
+
 def popular_portada(ws, dados):
+    from openpyxl.cell.cell import MergedCell
+
     lpa_ref = str(dados.get("lpa_ref", ""))
-    # Referencia FSP com travessoes: EXC2025-04019/002/LPA/03 -> EXC2025-04019-000-FSP-01
+    # Referencia FSP: EXC2025-04019/002/LPA/03 -> EXC2025-04019-000-FSP-01
     ref_fsp = re.sub(r"/\d+/[A-Z]+/\d+$", "-000-FSP-01", lpa_ref)
 
+    # --- Nome do projeto: so celulas cujo texto começa com "PROYECTO DE" ---
+    projeto = dados.get("projeto", "")
+    if projeto:
+        for row in ws.iter_rows():
+            for cell in row:
+                if (cell.value and not isinstance(cell, MergedCell)
+                        and norm(str(cell.value)).startswith("proyecto de")):
+                    cell.value = projeto
+
+    # --- Campos label → valor ---
     updates = {
         "Codigo de Proyecto": lpa_ref,
         "Referencia":         ref_fsp,
@@ -243,28 +275,24 @@ def popular_portada(ws, dados):
         "Fecha de Cierre":    dados.get("fecha_cierre"),
         "Normativa":          "UE/402/2013, UE/2015/1136",
     }
-
-    # Substitui apenas celulas que contenham "PROYECTO" (nome do projeto)
-    projeto = dados.get("projeto", "")
-    if projeto:
-        from openpyxl.cell.cell import MergedCell
-        for row in ws.iter_rows():
-            for cell in row:
-                if (cell.value and not isinstance(cell, MergedCell)
-                        and "proyecto" in str(cell.value).lower()):
-                    cell.value = projeto
-
-    # Preenche campos por label
     for label, valor in updates.items():
-        c = encontrar_celula(ws, label)
-        if c:
-            ws.cell(row=c.row, column=c.column + 1).value = valor
+        dest = _celula_valor_label(ws, label)
+        if dest:
+            dest.value = valor
+            if isinstance(valor, datetime.datetime):
+                dest.number_format = "DD/MM/YYYY"
 
-    # Escreve nomes dos avaliadores abaixo do label "Evaluador"
-    c_eval = encontrar_celula(ws, "Evaluador", col_max=10)
+    # --- Avaliadores: abaixo do label "Equipo Evaluador" ou "Evaluador" ---
+    c_eval = encontrar_celula(ws, "Equipo Evaluador", col_max=3) \
+             or encontrar_celula(ws, "Evaluador", col_max=3)
     if c_eval:
         for i, av in enumerate(dados.get("avaliadores", [])):
-            ws.cell(row=c_eval.row + 1 + i, column=c_eval.column).value = av["nome"]
+            dest = _celula_valor_label(ws, "")  # nao usamos aqui — escrita direta
+            # escreve na mesma coluna do primeiro valor de avaliador
+            col_val = c_eval.column + 1
+            while isinstance(ws.cell(c_eval.row + 1, col_val), MergedCell):
+                col_val += 1
+            ws.cell(row=c_eval.row + 1 + i, column=col_val).value = av["nome"]
 
     print("  Portada: OK")
 
