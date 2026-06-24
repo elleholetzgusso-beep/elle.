@@ -237,15 +237,21 @@ def encontrar_celula(ws, texto, col_max=5):
 
 # ---- popular sheets ----------------------------------------
 
-def popular_portada(ws, dados, ref_fsp):
+def popular_portada(ws, dados):
+    lpa_ref = str(dados.get("lpa_ref", ""))
+    # Referencia FSP: troca tipo/versao do LPA por FSP/01
+    # Ex: EXC2025-16126-1/002/LPA/05 -> EXC2025-16126-1/000/FSP/01
+    ref_fsp = re.sub(r"/\d+/[A-Z]+/\d+$", "/000/FSP/01", lpa_ref)
+
     updates = {
-        "Codigo de Proyecto": ref_fsp,
+        "Codigo de Proyecto": lpa_ref,
+        "Referencia": ref_fsp,
         "Fecha de Apertura": dados.get("fecha_apertura"),
         "Fecha de Cierre": dados.get("fecha_cierre"),
         "Normativa": "UE/402/2013, UE/2015/1136",
     }
 
-    # Substitui nome do projeto (primeira linha nao vazia com texto longo)
+    # Substitui nome do projeto (celula com texto longo)
     for row in ws.iter_rows():
         for cell in row:
             if cell.value and len(str(cell.value)) > 30:
@@ -442,7 +448,7 @@ def main():
 
     # 4. Portada
     if "Portada" in wb.sheetnames:
-        popular_portada(wb["Portada"], dados, dados.get("lpa_ref", ""))
+        popular_portada(wb["Portada"], dados)
 
     # 5. Envios de Cliente
     aba_envios = next((s for s in wb.sheetnames if "envio" in s.lower()), None)
