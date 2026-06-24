@@ -14,10 +14,15 @@ Dependencias:  pip install openpyxl
 
 import re
 import sys
+import shutil
+import zipfile
 import unicodedata
 from pathlib import Path
 import datetime
 import openpyxl
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles import PatternFill
+from openpyxl.worksheet.datavalidation import DataValidation
 
 # ========================== CONFIG ==========================
 PASTA_PROJETO   = r"2025-4263-1-PC POSADAS"
@@ -317,17 +322,21 @@ def popular_portada(ws, dados):
             if isinstance(valor, datetime.datetime):
                 dest.number_format = "DD/MM/YYYY"
 
-    # --- Avaliadores: abaixo do label "Equipo Evaluador" ou "Evaluador" ---
+    # --- Avaliadores: a partir da linha do label "Equipo Evaluador" ---
     c_eval = encontrar_celula(ws, "Equipo Evaluador", col_max=3) \
              or encontrar_celula(ws, "Evaluador", col_max=3)
     if c_eval:
-        for i, av in enumerate(dados.get("avaliadores", [])):
-            dest = _celula_valor_label(ws, "")  # nao usamos aqui — escrita direta
-            # escreve na mesma coluna do primeiro valor de avaliador
-            col_val = c_eval.column + 1
-            while isinstance(ws.cell(c_eval.row + 1, col_val), MergedCell):
-                col_val += 1
-            ws.cell(row=c_eval.row + 1 + i, column=col_val).value = av["nome"]
+        avaliadores = dados.get("avaliadores", [])
+        for i, av in enumerate(avaliadores):
+            row_av = c_eval.row + i  # primeiro avaliador na mesma linha do label
+            # Nome: coluna C (col_label + 1), pulando MergedCells
+            col_nome = c_eval.column + 1
+            while isinstance(ws.cell(row_av, col_nome), MergedCell):
+                col_nome += 1
+            ws.cell(row=row_av, column=col_nome).value = av["nome"]
+            # Papel/Role: coluna F (col_nome + 3)
+            col_papel = col_nome + 3
+            ws.cell(row=row_av, column=col_papel).value = av["papel"]
 
     print("  Portada: OK")
 
@@ -390,7 +399,7 @@ def popular_doc_aportados(ws, dados):
     unmerge_sheet(ws)
     limpar_sheet(ws)
 
-    avs     = dados.get("avaliadores", [])
+    avs      = dados.get("avaliadores", [])
     eval_str = iniciais_avaliadores(avs)  # ex: "SM/RAM"
 
     row_num = 2
@@ -412,6 +421,28 @@ def popular_doc_aportados(ws, dados):
             row_num  += 1
             primeira  = False
         de_num += 1
+
+    # Formatacao condicional col I (Evaluado)
+    last_row = max(row_num - 1, 2)
+    cf_range = f"I2:I{last_row}"
+    fill_grey   = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+    fill_red    = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    fill_yellow = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    fill_green  = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+    ws.conditional_formatting.add(cf_range, CellIsRule(operator="equal", formula=['"Informativo"'], fill=fill_grey))
+    ws.conditional_formatting.add(cf_range, CellIsRule(operator="equal", formula=['"Abierto"'],    fill=fill_red))
+    ws.conditional_formatting.add(cf_range, CellIsRule(operator="equal", formula=['"Resuelto"'],   fill=fill_yellow))
+    ws.conditional_formatting.add(cf_range, CellIsRule(operator="equal", formula=['"Conforme"'],   fill=fill_green))
+
+    # Dropdown de validacao de dados col I
+    dv = DataValidation(
+        type="list",
+        formula1='"Informativo,Abierto,Resuelto,Conforme"',
+        allow_blank=True,
+        showDropDown=False,
+    )
+    dv.sqref = cf_range
+    ws.add_data_validation(dv)
 
     print(f"  Control doc. Aportados: {de_num - 1} documentos")
 
@@ -462,6 +493,53 @@ def encontrar_pasta_docs(pasta_projeto):
         raise SystemExit(f"ERRO: Nao encontrei '3_Doc Generada' dentro de '{raiz}'")
     doc = gerada / "Doc"
     return doc if doc.is_dir() else gerada
+
+
+# ---- preservar logo do template ----------------------------
+
+def copiar_imagem_template(template_path, output_path):
+    """
+    openpyxl nao preserva imagens/drawings. Apos salvar, esta funcao copia
+    os ficheiros de logo do template para o output via zipfile.
+    """
+    files_to_copy = [
+        "xl/drawings/drawing1.xml",
+        "xl/drawings/_rels/drawing1.xml.rels",
+        "xl/media/image1.png",
+    ]
+    drawing_rel = (
+        '<Relationship Id="rId_drawing1"'
+        ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"'
+        ' Target="../drawings/drawing1.xml"/>'
+    )
+
+    with zipfile.ZipFile(str(template_path), "r") as tmpl:
+        namelist = tmpl.namelist()
+        drawing_data = {f: tmpl.read(f) for f in files_to_copy if f in namelist}
+
+    if not drawing_data:
+        print("  Aviso: logo nao encontrado no template")
+        return
+
+    tmp = str(output_path) + ".tmp"
+    with zipfile.ZipFile(str(output_path), "r") as src, \
+         zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "xl/worksheets/_rels/sheet1.xml.rels":
+                # injeta relacao de drawing se ainda nao existe
+                if b"drawing1.xml" not in data:
+                    data = data.replace(
+                        b"</Relationships>",
+                        drawing_rel.encode() + b"</Relationships>"
+                    )
+            dst.writestr(item, data)
+        # adiciona ficheiros de drawing/media do template
+        for fname, fdata in drawing_data.items():
+            dst.writestr(fname, fdata)
+
+    shutil.move(tmp, str(output_path))
+    print("  Logo: copiado do template")
 
 
 # ---- main --------------------------------------------------
@@ -516,6 +594,8 @@ def main():
     print("  M.C.S.: mantida do template (preencher manualmente no final)")
 
     wb.save(output)
+    copiar_imagem_template(template, output)
+
     print(f"\nGuardado em: {output.resolve()}")
     print("=" * 55)
     print("Proximos passos:")
