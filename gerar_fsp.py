@@ -222,10 +222,23 @@ def ler_lpa(path):
         wb.close()
         return dados
     ws_de   = wb[ws_de_name]
-    rows_de = list(ws_de.iter_rows(min_row=2, values_only=True))
 
-    # Le cabecalho (linha 1 do iter, ou seja rows_de[0]) para mapear colunas por nome
-    cabecalho = rows_de[0] if rows_de else ()
+    # Deteta linha do cabecalho: procura a primeira linha que contenha palavras-chave de cabecalho
+    HEADER_KEYS = ("nombre", "nome", "referencia", "ref", "version", "vers",
+                   "envio", "fecha", "estado", "evaluado", "autor", "remitente")
+    header_row = None
+    all_rows = list(ws_de.iter_rows(min_row=1, values_only=True))
+    for i, r in enumerate(all_rows[:5]):  # procura so nas primeiras 5 linhas
+        cells = [norm(str(c)) for c in r if c]
+        matches = sum(1 for c in cells for k in HEADER_KEYS if k in c)
+        if matches >= 2:
+            header_row = i
+            break
+    if header_row is None:
+        header_row = 0  # fallback: assume linha 1
+
+    cabecalho = all_rows[header_row] if all_rows else ()
+    rows_de   = all_rows[header_row:]  # inclui cabecalho como rows_de[0]
     def idx(nomes):
         """Devolve o indice da primeira coluna cujo cabecalho contem algum dos nomes (sem acentos)."""
         for i, h in enumerate(cabecalho):
