@@ -174,6 +174,17 @@ def ler_lpa(path):
             })
     dados["docs_avaliados"] = docs
 
+    # --- Remitente: primeiro autor nao vazio dos docs aportados ---
+    remitente = ""
+    for d in docs:
+        for v in d["versoes"]:
+            if v.get("autor"):
+                remitente = str(v["autor"]).strip()
+                break
+        if remitente:
+            break
+    dados["remitente"] = remitente
+
     # --- Datas do projeto ---
     todas_datas = [
         v["fecha_envio"]
@@ -229,7 +240,6 @@ def encontrar_celula(ws, texto, col_max=5):
 def popular_portada(ws, dados, ref_fsp):
     updates = {
         "Codigo de Proyecto": ref_fsp,
-        "Referencia": ref_fsp.replace("/001/PES/02", "").replace("/", "-") + "-000-FSP-01",
         "Fecha de Apertura": dados.get("fecha_apertura"),
         "Fecha de Cierre": dados.get("fecha_cierre"),
         "Normativa": "UE/402/2013, UE/2015/1136",
@@ -238,7 +248,7 @@ def popular_portada(ws, dados, ref_fsp):
     # Substitui nome do projeto (primeira linha nao vazia com texto longo)
     for row in ws.iter_rows():
         for cell in row:
-            if cell.value and len(str(cell.value)) > 30 and "cruce" in str(cell.value).lower():
+            if cell.value and len(str(cell.value)) > 30:
                 cell.value = dados.get("projeto", cell.value)
                 break
 
@@ -247,6 +257,12 @@ def popular_portada(ws, dados, ref_fsp):
         c = encontrar_celula(ws, label)
         if c:
             ws.cell(row=c.row, column=c.column + 1).value = valor
+
+    # Escreve evaluadores: procura celula "Evaluador" e preenche linhas abaixo
+    c_eval = encontrar_celula(ws, "Evaluador", col_max=10)
+    if c_eval:
+        for i, av in enumerate(dados.get("avaliadores", [])):
+            ws.cell(row=c_eval.row + 1 + i, column=c_eval.column).value = av["nome"]
 
     print("  Portada: OK")
 
@@ -291,7 +307,7 @@ def popular_envios(ws, dados):
         docs_str = "\n".join(d for d in e["docs"] if d)
         ws.cell(row_num, 1).value = n
         ws.cell(row_num, 2).value = e["fecha"]
-        ws.cell(row_num, 3).value = REMITENTE_PADRAO
+        ws.cell(row_num, 3).value = dados.get("remitente") or REMITENTE_PADRAO
         ws.cell(row_num, 4).value = docs_str
         ws.cell(row_num, 5).value = COMENTARIO_ENVIO
         row_num += 1
