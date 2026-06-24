@@ -118,18 +118,36 @@ def ler_lpa(path):
     # --- Portada ---
     ws = wb["Portada"]
     rows = [r for r in ws.iter_rows(values_only=True) if any(v for v in r)]
-    dados["projeto"] = rows[0][1] if rows else ""
-    dados["lpa_ref"] = rows[2][1] if len(rows) > 2 else ""
-    # avaliadores: linhas com nomes (col 1) e papeis (col 2)
+    # nome do projeto: primeira celula com texto longo
+    dados["projeto"] = ""
+    for r in rows:
+        for v in r:
+            if v and len(str(v)) > 30:
+                dados["projeto"] = str(v).strip()
+                break
+        if dados["projeto"]:
+            break
+
+    # lpa_ref: procura celula com padrao EXC.../NNN/LPA/NN
+    dados["lpa_ref"] = ""
+    for cell in ws.iter_rows(max_col=6, values_only=True):
+        for v in cell:
+            if v and re.search(r"EXC\d{4}-.+/\d+/[A-Z]+/\d+", str(v)):
+                dados["lpa_ref"] = str(v).strip()
+                break
+        if dados["lpa_ref"]:
+            break
+
+    # avaliadores: linhas com nome (col B) e papel entre parenteses (col C)
     avaliadores = []
     for r in rows:
         nome = r[1] if len(r) > 1 else None
         papel = r[2] if len(r) > 2 else None
         if nome and papel and "(" in str(papel):
-            avaliadores.append({"nome": str(nome), "papel": str(papel)})
+            avaliadores.append({"nome": str(nome).strip(), "papel": str(papel).strip()})
     dados["avaliadores"] = avaliadores
 
-    # extrai expediente do ref do LPA  EXC2025-16126-1/002/LPA/05
+    # expediente a partir do ref do LPA
     ref = str(dados["lpa_ref"])
     m = re.match(r"(EXC\d{4}-[\d-]+\d)", ref)
     dados["expediente"] = m.group(1) if m else ""
@@ -239,9 +257,8 @@ def encontrar_celula(ws, texto, col_max=5):
 
 def popular_portada(ws, dados):
     lpa_ref = str(dados.get("lpa_ref", ""))
-    # Referencia FSP: troca tipo/versao do LPA por FSP/01
-    # Ex: EXC2025-16126-1/002/LPA/05 -> EXC2025-16126-1/000/FSP/01
-    ref_fsp = re.sub(r"/\d+/[A-Z]+/\d+$", "/000/FSP/01", lpa_ref)
+    # Referencia FSP com travessoes: EXC2025-04019-1/002/LPA/05 -> EXC2025-04019-1-000-FSP-01
+    ref_fsp = re.sub(r"/(\d+)/([A-Z]+)/(\d+)$", r"-000-FSP-01", lpa_ref)
 
     updates = {
         "Codigo de Proyecto": lpa_ref,
@@ -251,12 +268,16 @@ def popular_portada(ws, dados):
         "Normativa": "UE/402/2013, UE/2015/1136",
     }
 
-    # Substitui nome do projeto (celula com texto longo)
+    # Substitui nome do projeto: so a primeira celula com texto > 30 chars
     for row in ws.iter_rows():
+        replaced = False
         for cell in row:
             if cell.value and len(str(cell.value)) > 30:
                 cell.value = dados.get("projeto", cell.value)
+                replaced = True
                 break
+        if replaced:
+            break
 
     # Substitui valores pelos labels
     for label, valor in updates.items():
@@ -264,7 +285,7 @@ def popular_portada(ws, dados):
         if c:
             ws.cell(row=c.row, column=c.column + 1).value = valor
 
-    # Escreve evaluadores: procura celula "Evaluador" e preenche linhas abaixo
+    # Escreve evaluadores nas linhas abaixo do label "Evaluador"
     c_eval = encontrar_celula(ws, "Evaluador", col_max=10)
     if c_eval:
         for i, av in enumerate(dados.get("avaliadores", [])):
@@ -338,7 +359,8 @@ def popular_doc_aportados(ws, dados):
             ws.cell(row_num, 5).value = v.get("fecha_envio")
             ws.cell(row_num, 6).value = v.get("ver")
             ws.cell(row_num, 7).value = v.get("fecha")
-            ws.cell(row_num, 8).value = v.get("autor", "")
+            avs = dados.get("avaliadores", [])
+            ws.cell(row_num, 8).value = avs[0]["nome"] if avs else ""
             ws.cell(row_num, 9).value = v.get("estado", "")
             ws.cell(row_num, 10).value = v.get("comentario", "")
             row_num += 1
