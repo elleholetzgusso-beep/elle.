@@ -244,14 +244,14 @@ def popular_portada(ws, dados):
         "Normativa":          "UE/402/2013, UE/2015/1136",
     }
 
-    # Substitui TODAS as celulas com texto longo (nome do projeto)
+    # Substitui apenas celulas que contenham "PROYECTO" (nome do projeto)
     projeto = dados.get("projeto", "")
     if projeto:
+        from openpyxl.cell.cell import MergedCell
         for row in ws.iter_rows():
             for cell in row:
-                if cell.value and len(str(cell.value)) > 30 and not isinstance(
-                    cell, openpyxl.cell.cell.MergedCell
-                ):
+                if (cell.value and not isinstance(cell, MergedCell)
+                        and "proyecto" in str(cell.value).lower()):
                     cell.value = projeto
 
     # Preenche campos por label
@@ -275,10 +275,19 @@ def limpar_sheet(ws, min_row=2):
         for cell in row:
             if not isinstance(cell, MergedCell):
                 cell.value = None
+                # nao toca no numero_format para preservar formatacao do template
+
+
+def escrever_data(cell, valor):
+    """Escreve um valor de data preservando o formato DD/MM/YYYY."""
+    cell.value = valor
+    if isinstance(valor, datetime.datetime):
+        cell.number_format = "DD/MM/YYYY"
 
 
 def unmerge_sheet(ws, min_row=2):
-    to_remove = [str(r) for r in list(ws.merged_cells.ranges) if r.max_row >= min_row]
+    """Remove apenas merges que comecem nas linhas de dados (nao toca no cabecalho)."""
+    to_remove = [str(r) for r in list(ws.merged_cells.ranges) if r.min_row >= min_row]
     for r in to_remove:
         ws.unmerge_cells(r)
 
@@ -305,7 +314,7 @@ def popular_envios(ws, dados):
         e = envios[n]
         docs_str = "\n".join(d for d in e["docs"] if d)
         ws.cell(row_num, 1).value = n
-        ws.cell(row_num, 2).value = e["fecha"]
+        escrever_data(ws.cell(row_num, 2), e["fecha"])
         ws.cell(row_num, 3).value = dados.get("remitente") or ""
         ws.cell(row_num, 4).value = docs_str
         ws.cell(row_num, 5).value = COMENTARIO_ENVIO
@@ -331,9 +340,9 @@ def popular_doc_aportados(ws, dados):
             ws.cell(row_num, 2).value  = v.get("ref", "")
             ws.cell(row_num, 3).value  = doc["nome"] if primeira else None
             ws.cell(row_num, 4).value  = v.get("envio")
-            ws.cell(row_num, 5).value  = v.get("fecha_envio")
+            escrever_data(ws.cell(row_num, 5), v.get("fecha_envio"))
             ws.cell(row_num, 6).value  = v.get("ver")
-            ws.cell(row_num, 7).value  = v.get("fecha")
+            escrever_data(ws.cell(row_num, 7), v.get("fecha"))
             ws.cell(row_num, 8).value  = eval_str          # Evaluador (SM/RAM)
             ws.cell(row_num, 9).value  = v.get("estado", "")
             ws.cell(row_num, 10).value = v.get("comentario", "")
