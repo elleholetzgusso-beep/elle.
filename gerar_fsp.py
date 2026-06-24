@@ -156,23 +156,58 @@ def ler_lpa(path):
     # --- Doc Evaluados ---
     ws_de   = wb["Doc Evaluados"]
     rows_de = list(ws_de.iter_rows(min_row=2, values_only=True))
+
+    # Le cabecalho (linha 1 do iter, ou seja rows_de[0]) para mapear colunas por nome
+    cabecalho = rows_de[0] if rows_de else ()
+    def idx(nomes):
+        """Devolve o indice da primeira coluna cujo cabecalho contem algum dos nomes (sem acentos)."""
+        for i, h in enumerate(cabecalho):
+            hn = norm(str(h)) if h else ""
+            for n in nomes:
+                if n in hn:
+                    return i
+        return None
+
+    i_nome     = idx(["nombre", "nome"])
+    i_ref      = idx(["referencia", "ref"])
+    i_ver      = idx(["version", "versao", "vers"])
+    i_fecha    = idx(["fecha", "data"]) if idx(["fecha envio", "data envio"]) is None else None
+    i_autor    = idx(["autor", "remitente"])
+    i_envio    = idx(["envio", "n envio", "num"])
+    i_fenvio   = idx(["fecha envio", "data envio", "recibido", "recebido"])
+    i_firmado  = idx(["firmado", "assinado"])
+    i_estado   = idx(["estado", "evaluado", "resultado"])
+    i_coment   = idx(["comentario", "observa"])
+    # fecha (data do documento) e diferente de fecha_envio
+    if i_fecha is None:
+        used = {i_ref, i_ver, i_autor, i_envio, i_fenvio, i_firmado, i_estado, i_coment, i_nome}
+        for i, h in enumerate(cabecalho):
+            hn = norm(str(h)) if h else ""
+            if i not in used and ("fecha" in hn or "data" in hn):
+                i_fecha = i
+                break
+
+    def get(r, i):
+        return r[i] if i is not None and i < len(r) else None
+
     docs, doc_atual = [], None
     for r in rows_de[1:]:  # pula cabecalho
-        nome, ref_doc, ver, fecha, autor, envio, fecha_envio, firmado, estado, comentario = (r + (None,)*10)[:10]
+        nome    = get(r, i_nome)
+        ref_doc = get(r, i_ref)
         if nome:
             doc_atual = {"nome": str(nome).strip(), "versoes": []}
             docs.append(doc_atual)
         if doc_atual is not None and ref_doc:
             doc_atual["versoes"].append({
                 "ref":        str(ref_doc).strip(),
-                "ver":        ver,
-                "fecha":      fecha,
-                "autor":      autor,
-                "envio":      envio,
-                "fecha_envio": fecha_envio,
-                "firmado":    firmado,
-                "estado":     estado,
-                "comentario": comentario,
+                "ver":        get(r, i_ver),
+                "fecha":      get(r, i_fecha),
+                "autor":      get(r, i_autor),
+                "envio":      get(r, i_envio),
+                "fecha_envio": get(r, i_fenvio),
+                "firmado":    get(r, i_firmado),
+                "estado":     get(r, i_estado),
+                "comentario": get(r, i_coment),
             })
     dados["docs_avaliados"] = docs
 
