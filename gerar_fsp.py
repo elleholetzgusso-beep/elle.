@@ -210,7 +210,18 @@ def ler_lpa(path):
     dados["versoes_lpa"] = versoes_lpa
 
     # --- Doc Evaluados ---
-    ws_de   = wb["Doc Evaluados"]
+    # procura sheet cujo nome contenha "evaluado" ou "aportado"
+    ws_de_name = None
+    for s in wb.sheetnames:
+        if any(k in norm(s) for k in ("evaluado", "aportado", "doc eval")):
+            ws_de_name = s
+            break
+    if ws_de_name is None:
+        print(f"  AVISO: sheet 'Doc Evaluados' nao encontrada. Sheets: {wb.sheetnames}")
+        dados["docs_avaliados"] = []
+        wb.close()
+        return dados
+    ws_de   = wb[ws_de_name]
     rows_de = list(ws_de.iter_rows(min_row=2, values_only=True))
 
     # Le cabecalho (linha 1 do iter, ou seja rows_de[0]) para mapear colunas por nome
@@ -234,6 +245,8 @@ def ler_lpa(path):
     i_firmado  = idx(["firmado", "assinado"])
     i_estado   = idx(["estado", "evaluado", "resultado"])
     i_coment   = idx(["comentario", "observa"])
+    print(f"  Doc Evaluados '{ws_de_name}': cabecalho={[str(h)[:20] for h in cabecalho if h]}")
+    print(f"  Colunas: nome={i_nome} ref={i_ref} ver={i_ver} envio={i_envio} fenvio={i_fenvio} estado={i_estado}")
     # fecha (data do documento) e diferente de fecha_envio
     if i_fecha is None:
         used = {i_ref, i_ver, i_autor, i_envio, i_fenvio, i_firmado, i_estado, i_coment, i_nome}
