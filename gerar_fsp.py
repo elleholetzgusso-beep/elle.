@@ -74,14 +74,27 @@ def parse_nome_ficheiro(nome):
 
 
 def extrair_iniciais(papel):
-    """'Roberto Abad (RAM)' -> 'RAM'"""
+    """'Roberto Abad (RAM)' -> 'RAM'. Sem parenteses: 'Roberto Abad' -> 'RA'."""
     m = re.search(r"\(([A-Z]+)\)", str(papel))
-    return m.group(1) if m else ""
+    if m:
+        return m.group(1)
+    return ""
+
+
+def iniciais_do_nome(nome):
+    """'Soukaina Meliani' -> 'SM'"""
+    partes = str(nome).strip().split()
+    return "".join(p[0].upper() for p in partes if p)
 
 
 def iniciais_avaliadores(avaliadores):
-    """Devolve string 'SM/RAM' com todas as iniciais."""
-    return "/".join(extrair_iniciais(av["papel"]) for av in avaliadores if extrair_iniciais(av["papel"]))
+    """Devolve string 'SM/RAM' com todas as iniciais (de papel ou de nome)."""
+    result = []
+    for av in avaliadores:
+        ini = extrair_iniciais(av["papel"]) or iniciais_do_nome(av["nome"])
+        if ini:
+            result.append(ini)
+    return "/".join(result)
 
 
 def iniciais_por_papel(avaliadores, palavra):
@@ -507,33 +520,52 @@ def copiar_imagem_template(template_path, output_path):
         "xl/drawings/_rels/drawing1.xml.rels",
         "xl/media/image1.png",
     ]
-    drawing_rel = (
-        '<Relationship Id="rId_drawing1"'
-        ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"'
-        ' Target="../drawings/drawing1.xml"/>'
-    )
 
     with zipfile.ZipFile(str(template_path), "r") as tmpl:
         namelist = tmpl.namelist()
         drawing_data = {f: tmpl.read(f) for f in files_to_copy if f in namelist}
+        # le o _rels do sheet1 do template para reutilizar o rId correto
+        tmpl_sheet1_rels = tmpl.read("xl/worksheets/_rels/sheet1.xml.rels").decode("utf-8") \
+            if "xl/worksheets/_rels/sheet1.xml.rels" in namelist else ""
 
     if not drawing_data:
         print("  Aviso: logo nao encontrado no template")
         return
 
+    # extrai a linha de Relationship do drawing do template
+    drawing_rel_line = ""
+    for line in tmpl_sheet1_rels.splitlines():
+        if "drawing" in line.lower() and "Relationship" in line:
+            drawing_rel_line = line.strip()
+            break
+    if not drawing_rel_line:
+        drawing_rel_line = (
+            '<Relationship Id="rId2"'
+            ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"'
+            ' Target="../drawings/drawing1.xml"/>'
+        )
+
+    sheet1_rels_template = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + drawing_rel_line +
+        '</Relationships>'
+    )
+
     tmp = str(output_path) + ".tmp"
     with zipfile.ZipFile(str(output_path), "r") as src, \
          zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst:
+        existing = src.namelist()
         for item in src.infolist():
             data = src.read(item.filename)
             if item.filename == "xl/worksheets/_rels/sheet1.xml.rels":
-                # injeta relacao de drawing se ainda nao existe
-                if b"drawing1.xml" not in data:
-                    data = data.replace(
-                        b"</Relationships>",
-                        drawing_rel.encode() + b"</Relationships>"
-                    )
+                # substitui completamente pelo do template (tem rId correto)
+                data = sheet1_rels_template.encode("utf-8")
             dst.writestr(item, data)
+        # se o _rels nao existia no output, cria-o
+        if "xl/worksheets/_rels/sheet1.xml.rels" not in existing:
+            dst.writestr("xl/worksheets/_rels/sheet1.xml.rels",
+                         sheet1_rels_template.encode("utf-8"))
         # adiciona ficheiros de drawing/media do template
         for fname, fdata in drawing_data.items():
             dst.writestr(fname, fdata)
