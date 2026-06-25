@@ -116,6 +116,98 @@ def iniciais_por_papel(avaliadores, palavra):
     return ""
 
 
+def detectar_colunas_por_conteudo(rows):
+    """
+    Quando nao ha linha de cabecalho, infere posicoes das colunas pelo conteudo
+    das primeiras linhas de dados.
+    """
+    ESTADOS_SET = {"cerrado", "abierto", "conforme", "resuelto", "informativo"}
+    date_cols, int_cols, long_text_cols, ref_cols, estado_cols, short_text_cols = \
+        [], [], [], [], [], []
+
+    # agrega votos de cada linha de amostra
+    votes = {}  # col_index -> contador por tipo
+    for r in rows[:15]:
+        for i, v in enumerate(r):
+            if v is None:
+                continue
+            if i not in votes:
+                votes[i] = {"date": 0, "int": 0, "ref": 0, "estado": 0,
+                             "long": 0, "short": 0}
+            if isinstance(v, datetime.datetime):
+                votes[i]["date"] += 1
+            elif isinstance(v, (int, float)) and not isinstance(v, bool) and 1 <= v <= 99:
+                votes[i]["int"] += 1
+            elif isinstance(v, str):
+                s = v.strip()
+                ns = norm(s)
+                if ns in ESTADOS_SET:
+                    votes[i]["estado"] += 1
+                elif re.match(r"[A-Z0-9]{2,}-[A-Z0-9-]{2,}", s) and len(s) < 80:
+                    votes[i]["ref"] += 1
+                elif len(s) > 15:
+                    votes[i]["long"] += 1
+                elif 2 <= len(s) <= 20:
+                    votes[i]["short"] += 1
+
+    def best(tipo, exclude=set()):
+        ranked = sorted(
+            ((i, v[tipo]) for i, v in votes.items() if i not in exclude),
+            key=lambda x: -x[1]
+        )
+        return ranked[0][0] if ranked and ranked[0][1] > 0 else None
+
+    result = {}
+    used = set()
+
+    ref = best("ref", used)
+    if ref is not None:
+        result["ref"] = ref; used.add(ref)
+
+    estado = best("estado", used)
+    if estado is not None:
+        result["estado"] = estado; used.add(estado)
+
+    date_candidates = sorted(
+        [i for i, v in votes.items() if v["date"] > 0 and i not in used]
+    )
+    if date_candidates:
+        result["fenvio"] = date_candidates[0]; used.add(date_candidates[0])
+        if len(date_candidates) > 1:
+            result["fecha"] = date_candidates[1]; used.add(date_candidates[1])
+
+    int_candidates = sorted(
+        [i for i, v in votes.items() if v["int"] > 0 and i not in used]
+    )
+    if int_candidates:
+        first_date_col = min(result.get("fenvio", 999), result.get("fecha", 999))
+        # versao vem antes da primeira data; envio vem depois
+        before = [i for i in int_candidates if i < first_date_col]
+        after  = [i for i in int_candidates if i >= first_date_col]
+        if before:
+            result["ver"] = before[-1]; used.add(before[-1])
+        if after:
+            result["envio"] = after[0]; used.add(after[0])
+        elif int_candidates:  # so um grupo
+            result["envio"] = int_candidates[0]; used.add(int_candidates[0])
+
+    long_candidates = sorted(
+        [i for i, v in votes.items() if v["long"] > 0 and i not in used]
+    )
+    if long_candidates:
+        result["nombre"] = long_candidates[0]; used.add(long_candidates[0])
+        if len(long_candidates) > 1:
+            result["comentario"] = long_candidates[-1]; used.add(long_candidates[-1])
+
+    short_candidates = sorted(
+        [i for i, v in votes.items() if v["short"] > 0 and i not in used]
+    )
+    if short_candidates:
+        result["autor"] = short_candidates[0]; used.add(short_candidates[0])
+
+    return result
+
+
 # ---- leitura do LPA ----------------------------------------
 
 def encontrar_ultimo_lpa(pasta):
@@ -161,34 +253,42 @@ def ler_lpa(path):
         if dados["lpa_ref"]:
             break
 
-    # avaliadores: localiza "Equipo Evaluador" e le as linhas abaixo
+    # avaliadores: localiza label "Evaluadores" / "Equipo Evaluador" e le linhas abaixo
     avaliadores = []
     eval_start_row = None
-    for row in ws.iter_rows():
+    EVAL_LABELS = ("equipo evaluador", "evaluadores", "evaluador")
+    for row in ws.iter_rows(max_col=4):
         for cell in row:
-            if cell.value and "equipo evaluador" in norm(str(cell.value)):
-                eval_start_row = cell.row
+            if cell.value and any(norm(str(cell.value)) == lbl for lbl in EVAL_LABELS):
+                eval_start_row = cell.row + 1
                 break
         if eval_start_row:
             break
 
     if eval_start_row:
-        for r in ws.iter_rows(min_row=eval_start_row, values_only=True):
-            nome  = r[1] if len(r) > 1 else None
-            papel = r[2] if len(r) > 2 else None
-            if not nome or not papel:
-                if avaliadores:  # linha vazia apos encontrar alguns — para
+        for r in ws.iter_rows(min_row=eval_start_row, max_col=5, values_only=True):
+            col_b = r[1] if len(r) > 1 else None
+            col_c = r[2] if len(r) > 2 else None
+            if not col_b:
+                if avaliadores:
                     break
                 continue
-            nome_s  = str(nome).strip()
-            papel_s = str(papel).strip()
-            # ignora linhas de cabecalho ("Nombre", "Papel", "Cargo", etc.)
-            if any(norm(nome_s) == x for x in ("nombre", "nome", "evaluador", "equipo evaluador")):
+            nome_s = str(col_b).strip()
+            if len(nome_s) < 3:
                 continue
-            if len(nome_s) > 3 and len(papel_s) > 3:
-                avaliadores.append({"nome": nome_s, "papel": papel_s})
+            # ignora sub-labels
+            if any(norm(nome_s) == x for x in ("nombre", "nome", "evaluador", "evaluadores",
+                                                 "equipo evaluador", "cuadro de firmas")):
+                break
+            if col_c:
+                # formato: col B = nome, col C = papel
+                papel_s = str(col_c).strip()
+            else:
+                # formato: col B = "Nome Apelido (INICIAIS)" — papel e o proprio texto
+                papel_s = nome_s
+            avaliadores.append({"nome": nome_s, "papel": papel_s})
     else:
-        # fallback: qualquer linha com nome e papel que contenha palavra-chave de papel
+        # fallback: linhas com nome e papel com palavra-chave de papel
         keywords = ("evaluador", "responsable", "coordinador", "tecnico", "supervisor", "revisor")
         for r in ws.iter_rows(values_only=True):
             nome  = r[1] if len(r) > 1 else None
@@ -228,19 +328,27 @@ def ler_lpa(path):
                    "envio", "fecha", "estado", "evaluado", "autor", "remitente")
     header_row = None
     all_rows = list(ws_de.iter_rows(min_row=1, values_only=True))
-    for i, r in enumerate(all_rows[:5]):  # procura so nas primeiras 5 linhas
+    # filtra linhas-titulo (so 1 valor nao-nulo — ex: "Observaciones LPA")
+    data_start = 0
+    for i, r in enumerate(all_rows[:5]):
+        non_null = [c for c in r if c is not None]
+        if len(non_null) >= 2:
+            data_start = i
+            break
+
+    for i, r in enumerate(all_rows[data_start:data_start+5], start=data_start):
         cells = [norm(str(c)) for c in r if c]
         matches = sum(1 for c in cells for k in HEADER_KEYS if k in c)
         if matches >= 2:
             header_row = i
             break
     if header_row is None:
-        header_row = 0  # fallback: assume linha 1
+        header_row = data_start  # sem cabecalho: começa nos dados
 
     cabecalho = all_rows[header_row] if all_rows else ()
     rows_de   = all_rows[header_row:]  # inclui cabecalho como rows_de[0]
+
     def idx(nomes):
-        """Devolve o indice da primeira coluna cujo cabecalho contem algum dos nomes (sem acentos)."""
         for i, h in enumerate(cabecalho):
             hn = norm(str(h)) if h else ""
             for n in nomes:
@@ -248,32 +356,46 @@ def ler_lpa(path):
                     return i
         return None
 
-    i_nome     = idx(["nombre", "nome"])
-    i_ref      = idx(["referencia", "ref"])
-    i_ver      = idx(["version", "versao", "vers"])
-    i_fecha    = idx(["fecha", "data"]) if idx(["fecha envio", "data envio"]) is None else None
-    i_autor    = idx(["autor", "remitente"])
-    i_envio    = idx(["envio", "n envio", "num"])
-    i_fenvio   = idx(["fecha envio", "data envio", "recibido", "recebido"])
-    i_firmado  = idx(["firmado", "assinado"])
-    i_estado   = idx(["estado", "evaluado", "resultado"])
-    i_coment   = idx(["comentario", "observa"])
-    print(f"  Doc Evaluados '{ws_de_name}': cabecalho={[str(h)[:20] for h in cabecalho if h]}")
-    print(f"  Colunas: nome={i_nome} ref={i_ref} ver={i_ver} envio={i_envio} fenvio={i_fenvio} estado={i_estado}")
-    # fecha (data do documento) e diferente de fecha_envio
+    i_nome   = idx(["nombre", "nome"])
+    i_ref    = idx(["referencia", "ref"])
+    i_ver    = idx(["version", "versao", "vers"])
+    i_autor  = idx(["autor", "remitente"])
+    i_envio  = idx(["envio", "n envio", "num"])
+    i_fenvio = idx(["fecha envio", "data envio", "recibido", "recebido"])
+    i_firmado= idx(["firmado", "assinado"])
+    i_estado = idx(["estado", "evaluado", "resultado"])
+    i_coment = idx(["comentario", "observa"])
+    i_fecha  = idx(["fecha", "data"]) if i_fenvio is None else None
     if i_fecha is None:
         used = {i_ref, i_ver, i_autor, i_envio, i_fenvio, i_firmado, i_estado, i_coment, i_nome}
-        for i, h in enumerate(cabecalho):
+        for ci, h in enumerate(cabecalho):
             hn = norm(str(h)) if h else ""
-            if i not in used and ("fecha" in hn or "data" in hn):
-                i_fecha = i
+            if ci not in used and ("fecha" in hn or "data" in hn):
+                i_fecha = ci
                 break
+
+    # se nao encontrou cabecalho (i_nome e i_ref ainda None), infere por conteudo
+    if i_nome is None and i_ref is None:
+        inf = detectar_colunas_por_conteudo(all_rows[data_start:])
+        i_nome   = inf.get("nombre")
+        i_ref    = inf.get("ref")
+        i_ver    = inf.get("ver")
+        i_fecha  = inf.get("fecha")
+        i_autor  = inf.get("autor")
+        i_envio  = inf.get("envio")
+        i_fenvio = inf.get("fenvio")
+        i_estado = inf.get("estado")
+        i_coment = inf.get("comentario")
+        rows_de  = all_rows[data_start:]  # sem linha de cabecalho a saltar
+        print(f"  Colunas inferidas por conteudo: nome={i_nome} ref={i_ref} ver={i_ver} "
+              f"envio={i_envio} fenvio={i_fenvio} estado={i_estado}")
 
     def get(r, i):
         return r[i] if i is not None and i < len(r) else None
 
     docs, doc_atual = [], None
-    for r in rows_de[1:]:  # pula cabecalho
+    data_rows = rows_de if (i_nome is not None and rows_de is all_rows) else rows_de[1:]
+    for r in data_rows:  # pula cabecalho (ou usa todas as linhas se inferido)
         nome    = get(r, i_nome)
         ref_doc = get(r, i_ref)
         if nome:
