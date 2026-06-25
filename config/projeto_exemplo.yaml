@@ -1,0 +1,96 @@
+# Exemplo de ficheiro de dados para o LPA.
+# Gera-se a partir do `scan` (documentos) + `from-docx` (portada) e completa-se à mão.
+
+portada:
+  titulo: >-
+    PROYECTO DE CONSTRUCCIÓN DE NUEVO CRUCE A DISTINTO NIVEL ENTRE ANDENES
+    EN LA ESTACIÓN DE POSADAS (CÓRDOBA)
+  subtitulo: "Listado de Puntos Abiertos (LPA)"
+  referencia: "EXC2025-16126-1/002/LPA/05"
+  normativa: "Anexo I del Reglamento de Ejecución UE/402/2013 (modificado por UE/2015/1136)"
+  evaluadores:
+    - {nombre: "Miriam Romera (MRG)", rol: "Evaluador técnico (supervisada)"}
+    - {nombre: "Soukaina Meliani (SM)", rol: "Evaluador técnico"}
+    - {nombre: "Roberto Abad (RAM)", rol: "Responsable de Evaluación"}
+
+versiones:
+  - rev: 1
+    fecha: 2026-01-12
+    descripcion: |-
+      Primera versión de LPA que incluye la evaluación de los siguientes envíos
+      realizados por parte de UTE ESTEYCO-ARDANUY:
+      - Envío 01 (26/11/2025)
+  - rev: 2
+    fecha: 2026-02-25
+    descripcion: |-
+      Segunda versión de LPA que incluye la evaluación de los siguientes envíos:
+      - Envío 02 (16/02/2026)
+
+documentos:
+  - nombre: "Anejo 27. Estudio Previo Seguridad"
+    firmado: "Si"
+    estado: "Cerrado"
+    envios:
+      - {referencia: "Anejo 27. Estudio Previo Seguridad",     version: 4, fecha: 2025-11-14, autor: "UTE", envio: 1, fecha_envio: 2025-11-26}
+      - {referencia: "Anejo 27. Estudio Previo Seguridad_v06",  version: 6, fecha: 2026-02-03, autor: "UTE", envio: 2, fecha_envio: 2026-02-16}
+
+  - nombre: "Apéndice 1_REP 1"
+    firmado: "NA"
+    estado: "Cerrado"
+    envios:
+      - {referencia: "Apéndice 1_REP 1_v06", version: 6, fecha: 2026-02-03, autor: "UTE", envio: 2, fecha_envio: 2026-02-16}
+      - {referencia: "Apéndice 1_REP 1_v07", version: 7, fecha: 2026-02-26, autor: "UTE", envio: 3, fecha_envio: 2026-03-02}
+
+  # Exemplo de categoria (vários documentos sob o mesmo nome na coluna A).
+  - nombre: "1.0 Índice"
+    categoria: "Planos"
+    firmado: "NA"
+    estado: auto          # auto => fórmula que lê o estado a partir da aba LPA
+    envios:
+      - {version: "NA", fecha: 2026-02-01, autor: "UTE", envio: 3, fecha_envio: 2026-03-02}
+      - {version: "NA", fecha: 2026-05-01, autor: "UTE", envio: 7, fecha_envio: 2026-06-02}
+  - nombre: "2.0 Situación y Emplazamiento"
+    categoria: "Planos"
+    firmado: "NA"
+    estado: auto
+    envios:
+      - {version: "NA", fecha: 2026-02-01, autor: "UTE", envio: 3, fecha_envio: 2026-03-02}
+
+puntos:
+  - n: 1
+    eval: "SM"
+    documento: "Firmas documentación evaluada"
+    ref_documento: "NA"
+    punto: 'pestaña "Doc Evaluados" de este documento'
+    valoracion: "Crítico"
+    version: "NA"
+    estado: "Cerrado"
+    dialogo:
+      - {tipo: "Hallazgo", texto: 'Todos los documentos evaluados deben estar debidamente firmados (ver aquellos que figuran sin firmar en la pestaña "Doc Evaluados")'}
+      - {tipo: "Respuesta UTE (02/02/2026)", texto: "El anejo de estudio previo de seguridad se encuentra firmado (Pág 20)"}
+      - {tipo: "Respuesta Exceltic (25/02/2026)", texto: "Se observa el documento firmado y se cierra el hallazgo."}
+
+  - n: 2
+    eval: "SM"
+    documento: "Anejo 27. Estudio Previo Seguridad"
+    ref_documento: auto    # auto => VLOOKUP à aba "Doc Evaluados"
+    punto: "Apartado 1.1"
+    valoracion: "Informativo"
+    version: 4
+    estado: "Cerrado"
+    dialogo:
+      - {tipo: "Hallazgo", texto: 'En el apartado "1.1." se indica "Pendientes de recibir documentación de ADIF". Se solicita aclarar si se dispone de la significatividad del cambio.'}
+      - {tipo: "Respuesta UTE (02/02/2026)", texto: "Se actualiza ya que se dispone de la significatividad"}
+      - {tipo: "Respuesta Exceltic (25/02/2026)", texto: "Se da por cerrado el hallazgo."}
+
+  - n: 3
+    eval: "MRG\nSM"
+    documento: "Anejo 27. Estudio Previo Seguridad"
+    ref_documento: auto
+    punto: "Apéndice 1 REP"
+    valoracion: "Importante"
+    version: 4
+    estado: "Abierto"
+    dialogo:
+      - {tipo: "Hallazgo", texto: "En el REP Peligro ID2 referente a drenajes de taludes se solicita revisar evidencias."}
+      - {tipo: "Respuesta UTE (02/02/2026)", texto: "Se cancela el peligro ID.2 puesto que no existen taludes en el ámbito del proyecto."}
