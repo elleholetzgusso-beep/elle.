@@ -45,10 +45,13 @@ python -m lpa_filler scan -r "2025-4263-1-PC POSADAS/1_Doc Recibida" -o document
 # 2) (opcional) Extrair portada/evaluadores do relatório PES
 python -m lpa_filler from-docx -i ".../EXC...-PES-02.docx" -o meta.yaml
 
-# 3) Juntar tudo num projeto.yaml (ver config/projeto_exemplo.yaml) e completar
-#    à mão os "puntos" (hallazgos), que são juízo do avaliador.
+# 3) Juntar scan + from-docx num projeto.yaml pronto a editar
+python -m lpa_filler merge -m meta.yaml -d documentos.yaml -o projeto.yaml
 
-# 4) Gerar o Excel final
+# 4) Editar projeto.yaml e completar à mão os "puntos" (hallazgos),
+#    que são juízo do avaliador (ver config/projeto_exemplo.yaml).
+
+# 5) Gerar o Excel final
 python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA_gerado.xlsm
 ```
 
@@ -65,6 +68,7 @@ python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 | `fill`      | Preenche o template `.xlsm` a partir do YAML de dados.               |
 | `scan`      | Percorre `1_Doc Recibida/Envío N <AAAAMMDD>/` e gera `documentos`.   |
 | `from-docx` | Extrai portada/evaluadores/documentos do relatório PES (`.docx`).    |
+| `merge`     | Junta o `scan` + `from-docx` num `projeto.yaml` pronto a editar.     |
 | `extract`   | Lê um `.xlsm` preenchido e reconstrói o YAML (bootstrap).            |
 
 ## Formato do ficheiro de dados

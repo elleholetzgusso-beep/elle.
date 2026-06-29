@@ -79,6 +79,45 @@ def _cmd_extract(args) -> int:
     return 0
 
 
+def _load_yaml(path: str):
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+def _cmd_merge(args) -> int:
+    """Junta a saída do scan (documentos) com a do from-docx (portada) e cria um
+    projeto.yaml pronto a editar — basta acrescentar os 'puntos' (hallazgos)."""
+    meta = _load_yaml(args.meta) if args.meta else {}
+    docs = _load_yaml(args.docs) if args.docs else {}
+
+    documentos = docs.get("documentos") or meta.get("documentos") or []
+    projeto = {
+        "portada": meta.get("portada", {}),
+        "versiones": meta.get("versiones", []),
+        "documentos": documentos,
+        # Esqueleto de um punto para o utilizador completar (hallazgos = critério do avaliador).
+        "puntos": [
+            {
+                "n": 1,
+                "eval": "SM",
+                "documento": documentos[0]["nombre"] if documentos else "",
+                "ref_documento": "auto",
+                "punto": "",
+                "valoracion": "Importante",
+                "version": None,
+                "estado": "Abierto",
+                "dialogo": [{"tipo": "Hallazgo", "texto": "DESCREVER O HALLAZGO AQUI"}],
+            }
+        ],
+    }
+    _dump_yaml(projeto, args.out)
+    print(
+        f"# projeto criado: {len(documentos)} documentos. "
+        f"Edita a secção 'puntos' (hallazgos) e depois corre o comando 'fill'.",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -104,6 +143,12 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("-i", "--input", required=True, help=".xlsm já preenchido.")
     e.add_argument("-o", "--out", help="YAML de saída (por omissão: stdout).")
     e.set_defaults(func=_cmd_extract)
+
+    m = sub.add_parser("merge", help="Junta scan+from-docx num projeto.yaml pronto a editar.")
+    m.add_argument("-m", "--meta", help="meta.yaml (saída do from-docx).")
+    m.add_argument("-d", "--docs", help="documentos.yaml (saída do scan).")
+    m.add_argument("-o", "--out", help="projeto.yaml de saída (por omissão: stdout).")
+    m.set_defaults(func=_cmd_merge)
 
     return p
 
