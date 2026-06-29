@@ -57,9 +57,20 @@ def fill(template: str | Path, data: dict[str, Any], output: str | Path) -> Path
 
 
 # --------------------------------------------------------------------------- #
+def _anchor(ws, row, col):
+    """Se (row, col) estiver dentro de uma mescla, devolve a célula-âncora
+    (canto superior esquerdo), que é a única onde se pode escrever."""
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row <= row <= rng.max_row and rng.min_col <= col <= rng.max_col:
+            return rng.min_row, rng.min_col
+    return row, col
+
+
 def _set(ws, row, col, value):
-    if value is not None:
-        ws.cell(row=row, column=col).value = value
+    if value is None:
+        return
+    r, c = _anchor(ws, row, col)
+    ws.cell(row=r, column=c).value = value
 
 
 def _fill_portada(ws, p: dict[str, Any]) -> None:
