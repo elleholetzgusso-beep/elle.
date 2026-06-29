@@ -76,7 +76,7 @@ def extract(xlsm_path: str | Path) -> dict[str, Any]:
         if nombre is None:
             r += 1
             continue
-        size = _block_size(de, r, 2, de.max_row)  # blocos pela coluna B (referencia)
+        size = _block_size(de, r, 1, de.max_row)  # agrupa pela coluna A (nome do documento)
         envios = []
         for k in range(size):
             row = r + k
