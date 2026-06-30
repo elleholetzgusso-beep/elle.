@@ -61,7 +61,7 @@ def _clean_name_version(stem: str) -> tuple[str, object]:
 def scan(
     recibida_dir: str | Path,
     exts: tuple[str, ...] = DEFAULT_EXTS,
-    autor: str = "UTE",
+    autor: str = "",
     group_by: str = "file",
     estado: str = "auto",
 ) -> list[dict[str, Any]]:
@@ -106,7 +106,7 @@ def scan(
                     "referencia": referencia,
                     "version": version,
                     "fecha": _file_date(f),
-                    "autor": autor,
+                    "autor": autor or None,
                     "envio": envio_num,
                     "fecha_envio": envio_date,
                 }

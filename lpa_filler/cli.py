@@ -145,7 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("scan", help="Gera `documentos` a partir das pastas de envíos.")
     s.add_argument("-r", "--recibida", required=True, help="Pasta '1_Doc Recibida'.")
     s.add_argument("-o", "--out", help="YAML de saída (por omissão: stdout).")
-    s.add_argument("--autor", default="UTE", help="Autor por omissão (default: UTE).")
+    s.add_argument("--autor", default="", help='Autor por omissão (vazio). Ex.: --autor "UTE".')
     s.add_argument(
         "--group-by",
         choices=["file", "folder"],
