@@ -8,12 +8,26 @@ Requer ``python-docx`` (``pip install python-docx``).
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
 
 def _norm(s: str) -> str:
     return " ".join(s.split()).lower()
+
+
+def _derive_lpa_ref(codigo: str) -> str | None:
+    """Do código do PES sugere a referência do LPA.
+
+    'EXC2025-16126-1/001/PES/02' -> 'EXC2025-16126-1/002/LPA/01'
+    (substitui o segmento .../001/PES/NN por .../002/LPA/01; aceita / ou - como separador)
+    """
+    m = re.match(r"(.*?)([/-])0*1[/-]PES[/-]\d+\s*$", codigo, re.I)
+    if not m:
+        return None
+    base, sep = m.group(1), m.group(2)
+    return f"{base}{sep}002{sep}LPA{sep}01"
 
 
 def _find_table(doc, header_keywords: list[str]):
@@ -32,6 +46,14 @@ def extract(docx_path: str | Path) -> dict[str, Any]:
 
     doc = docx.Document(str(docx_path))
     out: dict[str, Any] = {"portada": {}, "documentos": []}
+
+    # Código do documento (propriedade "subject" do .docx) e referência do LPA derivada.
+    codigo = (doc.core_properties.subject or "").strip()
+    if codigo:
+        out["portada"]["codigo"] = codigo
+        ref = _derive_lpa_ref(codigo)
+        if ref:
+            out["portada"]["referencia"] = ref
 
     # Evaluadores: tabela Recurso / Posición / Funciones
     t = _find_table(doc, ["recurso", "posición"])
