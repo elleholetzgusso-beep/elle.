@@ -8,13 +8,49 @@ Requer ``python-docx`` (``pip install python-docx``).
 """
 from __future__ import annotations
 
+import html
 import re
+import zipfile
 from pathlib import Path
 from typing import Any
+
+# Código do tipo EXC2025-16126-1/001/PES/01 ou EXC2024-03868/001/PES/01.
+_CODE_RE = re.compile(r"EXC?\d{4}(?:-\d+)+[/-]\d+[/-][A-Z]{3}[/-]\d+", re.I)
 
 
 def _norm(s: str) -> str:
     return " ".join(s.split()).lower()
+
+
+def _cover_info(docx_path: str | Path) -> tuple[str | None, str | None]:
+    """Lê título e código da CAPA, incluindo texto em caixas de texto (via XML).
+
+    A capa tem, por esta ordem: "PLAN DE EVALUACIÓN INDEPENDIENTE DE SEGURIDAD",
+    o título do projeto, e o código (EXC...). O python-docx não lê caixas de
+    texto, por isso percorremos os <w:t> do document.xml diretamente.
+    """
+    try:
+        xml = zipfile.ZipFile(docx_path).read("word/document.xml").decode("utf-8", "ignore")
+    except Exception:
+        return None, None
+    frags = [html.unescape(re.sub(r"<[^>]+>", "", m)).strip()
+             for m in re.findall(r"<w:t[^>]*>(.*?)</w:t>", xml, re.S)]
+
+    codigo = next((_CODE_RE.search(f).group(0) for f in frags[:40] if _CODE_RE.search(f)), None)
+
+    titulo = None
+    start = next((i + 1 for i, f in enumerate(frags[:40]) if "PLAN DE EVALUAC" in f.upper()), None)
+    if start is not None:
+        parts = []
+        for f in frags[start : start + 20]:
+            if not f:
+                continue
+            if _CODE_RE.search(f) or f.upper().startswith(("REDACTADO", "VERSIÓN", "VERSION")):
+                break
+            parts.append(f)
+        if parts:
+            titulo = " ".join(parts).strip().strip('"“”«»').strip()
+    return titulo, codigo
 
 
 def _derive_lpa_ref(codigo: str) -> str | None:
@@ -47,8 +83,11 @@ def extract(docx_path: str | Path) -> dict[str, Any]:
     doc = docx.Document(str(docx_path))
     out: dict[str, Any] = {"portada": {}, "documentos": []}
 
-    # Código do documento (propriedade "subject" do .docx) e referência do LPA derivada.
-    codigo = (doc.core_properties.subject or "").strip()
+    # Título e código da capa (caixas de texto); fallback ao "subject" das propriedades.
+    titulo, codigo = _cover_info(docx_path)
+    codigo = codigo or (doc.core_properties.subject or "").strip()
+    if titulo:
+        out["portada"]["titulo"] = titulo
     if codigo:
         out["portada"]["codigo"] = codigo
         ref = _derive_lpa_ref(codigo)
