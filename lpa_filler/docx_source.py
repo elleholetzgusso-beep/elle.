@@ -14,56 +14,44 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-# Código do tipo EXC2025-16126-1/001/PES/01 ou EXC2024-03868/001/PES/01.
-_CODE_RE = re.compile(r"EXC?\d{4}(?:-\d+)+[/-]\d+[/-][A-Z]{3}[/-]\d+", re.I)
-
-
 def _norm(s: str) -> str:
     return " ".join(s.split()).lower()
 
 
-def _cover_info(docx_path: str | Path) -> tuple[str | None, str | None]:
-    """Lê título e código da CAPA, incluindo texto em caixas de texto (via XML).
+def _title_from_cover(docx_path: str | Path) -> str | None:
+    """Lê o título do projeto da capa (caixas de texto, via XML em bruto).
 
-    A capa tem, por esta ordem: "PLAN DE EVALUACIÓN INDEPENDIENTE DE SEGURIDAD",
-    o título do projeto, e o código (EXC...). O python-docx não lê caixas de
-    texto, por isso percorremos os <w:t> do document.xml diretamente.
+    O título é o fragmento que começa por (aspas +) "PROYECTO". O python-docx
+    não lê caixas de texto, por isso percorremos os <w:t> do document.xml.
     """
     try:
         xml = zipfile.ZipFile(docx_path).read("word/document.xml").decode("utf-8", "ignore")
     except Exception:
-        return None, None
+        return None
     frags = [html.unescape(re.sub(r"<[^>]+>", "", m)).strip()
              for m in re.findall(r"<w:t[^>]*>(.*?)</w:t>", xml, re.S)]
-
-    codigo = next((_CODE_RE.search(f).group(0) for f in frags[:40] if _CODE_RE.search(f)), None)
-
-    titulo = None
-    start = next((i + 1 for i, f in enumerate(frags[:40]) if "PLAN DE EVALUAC" in f.upper()), None)
-    if start is not None:
-        parts = []
-        for f in frags[start : start + 20]:
-            if not f:
-                continue
-            if _CODE_RE.search(f) or f.upper().startswith(("REDACTADO", "VERSIÓN", "VERSION")):
-                break
-            parts.append(f)
-        if parts:
-            titulo = " ".join(parts).strip().strip('"“”«»').strip()
-    return titulo, codigo
+    for f in frags[:60]:
+        if re.match(r'^["“”«»\s]*PROYECTO\b', f, re.I) and len(f) > 25:
+            return f.strip().strip('"“”«»').strip()
+    return None
 
 
-def _derive_lpa_ref(codigo: str) -> str | None:
-    """Do código do PES sugere a referência do LPA.
+def _code_from_filename(docx_path: str | Path) -> tuple[str | None, str | None]:
+    """Deriva (código, referência LPA) do NOME do ficheiro do PES (fiável).
 
-    'EXC2025-16126-1/001/PES/02' -> 'EXC2025-16126-1/002/LPA/01'
-    (substitui o segmento .../001/PES/NN por .../002/LPA/01; aceita / ou - como separador)
+    'EXC2024-03868-001-PES-01' -> ('EXC2024-03868/001/PES/01', 'EXC2024-03868/002/LPA/01')
+    'EXC2025-16126-1-001-PES-02' -> ('EXC2025-16126-1/001/PES/02', 'EXC2025-16126-1/002/LPA/01')
     """
-    m = re.match(r"(.*?)([/-])0*1[/-]PES[/-]\d+\s*$", codigo, re.I)
+    stem = Path(docx_path).stem
+    m = re.match(r"(.+?)-(\d+)-([A-Za-z]{2,4})-(\d+)$", stem)
     if not m:
-        return None
-    base, sep = m.group(1), m.group(2)
-    return f"{base}{sep}002{sep}LPA{sep}01"
+        return None, None
+    base, num, typ, ver = m.groups()
+    codigo = f"{base}/{num}/{typ.upper()}/{ver}"
+    referencia = f"{base}/002/LPA/01"
+    return codigo, referencia
+
+
 
 
 def _find_table(doc, header_keywords: list[str]):
@@ -83,16 +71,15 @@ def extract(docx_path: str | Path) -> dict[str, Any]:
     doc = docx.Document(str(docx_path))
     out: dict[str, Any] = {"portada": {}, "documentos": []}
 
-    # Título e código da capa (caixas de texto); fallback ao "subject" das propriedades.
-    titulo, codigo = _cover_info(docx_path)
-    codigo = codigo or (doc.core_properties.subject or "").strip()
+    # Título da capa; código/referência do NOME do ficheiro (mais fiável que a capa).
+    titulo = _title_from_cover(docx_path)
+    codigo, referencia = _code_from_filename(docx_path)
     if titulo:
         out["portada"]["titulo"] = titulo
     if codigo:
         out["portada"]["codigo"] = codigo
-        ref = _derive_lpa_ref(codigo)
-        if ref:
-            out["portada"]["referencia"] = ref
+    if referencia:
+        out["portada"]["referencia"] = referencia
 
     # Evaluadores: tabela Recurso / Posición / Funciones
     t = _find_table(doc, ["recurso", "posición"])
