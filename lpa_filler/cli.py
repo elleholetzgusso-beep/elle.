@@ -57,7 +57,7 @@ def _cmd_fill(args) -> int:
 def _cmd_scan(args) -> int:
     from . import scan
 
-    documentos = scan.scan(args.recibida, autor=args.autor, group_by=args.group_by)
+    documentos = scan.scan(args.recibida, autor=args.autor, group_by=args.group_by, estado=args.estado)
     _dump_yaml({"documentos": documentos}, args.out)
     print(f"# {len(documentos)} documentos encontrados", file=sys.stderr)
     return 0
@@ -151,6 +151,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["file", "folder"],
         default="file",
         help="file: nombre=ficheiro (default). folder: nombre=pasta, referencia=ficheiro.",
+    )
+    s.add_argument(
+        "--estado",
+        default="auto",
+        help='Estado dos documentos: "auto" (fórmula, default) ou literal "Abierto"/"Resuelto"/"Cerrado".',
     )
     s.set_defaults(func=_cmd_scan)
 

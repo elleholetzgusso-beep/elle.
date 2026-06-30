@@ -63,6 +63,7 @@ def scan(
     exts: tuple[str, ...] = DEFAULT_EXTS,
     autor: str = "UTE",
     group_by: str = "file",
+    estado: str = "auto",
 ) -> list[dict[str, Any]]:
     """Devolve uma lista `documentos` pronta a colocar no YAML.
 
@@ -112,6 +113,6 @@ def scan(
             )
 
     return [
-        {"nombre": docs[k]["nombre"], "firmado": "NA", "estado": "auto", "envios": docs[k]["envios"]}
+        {"nombre": docs[k]["nombre"], "firmado": "NA", "estado": estado, "envios": docs[k]["envios"]}
         for k in order
     ]
