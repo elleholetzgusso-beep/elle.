@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+
+# Dados locais (ficam em %LOCALAPPDATA%, fora do repo)
+sync/
+*.db
