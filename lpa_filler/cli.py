@@ -57,7 +57,7 @@ def _cmd_fill(args) -> int:
 def _cmd_scan(args) -> int:
     from . import scan
 
-    documentos = scan.scan(args.recibida, autor=args.autor)
+    documentos = scan.scan(args.recibida, autor=args.autor, group_by=args.group_by)
     _dump_yaml({"documentos": documentos}, args.out)
     print(f"# {len(documentos)} documentos encontrados", file=sys.stderr)
     return 0
@@ -86,13 +86,27 @@ def _load_yaml(path: str):
 def _cmd_merge(args) -> int:
     """Junta a saída do scan (documentos) com a do from-docx (portada) e cria um
     projeto.yaml pronto a editar — basta acrescentar os 'puntos' (hallazgos)."""
+    import datetime as _dt
+
     meta = _load_yaml(args.meta) if args.meta else {}
     docs = _load_yaml(args.docs) if args.docs else {}
 
     documentos = docs.get("documentos") or meta.get("documentos") or []
+    mp = meta.get("portada", {})
+    NORMATIVA = "Anexo I del Reglamento de Ejecución UE/402/2013 (modificado por UE/2015/1136)"
+    # Portada sempre com os campos preenchíveis (senão o template mantém o texto antigo).
+    portada = {
+        "titulo": mp.get("titulo") or "PREENCHER: título do projeto",
+        "referencia": mp.get("referencia") or mp.get("codigo") or "PREENCHER: ex. EXC.../002/LPA/01",
+        "normativa": mp.get("normativa") or NORMATIVA,
+        "evaluadores": mp.get("evaluadores", []),
+    }
+    versiones = meta.get("versiones") or [
+        {"rev": 1, "fecha": _dt.date.today(), "descripcion": "PREENCHER: descrição desta versão"}
+    ]
     projeto = {
-        "portada": meta.get("portada", {}),
-        "versiones": meta.get("versiones", []),
+        "portada": portada,
+        "versiones": versiones,
         "documentos": documentos,
         # Esqueleto de um punto para o utilizador completar (hallazgos = critério do avaliador).
         "puntos": [
@@ -132,6 +146,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-r", "--recibida", required=True, help="Pasta '1_Doc Recibida'.")
     s.add_argument("-o", "--out", help="YAML de saída (por omissão: stdout).")
     s.add_argument("--autor", default="UTE", help="Autor por omissão (default: UTE).")
+    s.add_argument(
+        "--group-by",
+        choices=["file", "folder"],
+        default="file",
+        help="file: nombre=ficheiro (default). folder: nombre=pasta, referencia=ficheiro.",
+    )
     s.set_defaults(func=_cmd_scan)
 
     d = sub.add_parser("from-docx", help="Extrai portada/documentos do relatório PES (.docx).")

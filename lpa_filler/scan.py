@@ -62,14 +62,22 @@ def scan(
     recibida_dir: str | Path,
     exts: tuple[str, ...] = DEFAULT_EXTS,
     autor: str = "UTE",
+    group_by: str = "file",
 ) -> list[dict[str, Any]]:
-    """Devolve uma lista `documentos` pronta a colocar no YAML."""
+    """Devolve uma lista `documentos` pronta a colocar no YAML.
+
+    group_by="file"   -> nombre = nome do ficheiro (1 documento por ficheiro,
+                         agrupado pelos vários envíos em que aparece).
+    group_by="folder" -> nombre = nome da pasta que contém o ficheiro,
+                         referencia = nome do ficheiro (vários ficheiros da mesma
+                         pasta ficam como linhas do mesmo documento).
+    """
     root = Path(recibida_dir)
     if not root.is_dir():
         raise NotADirectoryError(f"Pasta não encontrada: {root}")
 
-    # nome do documento -> lista de envíos (preservando ordem de descoberta)
-    docs: dict[str, list[dict[str, Any]]] = {}
+    # chave de agrupamento -> {nombre, envios}  (preservando ordem de descoberta)
+    docs: dict[str, dict[str, Any]] = {}
     order: list[str] = []
 
     envio_dirs = sorted(
@@ -82,12 +90,19 @@ def scan(
             if not f.is_file() or f.suffix.lower() not in exts:
                 continue
             name, version = _clean_name_version(f.stem)
-            if name not in docs:
-                docs[name] = []
-                order.append(name)
-            docs[name].append(
+            referencia = f.stem.strip()
+            if group_by == "folder":
+                key = str(f.parent)          # único por pasta
+                nombre = f.parent.name        # nome da pasta como nombre
+            else:
+                key = name                    # 1 documento por nome de ficheiro
+                nombre = name
+            if key not in docs:
+                docs[key] = {"nombre": nombre, "envios": []}
+                order.append(key)
+            docs[key]["envios"].append(
                 {
-                    "referencia": f.stem.strip(),
+                    "referencia": referencia,
                     "version": version,
                     "fecha": _file_date(f),
                     "autor": autor,
@@ -96,4 +111,7 @@ def scan(
                 }
             )
 
-    return [{"nombre": n, "firmado": "NA", "estado": "auto", "envios": docs[n]} for n in order]
+    return [
+        {"nombre": docs[k]["nombre"], "firmado": "NA", "estado": "auto", "envios": docs[k]["envios"]}
+        for k in order
+    ]

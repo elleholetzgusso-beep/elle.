@@ -40,7 +40,9 @@ pip install python-docx           # só necessário para o comando from-docx
 
 ```bash
 # 1) Gerar a lista de documentos avaliados a partir das pastas de envíos
+#    --group-by folder: nombre = nome da pasta, referencia = nome do ficheiro
 python -m lpa_filler scan -r "2025-4263-1-PC POSADAS/1_Doc Recibida" -o documentos.yaml
+#    (use --group-by folder quando os ficheiros têm códigos longos dentro de pastas com nome)
 
 # 2) (opcional) Extrair portada/evaluadores do relatório PES
 python -m lpa_filler from-docx -i ".../EXC...-PES-02.docx" -o meta.yaml
