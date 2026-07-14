@@ -73,6 +73,7 @@ python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 | `merge`     | Junta o `scan` + `from-docx` num `projeto.yaml` pronto a editar.     |
 | `extract`   | Lê um `.xlsm` preenchido e reconstrói o YAML (bootstrap).            |
 | `harvest`   | Extrai hallazgos de LPAs existentes para uma base de dados (CSV).    |
+| `suggest`   | Sugere hallazgos da base para um novo LPA (documento/requisito/texto).|
 
 ## Formato do ficheiro de dados
 
@@ -90,8 +91,8 @@ Convenções úteis:
 
 ## Notas
 
-- A aba **Resumen Resultados** é uma PivotTable: depois de gerar, abrir no Excel
-  e fazer **Datos ▸ Actualizar todo** para recalcular as contagens.
+- A aba **Resumen Resultados** (PivotTable) atualiza-se automaticamente ao abrir
+  o ficheiro no Excel (marcada com `refreshOnLoad`).
 - Os *hallazgos* dependem do critério do avaliador; a ferramenta automatiza toda
   a parte mecânica (numeração, mesclas, fórmulas, estilos e contagens).
 - Os documentos reais (template `.xlsm` e relatórios `.docx`) **não** são

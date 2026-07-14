@@ -155,6 +155,29 @@ def _cmd_harvest(args) -> int:
     return 0
 
 
+def _cmd_suggest(args) -> int:
+    from . import suggest
+
+    base = suggest.load_base(args.base)
+    if args.projeto:
+        projeto = _load_yaml(args.projeto)
+        puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=args.n)
+        projeto["puntos"] = puntos
+        _dump_yaml(projeto, args.out)
+        print(f"# {len(puntos)} puntos sugeridos (rever!) a partir de {len(base)} hallazgos.", file=sys.stderr)
+    elif args.query:
+        res = suggest.search(base, args.query, n=args.n)
+        if not res:
+            print("Sem correspondências.")
+        for sc, r in res:
+            print(f"[{sc:.0f}] {r.get('valoracion','')}/{r.get('estado','')} | {r.get('documento','')[:35]} | {r.get('punto','')[:25]}")
+            print(f"     {(r.get('hallazgo') or '')[:100]}  (de {r.get('fuente','')})")
+    else:
+        print("Indica -q \"texto\" ou -p projeto.yaml.", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -204,6 +227,14 @@ def build_parser() -> argparse.ArgumentParser:
     m.add_argument("-d", "--docs", help="documentos.yaml (saída do scan).")
     m.add_argument("-o", "--out", help="projeto.yaml de saída (por omissão: stdout).")
     m.set_defaults(func=_cmd_merge)
+
+    g = sub.add_parser("suggest", help="Sugere hallazgos da base de dados para um novo LPA.")
+    g.add_argument("-b", "--base", required=True, help="CSV da base (saída do harvest).")
+    g.add_argument("-q", "--query", help="Texto/documento a consultar (modo impressão).")
+    g.add_argument("-p", "--projeto", help="projeto.yaml a pré-preencher com puntos sugeridos.")
+    g.add_argument("-o", "--out", help="YAML de saída (modo -p; por omissão stdout).")
+    g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
+    g.set_defaults(func=_cmd_suggest)
 
     return p
 
