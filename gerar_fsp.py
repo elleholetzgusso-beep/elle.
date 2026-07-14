@@ -563,35 +563,50 @@ def unmerge_sheet(ws, min_row=2):
         ws.unmerge_cells(r)
 
 
+def _mostrar_linhas(ws, min_row, max_row):
+    """Torna visiveis as linhas ocultas do template no intervalo de dados."""
+    for r in range(min_row, max_row + 1):
+        dim = ws.row_dimensions.get(r)
+        if dim is not None:
+            dim.hidden = False
+
+
 def popular_envios(ws, dados):
     unmerge_sheet(ws)
     limpar_sheet(ws)
 
-    # Agrupa por numero de envio; guarda ref + nome do doc
-    envios = {}
-    for doc in dados["docs_avaliados"]:
-        for v in doc["versoes"]:
-            n = v.get("envio")
-            if not n:
-                continue
-            if n not in envios:
-                envios[n] = {"fecha": v.get("fecha_envio"), "docs": []}
-            ref  = v.get("ref", "")
-            nome = doc["nome"]
-            envios[n]["docs"].append(f"{ref} {nome}" if ref else nome)
+    # Fonte primaria: pasta fisica '1_ Doc Recibida' (TODOS os docs enviados).
+    envios = dados.get("envios_pasta") or {}
+
+    # Fallback: se nao houver pasta, usa os docs avaliados no LPA.
+    if not envios:
+        for doc in dados["docs_avaliados"]:
+            for v in doc["versoes"]:
+                n = v.get("envio")
+                if not n:
+                    continue
+                if n not in envios:
+                    envios[n] = {"fecha": v.get("fecha_envio"), "docs": []}
+                ref  = v.get("ref", "")
+                nome = doc["nome"]
+                envios[n]["docs"].append(f"{ref} {nome}" if ref else nome)
 
     row_num = 2
     for n in sorted(envios.keys(), key=ordenar_num):
         e = envios[n]
-        docs_str = "\n".join(d for d in e["docs"] if d)
+        docs_str = "\n".join(str(d) for d in e["docs"] if d)
         ws.cell(row_num, 1).value = n
-        escrever_data(ws.cell(row_num, 2), e["fecha"])
+        escrever_data(ws.cell(row_num, 2), e.get("fecha"))
         ws.cell(row_num, 3).value = dados.get("remitente") or ""
         ws.cell(row_num, 4).value = docs_str
         ws.cell(row_num, 5).value = COMENTARIO_ENVIO
         row_num += 1
 
-    print(f"  Envios de Cliente: {row_num - 2} envios")
+    # Desoculta quaisquer linhas ocultas do template na zona de dados
+    _mostrar_linhas(ws, 2, max(row_num - 1, 2))
+
+    print(f"  Envios de Cliente: {row_num - 2} envios "
+          f"({sum(len(e['docs']) for e in envios.values())} docs)")
 
 
 def popular_doc_aportados(ws, dados):
@@ -695,6 +710,70 @@ def encontrar_pasta_docs(pasta_projeto):
     return doc if doc.is_dir() else gerada
 
 
+# ---- localizar e escanear pasta de docs recibidos (envios) --
+
+EXT_DOCS = (".pdf", ".docx", ".doc", ".xlsm", ".xlsx", ".xls",
+            ".dwg", ".dxf", ".zip", ".rar", ".pptx", ".ppt", ".jpg", ".png")
+
+
+def encontrar_pasta_recibida(pasta_projeto):
+    """Localiza a pasta '1_ Doc Recibida' (docs enviados pelo cliente)."""
+    raiz = Path(pasta_projeto)
+    for sub in raiz.iterdir():
+        if sub.is_dir():
+            n = norm(sub.name.replace("_", " "))
+            if "doc recibida" in n or "doc recebida" in n:
+                return sub
+    return None
+
+
+def _num_envio(nome):
+    """Extrai o numero de envio do nome da pasta: 'Envio 2', '2_ Envio', 'E02' -> 2."""
+    m = re.search(r"(\d+)", nome)
+    return int(m.group(1)) if m else None
+
+
+def escanear_envios(pasta_recibida):
+    """
+    Percorre '1_ Doc Recibida'. Cada subpasta = um envio.
+    Devolve dict {num_envio: {'fecha': datetime, 'docs': [nomes...]}}.
+    Se nao houver subpastas, trata os ficheiros soltos como envio 1.
+    """
+    if pasta_recibida is None or not pasta_recibida.is_dir():
+        return {}
+
+    subpastas = [p for p in sorted(pasta_recibida.iterdir()) if p.is_dir()]
+    envios = {}
+
+    def listar_docs(pasta):
+        docs = []
+        fechas = []
+        for f in sorted(pasta.rglob("*")):
+            if f.is_file() and f.suffix.lower() in EXT_DOCS:
+                docs.append(f.name)
+                fechas.append(datetime.datetime.fromtimestamp(f.stat().st_mtime))
+        return docs, fechas
+
+    if subpastas:
+        for i, sub in enumerate(subpastas, start=1):
+            num = _num_envio(sub.name) or i
+            docs, fechas = listar_docs(sub)
+            if not docs:
+                continue
+            # fecha do envio: mtime da pasta, senao a mais antiga dos ficheiros
+            try:
+                fecha = datetime.datetime.fromtimestamp(sub.stat().st_mtime)
+            except Exception:
+                fecha = min(fechas) if fechas else None
+            envios[num] = {"fecha": fecha, "docs": docs}
+    else:
+        docs, fechas = listar_docs(pasta_recibida)
+        if docs:
+            envios[1] = {"fecha": min(fechas) if fechas else None, "docs": docs}
+
+    return envios
+
+
 # ---- preservar logo do template ----------------------------
 
 def copiar_imagem_template(template_path, output_path):
@@ -789,6 +868,16 @@ def main():
 
     arquivos = escanear_pasta(pasta)
     print(f"Ficheiros gerados: {len(arquivos)}")
+
+    # Escaneia a pasta fisica '1_ Doc Recibida' para obter TODOS os envios do cliente
+    pasta_recibida = encontrar_pasta_recibida(pasta_projeto)
+    dados["envios_pasta"] = escanear_envios(pasta_recibida)
+    if pasta_recibida:
+        n_docs = sum(len(e["docs"]) for e in dados["envios_pasta"].values())
+        print(f"Doc Recibida: '{pasta_recibida.name}' "
+              f"({len(dados['envios_pasta'])} envios, {n_docs} docs)")
+    else:
+        print("Doc Recibida: nao encontrada — usando docs do LPA como fallback")
 
     wb = openpyxl.load_workbook(template)
     print("\nPopulando sheets:")
