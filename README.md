@@ -72,6 +72,7 @@ python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 | `from-docx` | Extrai portada/evaluadores/documentos do relatório PES (`.docx`).    |
 | `merge`     | Junta o `scan` + `from-docx` num `projeto.yaml` pronto a editar.     |
 | `extract`   | Lê um `.xlsm` preenchido e reconstrói o YAML (bootstrap).            |
+| `harvest`   | Extrai hallazgos de LPAs existentes para uma base de dados (CSV).    |
 
 ## Formato do ficheiro de dados
 

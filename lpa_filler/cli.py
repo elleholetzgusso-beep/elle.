@@ -136,6 +136,21 @@ def _cmd_merge(args) -> int:
     return 0
 
 
+def _cmd_harvest(args) -> int:
+    from . import harvest
+
+    if args.recibida:
+        paths = harvest.find_lpa_files(args.recibida)
+        if not paths:
+            print("Nenhum ficheiro de LPA (.xlsm com 'LPA' no nome) encontrado.", file=sys.stderr)
+            return 1
+    else:
+        paths = args.input
+    novos, total = harvest.harvest(paths, args.out, append=not args.overwrite)
+    print(f"Base de hallazgos: {args.out} (+{novos} novos, {total} no total, de {len(paths)} LPA)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -172,6 +187,13 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("-i", "--input", required=True, help=".xlsm já preenchido.")
     e.add_argument("-o", "--out", help="YAML de saída (por omissão: stdout).")
     e.set_defaults(func=_cmd_extract)
+
+    h = sub.add_parser("harvest", help="Extrai hallazgos de LPAs para uma base de dados (CSV).")
+    h.add_argument("-i", "--input", nargs="+", help="Um ou mais ficheiros .xlsm de LPA.")
+    h.add_argument("-r", "--recibida", help="Pasta a percorrer à procura de LPAs (.xlsm com 'LPA').")
+    h.add_argument("-o", "--out", default="base_hallazgos.csv", help="CSV de saída (default: base_hallazgos.csv).")
+    h.add_argument("--overwrite", action="store_true", help="Reescrever em vez de acrescentar.")
+    h.set_defaults(func=_cmd_harvest)
 
     m = sub.add_parser("merge", help="Junta scan+from-docx num projeto.yaml pronto a editar.")
     m.add_argument("-m", "--meta", help="meta.yaml (saída do from-docx).")
