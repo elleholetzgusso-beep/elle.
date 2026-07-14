@@ -146,8 +146,12 @@ def _cmd_harvest(args) -> int:
             return 1
     else:
         paths = args.input
-    novos, total = harvest.harvest(paths, args.out, append=not args.overwrite)
-    print(f"Base de hallazgos: {args.out} (+{novos} novos, {total} no total, de {len(paths)} LPA)")
+    novos, total, saltados = harvest.harvest(paths, args.out, append=not args.overwrite)
+    print(f"Base de hallazgos: {args.out} (+{novos} novos, {total} no total, de {len(paths)} ficheiros)")
+    if saltados:
+        print(f"Saltados {len(saltados)} (não são LPA no formato esperado):", file=sys.stderr)
+        for s in saltados:
+            print(f"  - {s}", file=sys.stderr)
     return 0
 
 

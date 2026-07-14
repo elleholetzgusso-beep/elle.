@@ -7,12 +7,32 @@ reutilizável para, mais tarde, sugerir hallazgos em novos LPAs — Python, sem 
 from __future__ import annotations
 
 import csv
+import unicodedata
 from pathlib import Path
 from typing import Iterable
 
 from . import extract
 
 FIELDS = ["fuente", "n", "eval", "documento", "punto", "valoracion", "estado", "hallazgo", "discusion"]
+
+# Normalização de variantes (acentos/maiúsculas/género) para a forma canónica.
+_VAL_CANON = {
+    "critico": "Crítico", "critica": "Crítico",
+    "importante": "Importante",
+    "informativo": "Informativo", "informacion": "Informativo", "informacional": "Informativo",
+    "formal": "Formal",
+}
+_EST_CANON = {"abierto": "Abierto", "resuelto": "Resuelto", "cerrado": "Cerrado"}
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
+def _canon(value, table: dict):
+    if not value or not isinstance(value, str):
+        return value
+    return table.get(_strip_accents(value).strip().lower(), value.strip())
 
 
 def _punto_to_row(pt: dict, fuente: str) -> dict:
@@ -32,24 +52,32 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
         "eval": pt.get("eval"),
         "documento": pt.get("documento"),
         "punto": pt.get("punto"),
-        "valoracion": pt.get("valoracion"),
-        "estado": pt.get("estado"),
+        "valoracion": _canon(pt.get("valoracion"), _VAL_CANON),
+        "estado": _canon(pt.get("estado"), _EST_CANON),
         "hallazgo": hallazgo,
         "discusion": "\n".join(discusion),
     }
 
 
 def find_lpa_files(folder: str | Path) -> list[Path]:
-    """Procura ficheiros de LPA (.xlsm com 'LPA' no nome) numa pasta, recursivamente."""
+    """Procura ficheiros de LPA (.xlsm/.xlsx com 'LPA' no nome), recursivamente."""
     root = Path(folder)
-    return sorted(p for p in root.rglob("*.xls[mx]") if "lpa" in p.name.lower())
+    return sorted(
+        p for p in root.rglob("*.xls[mx]")
+        if "lpa" in p.name.lower() and not p.name.startswith("~$")
+    )
 
 
-def harvest(lpa_paths: Iterable[str | Path], out_csv: str | Path, append: bool = True) -> tuple[int, int]:
-    """Extrai os hallazgos dos LPAs para o CSV. Devolve (novos, total)."""
+def harvest(lpa_paths: Iterable[str | Path], out_csv: str | Path, append: bool = True) -> tuple[int, int, list[str]]:
+    """Extrai os hallazgos dos LPAs para o CSV.
+
+    Ficheiros sem a estrutura de LPA (ex.: sem aba 'Portada'/'LPA') são saltados.
+    Devolve (novos, total, saltados).
+    """
     out = Path(out_csv)
     rows: list[dict] = []
     seen: set = set()
+    saltados: list[str] = []
 
     if append and out.exists():
         with out.open(encoding="utf-8-sig", newline="") as f:
@@ -59,7 +87,11 @@ def harvest(lpa_paths: Iterable[str | Path], out_csv: str | Path, append: bool =
 
     novos = 0
     for p in lpa_paths:
-        data = extract.extract(p)
+        try:
+            data = extract.extract(p)
+        except Exception as e:  # ficheiro não é um LPA no formato esperado
+            saltados.append(f"{Path(p).name}: {type(e).__name__}")
+            continue
         fuente = Path(p).stem
         for pt in data.get("puntos", []):
             row = _punto_to_row(pt, fuente)
@@ -76,4 +108,4 @@ def harvest(lpa_paths: Iterable[str | Path], out_csv: str | Path, append: bool =
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k, "") for k in FIELDS})
-    return novos, len(rows)
+    return novos, len(rows), saltados
