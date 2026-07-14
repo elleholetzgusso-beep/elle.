@@ -50,7 +50,11 @@ def _cmd_fill(args) -> int:
     for val, c in counts.items():
         if c["total"]:
             print(f"  {val}: {c['total']}")
-    print("Nota: abrir no Excel e atualizar a PivotTable de 'Resumen Resultados' (Datos > Actualizar todo).")
+    avisos = model.lint(data)
+    if avisos:
+        print(f"\nAvisos ({len(avisos)}) — boas práticas do guia LPA:")
+        for a in avisos:
+            print(f"  ! {a}")
     return 0
 
 

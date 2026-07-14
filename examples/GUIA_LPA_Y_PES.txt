@@ -1,0 +1,123 @@
+Aqui vai o guia completo, baseado no **PE/Inspección/03 Ed. 11** (procedimento de avaliação da Exceltic sob acreditação ENAC nº 344/EI568) e no **Reglamento UE 402/2013 (MCS-ER)**. Guardá-lo como referência de trabalho.
+
+---
+
+# GUIA COMPLETO: PES E LPA
+
+## 1. Contexto: onde esses documentos vivem
+
+Numa Evaluación Independiente de Seguridad (ISA/AsBo), a Exceltic organiza o ciclo de vida da UNE-EN 50126-1:2018 em **seis etapas**: Planificación → Análisis y Definición de Requisitos → Diseño → Ejecución → Operación → Retirada. O processo genérico se ajusta a cada projeto (etapas podem se agrupar ou omitir), e essa decisão fica **formalizada no PES**.
+
+- O **PES** nasce na **Etapa de Planificación** (Actividade II) e acompanha todo o projeto, sendo atualizado quando necessário.
+- O **LPA** é uma **saída de cada etapa de revisão**: toda vez que o equipe evaluador revisa documentação, os hallazgos vão para o LPA. Em projetos longos, emitem-se vários LPAs ao longo do processo.
+- Ambos se registram no **FSP** (Fichero de Seguimiento del Proyecto) e são registros do Sistema de Gestión de Inspección — conservação mínima de 5 anos.
+
+**Codificação:** `EXCAAAA-PPPPP-NNN-YYY-XX` → ano+nº do projeto, nº do documento, tipo (`PES` ou `LPA`), versão (inicia em `01`). Ex.: `EXC2026-01234-002-PES-01`.
+
+---
+
+## 2. GUIA DO PES (Plan de Evaluación de Seguridad)
+
+### 2.1. O que é e quando é obrigatório
+
+É o documento que descreve **atividades, metodologia, fases e hitos** da avaliação. Elabora-se **em cooperação com o solicitante**, com base na definição do sistema e sua especificação de requisitos. Planos genéricos anteriores podem ser reutilizados se se ajustarem ao sistema em estudo.
+
+**Não é obrigatório** apenas quando: (a) o alcance é simples (modificação sencilla de algo já avaliado pela Exceltic, com gestão de riscos simples) — nesse caso deve-se informar o cliente das razões e especificar no Informe de Evaluación o que o Plan teria incluído; ou (b) sistema já avaliado antes — aí se **atualiza/adapta o PES anterior** em vez de criar um novo.
+
+Para Torrepacheco (projeto novo, volume documental grande, fase de execução): **PES obrigatório**, sem dúvida.
+
+### 2.2. Conteúdo mínimo (seção por seção)
+
+1. **Alcance de la Evaluación** — o que se avalia: sistema/subsistema/produto, marco normativo aplicável (Reg. 402/2013 + 2015/1136, CENELEC se aplicar), o que está **incluído e excluído** explicitamente. Aqui também se formaliza quais etapas do processo genérico se aplicam ao projeto (ex.: só *fase de ejecución* = Fases 7–10 da 50126-1: fabricación, integración, validación, aceptación).
+2. **Límites del análisis** — fronteiras materiais, geográficas e funcionais; interfaces com outros subsistemas (ex.: Marcos com CMS no caso Dragados).
+3. **Organización del equipo evaluador** — Responsable de Evaluación, Evaluadores Técnicos designados e as **tarefas de cada um**. Atenção às regras de imparcialidade e independência do PE/02 (conflitos de interesse AsBo).
+4. **Organización del cliente** — referências à organização do proponente e recursos que ele destinará ao projeto.
+5. **Detalle de las actividades de evaluación** — o que se vai revisar em cada etapa/atividade do processo de gestão de risco do proponente. Para avaliações conforme 402/2013 com *muestreo basado en el juicio*: os aspectos a intensificar **não precisam** constar no plano (ficam em nota interna do projeto).
+6. **Hitos y planificación temporal** — marcos de entrega documental do cliente, marcos de revisão, informes intermediários se houver.
+7. **Definición de los informes a emitir** — IPE (preliminar), IIE (intermediário), IES (final), CER (certificado) e seus conteúdos fundamentais.
+8. **Criterios de aceptación/rechazo y tratamiento de no conformidades** — normalmente remete à sistemática do apartado 8.4 (classificação de hallazgos + LPA).
+
+### 2.3. Circuito de aprovação (importantíssimo)
+
+1. Redigem os **Evaluadores Técnicos** (após compreensão profunda do cambio e da organização do proponente).
+2. Aprova o **Coordinador Técnico de Evaluación**.
+3. O **Responsable de Evaluación** envia ao cliente. O Plan **deve contar com a aceitação do cliente**: comentários dele são analisados e, se oportuno, incorporados em nova versão — é um documento **consensuado**.
+4. Consensuado + aprovado → o Responsable de Evaluación responde pela correta execução.
+5. **Cada atualização segue o mesmo circuito** (aprovação do Coordinador + cliente).
+
+Durante a Actividad III (revisão da documentação do solicitante), o Responsable revisa se o PES continua coerente com a documentação de planificação recebida e o atualiza se preciso.
+
+### 2.4. Modelo
+
+Existe plantilla oficial: **"PE-INS-03-Ed.10_A.2. Plan de Evaluación de Seguridad ISA.docx"** (Anejo A.2 do procedimento). Sempre partir dela — nunca criar formato próprio.
+
+---
+
+## 3. GUIA DO LPA (Listado de Puntos Abiertos)
+
+### 3.1. O que é
+
+O registro rastreável de **hallazgos** (potenciais desviações) detectados pelo equipe evaluador ao revisar as atividades de cada etapa. Filosofia explícita do procedimento: **não** produzir listas longas — minimizar, resolvendo dúvidas por reunião/telefone antes de formalizar. Os hallazgos são comunicados ao solicitante pelo Responsable de Evaluación **o quanto antes**.
+
+### 3.2. Campos obrigatórios de cada punto abierto
+
+- **Identificador del hallazgo** — número do punto abierto.
+- **Evaluador** — quem fez a observação.
+- **Referencia del documento** — código do documento objeto do punto + capítulo.
+- **Punto del requisito** — referência do **requisito normativo** violado/afetado (artigo do 402/2013, apartado da 50126, etc.). Nunca vazio, nunca inventado.
+- **Hallazgo** — descrição da não conformidade **e sua motivação**.
+- **Discusión** — resposta do cliente + comentários do avaliador à resposta (campo vivo, vai se preenchendo).
+- **Clasificación** — ver 3.3.
+- **Estado** — ver 3.4.
+
+### 3.3. Classificação por criticidade
+
+- **Crítico** (bloqueante — correção obrigatória, afeta diretamente a segurança): não conformidade com CENELEC/MCS-ER sem justificativa; demonstração esperada que falhou ou foi mal desenvolvida; método/solução técnica inapropriada; hipótese ou exceção inaceitável.
+- **Importante** (não bloqueante por si só, mas relevante): não conformidade justificada por outros métodos; deficiência no plan de seguridad que não gera incumprimento; descrição insuficiente do sistema que não impede a avaliação; evidências insuficientes que levam a conclusões pessimistas sem comprometer a segurança. Se implicar risco residual/exportado, exige **aceitação formal** pela Autoridade Nacional, operador ou mantenedor. Muitos "importantes" abertos podem atrasar o certificado ou introduzir limitações.
+- **Formal** — consistência formal da informação recebida.
+- **Informativo** — pede-se informação adicional.
+
+### 3.4. Estados (ciclo de vida do hallazgo)
+
+1. **Abierto** — comunicado ao solicitante; ele não propôs ação ou a proposta foi insuficiente.
+2. **Resuelto** — a ação proposta foi avaliada favoravelmente, **pendente de comprovar sua correta execução**.
+3. **Cerrado** — ações executadas **e verificadas** pelo Organismo Evaluador.
+
+Fluxo: hallazgo → comunicação → cliente responde com ações + **provas documentais** → avaliador julga se são satisfatórias → cerra/resuelve ou mantém aberto.
+
+⚠️ Não confundir com os estados do **peligro/riesgo** no SC-031 da ADIF (Abierto/Controlado/Cancelado/Transferido/Gestionado/Cerrado) — são ciclos distintos: um é do hallazgo do avaliador, outro do risco do proponente.
+
+### 3.5. Regra de ouro
+
+O **Informe de Evaluación só pode ser positivo se nenhum punto bloqueante (Crítico) permanecer aberto**. E o informe final deve identificar todos os hallazgos do processo, desviações e restrições de uso.
+
+### 3.6. Modelo
+
+Plantilla oficial: **"PE-INS-03-Ed.10_A.3. Listado de puntos abiertos.xlsm"** (Anejo A.3) — é um `.xlsm` (com macros), então cuidado ao manipular com openpyxl (usar `keep_vba=True`).
+
+---
+
+## 4. Integração com o resto da documentação
+
+- **FSP**: o Responsable de Evaluación registra ali toda documentação recebida/gerada, os hallazgos associados a cada documento e seus estados. O LPA e o FSP devem estar sempre **coerentes entre si**.
+- **Informes (IPE/IIE/IES)**: a metodologia descrita no informe deve ser **conforme ao PES**; os hallazgos do LPA alimentam as conclusões.
+- Cada etapa de revisão tem como saídas padrão: **LPA da etapa + PES atualizado (se preciso) + atas/informes de reuniões ou auditorias**.
+
+---
+
+## 5. Checklist rápido antes de emitir
+
+**PES:** ☐ plantilla oficial Ed. vigente ☐ alcance com inclusões E exclusões ☐ etapas aplicáveis justificadas ☐ equipe com tarefas nominais ☐ hitos com datas ☐ informes definidos ☐ critérios de aceitação ☐ código EXC correto ☐ aprovação Coordinador ☐ envio ao cliente para consenso.
+
+**LPA:** ☐ plantilla .xlsm oficial ☐ todos os campos preenchidos (requisito normativo incluído!) ☐ classificação coerente com as definições do 8.4 ☐ discusión atualizada ☐ estados coerentes com o FSP ☐ nenhum Crítico esquecido aberto antes de informe positivo.
+
+---
+
+## 6. Dicas práticas para você
+
+- **Peça ao Roberto as plantillas oficiais vigentes** (A.2 e A.3) antes de começar — o índice do procedimento remete a elas e a ENAC audita conformidade com o formato.
+- No campo *Punto del requisito*, cite sempre a norma exata (ex.: "RUE 402/2013, Anexo I, apdo. 2.1.2") — encaixa direto com sua regra de nunca inventar referências.
+- Para Torrepacheco (fase de ejecución): as entradas típicas que você vai revisar são registros de fabricación/instalación/integración, informes de pruebas, **Hazard Log atualizado**, e a rastreabilidade das versões instaladas com as avaladas — esses são os geradores naturais de hallazgos.
+- Redação de hallazgo boa = **fato + evidência + requisito + motivação**, sem juízo genérico ("el documento X, apdo. Y, no incluye Z, requerido por el apdo. W de la norma N").
+
+Se quiser, o próximo passo natural é eu montar o esqueleto do PES de Torrepacheco sobre essa estrutura (com placeholders para os dados de expediente que ainda não chegaram) — é só confirmar quando tiver as plantillas.

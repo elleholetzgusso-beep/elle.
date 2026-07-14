@@ -91,6 +91,26 @@ def _validate(data: dict[str, Any]) -> None:
     return None
 
 
+def lint(data: dict[str, Any]) -> list[str]:
+    """Avisos de boas práticas do guia LPA (PE/Inspección/03). Não bloqueiam."""
+    avisos: list[str] = []
+    for pt in data.get("puntos", []):
+        n = pt.get("n", "?")
+        if not pt.get("valoracion"):
+            avisos.append(f"Punto {n}: sem 'valoracion' (Crítico/Importante/Informativo/Formal).")
+        if not pt.get("punto"):
+            avisos.append(f"Punto {n}: 'punto' (requisito normativo) vazio — o guia exige referência à norma.")
+        if not pt.get("estado"):
+            avisos.append(f"Punto {n}: sem 'estado' (Abierto/Resuelto/Cerrado).")
+        dialogo = pt.get("dialogo") or []
+        if not dialogo or not (dialogo[0].get("texto") or "").strip():
+            avisos.append(f"Punto {n}: sem texto de 'Hallazgo' na primeira linha do diálogo.")
+        # Regra de ouro: nenhum Crítico pode ficar Abierto num informe positivo.
+        if pt.get("valoracion") == "Crítico" and pt.get("estado") == "Abierto":
+            avisos.append(f"Punto {n}: CRÍTICO ainda 'Abierto' — bloqueia um informe positivo (regra de ouro).")
+    return avisos
+
+
 def resumen_counts(data: dict[str, Any]) -> dict[str, dict[str, int]]:
     """Conta puntos por valoración e por estado (para a aba 'Resumen Resultados')."""
     counts = {v: {"total": 0, **{e: 0 for e in ESTADOS}} for v in VALORACIONES}

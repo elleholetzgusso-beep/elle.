@@ -122,6 +122,15 @@ def _merge_content_types(out_ct: str, tpl_ct: str, parts: set[str]) -> str:
     return out_ct.replace("</Types>", "".join(additions) + "</Types>", 1)
 
 
+def _pivot_refresh_on_load(xml: bytes) -> bytes:
+    """Marca a PivotTable para atualizar automaticamente ao abrir o ficheiro."""
+    m = re.search(rb"<pivotCacheDefinition\b[^>]*>", xml)
+    if not m or b"refreshOnLoad" in m.group(0):
+        return xml
+    tag = m.group(0)[:-1] + b' refreshOnLoad="1">'
+    return xml[: m.start()] + tag + xml[m.end() :]
+
+
 def preserve(output: str | Path, template: str | Path, row_overrides: dict[str, int] | None = None) -> None:
     output, template = Path(output), Path(template)
     row_overrides = row_overrides or {}
@@ -154,6 +163,9 @@ def preserve(output: str | Path, template: str | Path, row_overrides: dict[str, 
         if n in _DROP or n == "[Content_Types].xml":
             continue
         if n.startswith(_FORCE_ORIGINAL_PREFIXES):
+            # Forçar refreshOnLoad na PivotTable para atualizar sozinha ao abrir.
+            if "pivotCacheDefinition" in n:
+                data = _pivot_refresh_on_load(data)
             o_parts[n] = data
         elif n not in o_parts:
             o_parts[n] = data
