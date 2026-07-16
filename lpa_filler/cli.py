@@ -166,7 +166,7 @@ def _cmd_suggest(args) -> int:
         _dump_yaml(projeto, args.out)
         print(f"# {len(puntos)} puntos sugeridos (rever!) a partir de {len(base)} hallazgos.", file=sys.stderr)
     elif args.query:
-        res = suggest.search(base, args.query, n=args.n)
+        res = suggest.search(base, args.query, n=args.n, valoracion=args.valoracion)
         if not res:
             print("Sem correspondências.")
         for sc, r in res:
@@ -234,6 +234,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-p", "--projeto", help="projeto.yaml a pré-preencher com puntos sugeridos.")
     g.add_argument("-o", "--out", help="YAML de saída (modo -p; por omissão stdout).")
     g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
+    g.add_argument(
+        "--valoracion",
+        choices=["Crítico", "Importante", "Informativo", "Formal"],
+        help="Filtra a base só a esta valoración antes de procurar (modo -q).",
+    )
     g.set_defaults(func=_cmd_suggest)
 
     return p
