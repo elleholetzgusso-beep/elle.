@@ -128,8 +128,12 @@ def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min
 
     puntos: list[dict] = []
     n = 1
+    emitidos: set = set()
     for doc in documentos:
         nombre = doc.get("nombre") or ""
+        if nombre in emitidos:  # o mesmo documento pode surgir em vários envíos
+            continue
+        emitidos.add(nombre)
         for sc, row in sorted(por_doc.get(nombre, []), key=lambda x: x[0], reverse=True):
             puntos.append(_row_to_punto(n, nombre, row, sc))
             n += 1
