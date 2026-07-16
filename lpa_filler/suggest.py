@@ -113,7 +113,11 @@ def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min
     for doc in documentos:
         nombre = doc.get("nombre") or ""
         for sc, row in search(base, nombre, doc_hint=nombre, n=n_per_doc, min_score=min_score):
-            chave = (row.get("hallazgo"), row.get("punto"))
+            # Deduplicar pelo TEXTO do hallazgo (o mesmo achado surge em vários
+            # LPAs com 'punto' ligeiramente diferente) — fica o de maior score.
+            chave = " ".join((row.get("hallazgo") or "").split()).lower()
+            if not chave:
+                continue
             if chave not in melhor or sc > melhor[chave][0]:
                 melhor[chave] = (sc, nombre, row)
 
