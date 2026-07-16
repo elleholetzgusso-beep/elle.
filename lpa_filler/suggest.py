@@ -104,16 +104,29 @@ def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min
     Cada punto leva ``_score`` (força do match) e ``_sugerido_de`` (LPA de origem)
     para triagem — ambos são ignorados pelo ``fill``. Fica ordenado por _score.
     """
-    puntos: list[dict] = []
-    vistos: set = set()
-    n = 1
-    for doc in projeto.get("documentos", []):  # mantém a ordem dos documentos (estrutura do LPA)
+    from collections import defaultdict
+
+    documentos = projeto.get("documentos", [])
+    # 1. Para cada hallazgo, guardar o documento onde pontua MAIS ALTO (evita que um
+    #    documento anterior com nome parecido "roube" hallazgos de outro melhor).
+    melhor: dict = {}
+    for doc in documentos:
         nombre = doc.get("nombre") or ""
         for sc, row in search(base, nombre, doc_hint=nombre, n=n_per_doc, min_score=min_score):
             chave = (row.get("hallazgo"), row.get("punto"))
-            if chave in vistos:
-                continue
-            vistos.add(chave)
+            if chave not in melhor or sc > melhor[chave][0]:
+                melhor[chave] = (sc, nombre, row)
+
+    # 2. Agrupar por documento, mantendo a ordem dos documentos (estrutura do LPA).
+    por_doc: dict = defaultdict(list)
+    for sc, nombre, row in melhor.values():
+        por_doc[nombre].append((sc, row))
+
+    puntos: list[dict] = []
+    n = 1
+    for doc in documentos:
+        nombre = doc.get("nombre") or ""
+        for sc, row in sorted(por_doc.get(nombre, []), key=lambda x: x[0], reverse=True):
             puntos.append(_row_to_punto(n, nombre, row, sc))
             n += 1
     return puntos
