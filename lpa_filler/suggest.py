@@ -82,7 +82,7 @@ def search(
     return scored[:n]
 
 
-def _row_to_punto(n: int, documento: str, row: dict) -> dict:
+def _row_to_punto(n: int, documento: str, row: dict, sc: float) -> dict:
     return {
         "n": n,
         "eval": row.get("eval") or "",
@@ -94,21 +94,26 @@ def _row_to_punto(n: int, documento: str, row: dict) -> dict:
         "estado": "Abierto",
         "dialogo": [{"tipo": "Hallazgo", "texto": row.get("hallazgo") or ""}],
         "_sugerido_de": row.get("fuente") or "",
+        "_score": round(sc, 1),
     }
 
 
-def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5) -> list[dict]:
-    """Para cada documento do projeto, gera puntos candidatos a partir da base."""
+def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min_score: float = 1) -> list[dict]:
+    """Para cada documento do projeto, gera puntos candidatos a partir da base.
+
+    Cada punto leva ``_score`` (força do match) e ``_sugerido_de`` (LPA de origem)
+    para triagem — ambos são ignorados pelo ``fill``. Fica ordenado por _score.
+    """
     puntos: list[dict] = []
     vistos: set = set()
     n = 1
-    for doc in projeto.get("documentos", []):
+    for doc in projeto.get("documentos", []):  # mantém a ordem dos documentos (estrutura do LPA)
         nombre = doc.get("nombre") or ""
-        for s, row in search(base, nombre, doc_hint=nombre, n=n_per_doc):
+        for sc, row in search(base, nombre, doc_hint=nombre, n=n_per_doc, min_score=min_score):
             chave = (row.get("hallazgo"), row.get("punto"))
             if chave in vistos:
                 continue
             vistos.add(chave)
-            puntos.append(_row_to_punto(n, nombre, row))
+            puntos.append(_row_to_punto(n, nombre, row, sc))
             n += 1
     return puntos

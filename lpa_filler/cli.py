@@ -161,7 +161,7 @@ def _cmd_suggest(args) -> int:
     base = suggest.load_base(args.base)
     if args.projeto:
         projeto = _load_yaml(args.projeto)
-        puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=args.n)
+        puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=args.n, min_score=args.min_score)
         projeto["puntos"] = puntos
         _dump_yaml(projeto, args.out)
         print(f"# {len(puntos)} puntos sugeridos (rever!) a partir de {len(base)} hallazgos.", file=sys.stderr)
@@ -234,6 +234,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-p", "--projeto", help="projeto.yaml a pré-preencher com puntos sugeridos.")
     g.add_argument("-o", "--out", help="YAML de saída (modo -p; por omissão stdout).")
     g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
+    g.add_argument("--min-score", type=float, default=1.0, help="Pontuação mínima para sugerir (modo -p). Aumenta para menos/melhores sugestões.")
     g.add_argument(
         "--valoracion",
         choices=["Crítico", "Importante", "Informativo", "Formal"],
