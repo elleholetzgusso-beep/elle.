@@ -24,12 +24,35 @@ def _strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
+# Abreviaturas comuns em nomes de pastas de obra -> termos por extenso.
+_ABREV = {
+    "estruc": ["estructuras"],
+    "ssaa": ["servicios", "afectados"],
+    "pptp": ["pliego", "prescripciones", "tecnicas"],
+    "presup": ["presupuesto"],
+    "sit": ["situaciones"],
+    "prov": ["provisionales"],
+    "inst": ["instalaciones"],
+    "ferr": ["ferroviarias"],
+    "seg": ["seguridad"],
+    "rep": ["registro", "peligros"],
+    "iiff": ["instalaciones", "ferroviarias"],
+    "obr": ["obras"],
+    "com": ["complementarias"],
+    "dren": ["drenaje"],
+    "tun": ["tunel", "tuneles"],
+}
+
+
 def _tokens(text: str) -> set[str]:
     if not text:
         return set()
     t = _strip_accents(str(text)).lower()
     palavras = re.findall(r"[a-z0-9]+", t)
-    return {w for w in palavras if len(w) > 2 and not w.isdigit() and w not in _STOP}
+    out = {w for w in palavras if len(w) > 2 and not w.isdigit() and w not in _STOP}
+    for w in list(out):
+        out.update(_ABREV.get(w, []))
+    return out
 
 
 def load_base(csv_path: str | Path) -> list[dict]:
@@ -38,7 +61,18 @@ def load_base(csv_path: str | Path) -> list[dict]:
 
 
 def _overlap(q: set[str], field: str) -> int:
-    return len(q & _tokens(field))
+    """Sobreposição com matching por prefixo: 'estruc' casa com 'estructuras'
+    (>=4 letras iniciais em comum), para nomes de pastas abreviados."""
+    ft = _tokens(field)
+    hits = len(q & ft)
+    resto_q = q - ft
+    resto_f = ft - q
+    for a in resto_q:
+        if len(a) >= 4 and any(
+            (b.startswith(a) or a.startswith(b)) and min(len(a), len(b)) >= 4 for b in resto_f
+        ):
+            hits += 1
+    return hits
 
 
 def score(query_tokens: set[str], row: dict, doc_hint: str = "") -> float:

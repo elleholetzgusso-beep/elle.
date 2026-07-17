@@ -170,6 +170,18 @@ def _cmd_suggest(args) -> int:
         sugeridos = suggest.suggest_for_projeto(
             base, projeto, n_per_doc=args.n, min_score=args.min_score, skip_texts=skip
         )
+        if args.debug:
+            print("\n# DEBUG: melhor score por documento (mesmo abaixo de --min-score):", file=sys.stderr)
+            vistos = set()
+            for doc in projeto.get("documentos", []):
+                nombre = doc.get("nombre") or ""
+                if not nombre or nombre in vistos:
+                    continue
+                vistos.add(nombre)
+                res = suggest.search(base, nombre, doc_hint=nombre, n=1, min_score=0)
+                sc = res[0][0] if res else 0.0
+                marca = "OK" if sc >= args.min_score else "abaixo do limiar"
+                print(f"#   {sc:6.1f}  {marca:18} {nombre[:55]}", file=sys.stderr)
         projeto["puntos"] = list(existentes) + sugeridos
         for i, pt in enumerate(projeto["puntos"], 1):
             pt["n"] = i
@@ -250,6 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
     g.add_argument("--min-score", type=float, default=1.0, help="Pontuação mínima para sugerir (modo -p). Aumenta para menos/melhores sugestões.")
     g.add_argument("--replace", action="store_true", help="Substituir os puntos existentes em vez de acrescentar (modo -p).")
+    g.add_argument("--debug", action="store_true", help="Mostrar o melhor score por documento (modo -p), para calibrar --min-score.")
     g.add_argument(
         "--valoracion",
         choices=["Crítico", "Importante", "Informativo", "Formal"],
