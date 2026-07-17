@@ -98,7 +98,7 @@ def _row_to_punto(n: int, documento: str, row: dict, sc: float) -> dict:
     }
 
 
-def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min_score: float = 1) -> list[dict]:
+def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min_score: float = 1, skip_texts: set | None = None) -> list[dict]:
     """Para cada documento do projeto, gera puntos candidatos a partir da base.
 
     Cada punto leva ``_score`` (força do match) e ``_sugerido_de`` (LPA de origem)
@@ -116,7 +116,7 @@ def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min
             # Deduplicar pelo TEXTO do hallazgo (o mesmo achado surge em vários
             # LPAs com 'punto' ligeiramente diferente) — fica o de maior score.
             chave = " ".join((row.get("hallazgo") or "").split()).lower()
-            if not chave:
+            if not chave or (skip_texts and chave in skip_texts):
                 continue
             if chave not in melhor or sc > melhor[chave][0]:
                 melhor[chave] = (sc, nombre, row)

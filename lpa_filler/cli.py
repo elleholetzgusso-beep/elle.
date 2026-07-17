@@ -161,10 +161,24 @@ def _cmd_suggest(args) -> int:
     base = suggest.load_base(args.base)
     if args.projeto:
         projeto = _load_yaml(args.projeto)
-        puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=args.n, min_score=args.min_score)
-        projeto["puntos"] = puntos
+        existentes = [] if args.replace else (projeto.get("puntos") or [])
+        skip = {
+            " ".join(((pt.get("dialogo") or [{}])[0].get("texto") or "").split()).lower()
+            for pt in existentes
+        }
+        skip.discard("")
+        sugeridos = suggest.suggest_for_projeto(
+            base, projeto, n_per_doc=args.n, min_score=args.min_score, skip_texts=skip
+        )
+        projeto["puntos"] = list(existentes) + sugeridos
+        for i, pt in enumerate(projeto["puntos"], 1):
+            pt["n"] = i
         _dump_yaml(projeto, args.out)
-        print(f"# {len(puntos)} puntos sugeridos (rever!) a partir de {len(base)} hallazgos.", file=sys.stderr)
+        print(
+            f"# {len(existentes)} puntos existentes + {len(sugeridos)} sugeridos "
+            f"(rever!) de {len(base)} hallazgos.",
+            file=sys.stderr,
+        )
     elif args.query:
         res = suggest.search(base, args.query, n=args.n, valoracion=args.valoracion)
         if not res:
@@ -235,6 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-o", "--out", help="YAML de saída (modo -p; por omissão stdout).")
     g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
     g.add_argument("--min-score", type=float, default=1.0, help="Pontuação mínima para sugerir (modo -p). Aumenta para menos/melhores sugestões.")
+    g.add_argument("--replace", action="store_true", help="Substituir os puntos existentes em vez de acrescentar (modo -p).")
     g.add_argument(
         "--valoracion",
         choices=["Crítico", "Importante", "Informativo", "Formal"],
