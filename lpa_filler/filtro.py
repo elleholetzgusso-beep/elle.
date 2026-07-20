@@ -55,6 +55,16 @@ _INCERTO = [
     (r"\brespuesta(s)?\b", "Contém 'respuesta' — confirmar se é documento a avaliar ou comunicação"),
 ]
 
+# Exceções técnicas aos padrões fracos, verificadas ANTES de _INCERTO: nomes
+# que contêm um termo fraco mas são evidência técnica avaliada. Calibrado com a
+# base real de 625 hallazgos: 9 dos 10 "incertos" eram actas de pruebas
+# (FAT/SAT/internas) de projetos de sinalização — documentos que geram
+# hallazgos, não atas de reunião.
+_TECNICO_EXCECAO = [
+    r"\bacta\b.*\bpruebas?\b",   # acta de pruebas FAT/SAT/internas
+    r"\bpruebas?\b.*\bacta\b",
+]
+
 # Termos de conteúdo (primeiras linhas de um .docx) que confirmam oferta/marco
 # contratual mesmo quando o nome do ficheiro não o diz.
 _DESVIO_CONTEUDO = [
@@ -88,6 +98,8 @@ def classify_name(nombre: str) -> tuple[str, str]:
     motivo = _match(n, _DESVIO)
     if motivo:
         return "desviado", motivo
+    if any(re.search(rx, n) for rx in _TECNICO_EXCECAO):
+        return "avaliar", ""
     motivo = _match(n, _INCERTO)
     if motivo:
         return "incerto", motivo

@@ -40,6 +40,17 @@ def test_classify_name_incerto_sinal_fraco():
     assert "confirmar" in motivo.lower()
 
 
+def test_actas_de_pruebas_sao_tecnicas():
+    # Calibrado com a base real: actas de pruebas FAT/internas geram hallazgos.
+    for nome in [
+        "ACTA DE INICIO DE PRUEBAS EN FÁBRICA (FAT)",
+        "Acta de Pruebas Internas de Vicálvaro",
+        "Acta de pruebas internas y NC de la versión K1.0",
+    ]:
+        cat, _ = filtro.classify_name(nome)
+        assert cat == "avaliar", nome
+
+
 def test_nome_tecnico_nunca_desviado_pelo_conteudo():
     # Um Anejo nunca é desviado pelo conteúdo, mesmo que cite condições económicas.
     with tempfile.TemporaryDirectory() as d:
