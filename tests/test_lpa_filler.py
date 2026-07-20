@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lpa_filler import model, scan  # noqa: E402
+from lpa_filler import model, scan, scope, suggest  # noqa: E402
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "examples" / "template_exemplo.xlsm"
 
@@ -58,6 +58,48 @@ def test_scan_groups_by_document_and_parses_envio():
         assert envios == [1, 2]
         e1 = next(e for e in anejo["envios"] if e["envio"] == 1)
         assert e1["fecha_envio"] == dt.date(2025, 11, 26)
+
+
+def test_scope_classify_in_out_unknown():
+    anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
+    # Nomeia a obra atual -> dentro.
+    assert scope.classify("Revisar el paso a nivel en Torre Pacheco", anchors) == "in"
+    assert scope.classify("Velocidades de la línea L352", anchors) == "in"
+    # Nomeia outra obra e não a atual -> fora (contaminação).
+    assert scope.classify("Bloqueo entre Lleida Pirineus y Balaguer", anchors) == "out"
+    assert scope.classify("Enclavamiento de Sueca y Cullera (ENYSE)", anchors) == "out"
+    # Genérico, sem topónimos -> indeterminado (não penalizar).
+    assert scope.classify("La tabla 3 no indica el valor de cálculo", anchors) == "unknown"
+    # Sem âncoras -> nunca marca fora de escopo.
+    assert scope.classify("Bloqueo entre Lleida y Balaguer", []) == "unknown"
+
+
+def test_scope_find_markers_codes_and_places():
+    m = scope.find_markers("Estudio de la línea L352 en Balsicas y también Sueca")
+    assert "balsicas" in m and "sueca" in m
+    assert any("352" in x for x in m)  # código de linha detetado
+
+
+def test_suggest_marks_out_of_scope():
+    base = [
+        {"documento": "[135.0] Perfilado banqueta", "punto": "1.1",
+         "hallazgo": "Perfilado de banqueta en Torre Pacheco correcto", "valoracion": "Importante",
+         "estado": "Cerrado", "fuente": "LPA-A"},
+        {"documento": "[135.0] Perfilado banqueta", "punto": "1.2",
+         "hallazgo": "Bloqueo entre enclavamientos de Lleida Pirineus y Balaguer", "valoracion": "Importante",
+         "estado": "Cerrado", "fuente": "LPA-B"},
+    ]
+    projeto = {"documentos": [{"nombre": "[135.0] Perfilado banqueta", "envios": []}]}
+    anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
+    puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=5, min_score=0, anchors=anchors)
+    by_txt = {p["dialogo"][0]["texto"]: p for p in puntos}
+    dentro = by_txt["Perfilado de banqueta en Torre Pacheco correcto"]
+    fora = by_txt["Bloqueo entre enclavamientos de Lleida Pirineus y Balaguer"]
+    assert not dentro.get("_fora_escopo")
+    assert fora.get("_fora_escopo") is True
+    assert "lleida" in (fora.get("_marcadores") or "")
+    # O fora de escopo deve vir ordenado DEPOIS do dentro (afundado).
+    assert puntos.index(dentro) < puntos.index(fora)
 
 
 def test_fill_roundtrip_if_template_present():

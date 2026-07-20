@@ -156,6 +156,7 @@ def _cmd_harvest(args) -> int:
 
 
 def _cmd_suggest(args) -> int:
+    from . import scope as _scope
     from . import suggest
 
     base = suggest.load_base(args.base)
@@ -167,8 +168,11 @@ def _cmd_suggest(args) -> int:
             for pt in existentes
         }
         skip.discard("")
+        # Âncoras da obra: --scope na linha de comandos, senão a chave 'scope' do projeto.
+        anchors = _scope.parse_anchors(args.scope or projeto.get("scope"))
         sugeridos = suggest.suggest_for_projeto(
-            base, projeto, n_per_doc=args.n, min_score=args.min_score, skip_texts=skip
+            base, projeto, n_per_doc=args.n, min_score=args.min_score, skip_texts=skip,
+            anchors=anchors,
         )
         if args.debug:
             print("\n# DEBUG: melhor score por documento (mesmo abaixo de --min-score):", file=sys.stderr)
@@ -186,11 +190,29 @@ def _cmd_suggest(args) -> int:
         for i, pt in enumerate(projeto["puntos"], 1):
             pt["n"] = i
         _dump_yaml(projeto, args.out)
+        fora = [pt for pt in sugeridos if pt.get("_fora_escopo")]
         print(
             f"# {len(existentes)} puntos existentes + {len(sugeridos)} sugeridos "
             f"(rever!) de {len(base)} hallazgos.",
             file=sys.stderr,
         )
+        if anchors:
+            print(
+                f"# scope={anchors}: {len(fora)} sugestões marcadas _fora_escopo "
+                f"(provável contaminação de outra obra — confirmar/remover).",
+                file=sys.stderr,
+            )
+            for pt in fora:
+                print(
+                    f"#   Nº{pt['n']} [{pt.get('_marcadores','?')}] {pt['documento'][:45]}",
+                    file=sys.stderr,
+                )
+        elif projeto.get("documentos"):
+            print(
+                "# (sem --scope: filtro de contaminação entre obras desligado; "
+                'ex.: --scope "Torre Pacheco, L352, Balsicas")',
+                file=sys.stderr,
+            )
     elif args.query:
         res = suggest.search(base, args.query, n=args.n, valoracion=args.valoracion)
         if not res:
@@ -285,6 +307,13 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--min-score", type=float, default=1.0, help="Pontuação mínima para sugerir (modo -p). Aumenta para menos/melhores sugestões.")
     g.add_argument("--replace", action="store_true", help="Substituir os puntos existentes em vez de acrescentar (modo -p).")
     g.add_argument("--debug", action="store_true", help="Mostrar o melhor score por documento (modo -p), para calibrar --min-score.")
+    g.add_argument(
+        "--scope",
+        help='Âncoras da obra atual p/ detetar contaminação de outras obras (modo -p). '
+        'Ex.: --scope "Torre Pacheco, L352, Balsicas". Sugestões cujo texto nomeia '
+        'outra obra ficam marcadas _fora_escopo. Sem isto, também se lê a chave '
+        "'scope' do projeto.yaml.",
+    )
     g.add_argument(
         "--valoracion",
         choices=["Crítico", "Importante", "Informativo", "Formal"],

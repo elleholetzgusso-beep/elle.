@@ -12,6 +12,8 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from . import scope
+
 # Palavras muito comuns (ES) e ruído que não ajudam a distinguir hallazgos.
 _STOP = set("""
 de la el en y a los las del se que por con un una para es al lo como mas o su sus
@@ -116,8 +118,20 @@ def search(
     return scored[:n]
 
 
-def _row_to_punto(n: int, documento: str, row: dict, sc: float) -> dict:
-    return {
+# Multiplicador do score quando o hallazgo parece ser de outra obra (não apaga:
+# só o afunda na ordenação para que o avaliador o veja por último).
+_PENAL_FORA_ESCOPO = 0.3
+
+
+def _texto_do_row(row: dict) -> str:
+    """Junta o texto relevante do hallazgo para deteção de escopo/marcadores."""
+    return " ".join(
+        str(row.get(k) or "") for k in ("hallazgo", "discusion", "documento", "punto")
+    )
+
+
+def _row_to_punto(n: int, documento: str, row: dict, sc: float, fora_escopo: bool = False) -> dict:
+    pt = {
         "n": n,
         "eval": "",  # a atribuir pelo avaliador DESTA obra (o eval de origem induzia em erro)
         "documento": documento,
@@ -130,15 +144,35 @@ def _row_to_punto(n: int, documento: str, row: dict, sc: float) -> dict:
         "_sugerido_de": row.get("fuente") or "",
         "_score": round(sc, 1),
     }
+    if fora_escopo:
+        # Sinaliza contaminação provável de outra obra; o avaliador confirma/remove.
+        pt["_fora_escopo"] = True
+        marc = row.get("marcadores") or ", ".join(sorted(scope.find_markers(_texto_do_row(row))))
+        if marc:
+            pt["_marcadores"] = marc
+    return pt
 
 
-def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min_score: float = 1, skip_texts: set | None = None) -> list[dict]:
+def suggest_for_projeto(
+    base: list[dict],
+    projeto: dict,
+    n_per_doc: int = 5,
+    min_score: float = 1,
+    skip_texts: set | None = None,
+    anchors: list[str] | None = None,
+) -> list[dict]:
     """Para cada documento do projeto, gera puntos candidatos a partir da base.
 
     Cada punto leva ``_score`` (força do match) e ``_sugerido_de`` (LPA de origem)
     para triagem — ambos são ignorados pelo ``fill``. Fica ordenado por _score.
+
+    ``anchors`` (âncoras da obra, ex. ["torre pacheco", "l352"]): se indicadas,
+    os hallazgos cujo texto nomeia outra obra (e nenhuma âncora) ficam marcados
+    com ``_fora_escopo`` e afundados na ordenação — não são apagados.
     """
     from collections import defaultdict
+
+    anchors = anchors or []
 
     documentos = projeto.get("documentos", [])
     # 1. Para cada hallazgo, guardar o documento onde pontua MAIS ALTO (evita que um
@@ -168,7 +202,14 @@ def suggest_for_projeto(base: list[dict], projeto: dict, n_per_doc: int = 5, min
         if nombre in emitidos:  # o mesmo documento pode surgir em vários envíos
             continue
         emitidos.add(nombre)
-        for sc, row in sorted(por_doc.get(nombre, []), key=lambda x: x[0], reverse=True):
-            puntos.append(_row_to_punto(n, nombre, row, sc))
+        # Ordena por: primeiro os dentro/indeterminados, depois os fora de escopo;
+        # dentro de cada grupo por score decrescente.
+        candidatos = []
+        for sc, row in por_doc.get(nombre, []):
+            fora = anchors and scope.classify(_texto_do_row(row), anchors) == "out"
+            candidatos.append((bool(fora), sc, row))
+        candidatos.sort(key=lambda x: (x[0], -x[1]))
+        for fora, sc, row in candidatos:
+            puntos.append(_row_to_punto(n, nombre, row, sc, fora_escopo=fora))
             n += 1
     return puntos

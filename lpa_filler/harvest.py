@@ -7,13 +7,31 @@ reutilizável para, mais tarde, sugerir hallazgos em novos LPAs — Python, sem 
 from __future__ import annotations
 
 import csv
+import re
 import unicodedata
 from pathlib import Path
 from typing import Iterable
 
-from . import extract
+from . import extract, scope
 
-FIELDS = ["fuente", "n", "eval", "documento", "punto", "valoracion", "estado", "hallazgo", "discusion"]
+FIELDS = [
+    "fuente", "n", "eval", "documento", "punto", "valoracion", "estado",
+    "hallazgo", "discusion", "obra", "marcadores",
+]
+
+# Código de obra no nome do ficheiro-fonte (ex. "EXC2025-16126"), quando existe.
+_OBRA_RE = re.compile(r"EXC\s*\d{3,}[-\d]*", re.IGNORECASE)
+
+
+def _obra_de_fuente(fuente: str) -> str:
+    """Proveniência grosseira a partir do nome do LPA (código EXC, senão vazio).
+
+    Nota: um mesmo LPA-fonte pode misturar hallazgos de várias obras, por isso
+    ``obra`` (do nome do ficheiro) não separa a contaminação interna — para isso
+    servem os ``marcadores`` do texto. Fica como pista de triagem.
+    """
+    m = _OBRA_RE.search(fuente or "")
+    return re.sub(r"\s+", "", m.group(0)).upper() if m else ""
 
 # Normalização de variantes (acentos/maiúsculas/género) para a forma canónica.
 _VAL_CANON = {
@@ -46,6 +64,7 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
             hallazgo = texto
         elif texto:
             discusion.append(f"{tipo}: {texto}" if tipo else texto)
+    texto_completo = " ".join([hallazgo, *discusion, str(pt.get("documento") or "")])
     return {
         "fuente": fuente,
         "n": pt.get("n"),
@@ -56,6 +75,8 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
         "estado": _canon(pt.get("estado"), _EST_CANON),
         "hallazgo": hallazgo,
         "discusion": "\n".join(discusion),
+        "obra": _obra_de_fuente(fuente),
+        "marcadores": ", ".join(sorted(scope.find_markers(texto_completo))),
     }
 
 
