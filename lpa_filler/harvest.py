@@ -16,7 +16,7 @@ from . import extract, scope
 
 FIELDS = [
     "fuente", "n", "eval", "documento", "punto", "valoracion", "estado",
-    "hallazgo", "discusion", "obra", "marcadores",
+    "estado_legado", "hallazgo", "discusion", "obra", "marcadores",
 ]
 
 # Código de obra no nome do ficheiro-fonte (ex. "EXC2025-16126"), quando existe.
@@ -42,6 +42,31 @@ _VAL_CANON = {
 }
 _EST_CANON = {"abierto": "Abierto", "resuelto": "Resuelto", "cerrado": "Cerrado"}
 
+# Estados LEGADOS (fora do PE/03 §8.4) observados em LPAs antigos -> equivalente
+# operacional PE/03. O valor ORIGINAL fica preservado em 'estado_legado' (a
+# migração é reversível e auditável; o mapeamento Controlado->Resuelto está
+# pendente de confirmação do RE — ver spec de melhorias, ponto em aberto 3).
+# "Cancelado" fica de fora de propósito: não tem equivalente no PE/03; passa
+# intacto, apenas assinalado em 'estado_legado' como não normativo.
+_EST_LEGADO = {
+    "controlado": "Resuelto",
+    "conforme": "Cerrado",
+    "resuelto/cerrado": "Cerrado",
+    "cerrado/conforme": "Cerrado",
+}
+
+
+def _estado_pe03(value) -> tuple:
+    """Devolve (estado_para_a_base, estado_legado_ou_vazio)."""
+    if not value or not isinstance(value, str):
+        return value, ""
+    key = _strip_accents(value).strip().lower()
+    if key in _EST_CANON:
+        return _EST_CANON[key], ""
+    if key in _EST_LEGADO:
+        return _EST_LEGADO[key], value.strip()
+    return value.strip(), value.strip()  # desconhecido (ex. Cancelado): não normativo
+
 
 def _strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
@@ -65,6 +90,7 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
         elif texto:
             discusion.append(f"{tipo}: {texto}" if tipo else texto)
     texto_completo = " ".join([hallazgo, *discusion, str(pt.get("documento") or "")])
+    estado, estado_legado = _estado_pe03(pt.get("estado"))
     return {
         "fuente": fuente,
         "n": pt.get("n"),
@@ -72,7 +98,8 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
         "documento": pt.get("documento"),
         "punto": pt.get("punto"),
         "valoracion": _canon(pt.get("valoracion"), _VAL_CANON),
-        "estado": _canon(pt.get("estado"), _EST_CANON),
+        "estado": estado,
+        "estado_legado": estado_legado,
         "hallazgo": hallazgo,
         "discusion": "\n".join(discusion),
         "obra": _obra_de_fuente(fuente),

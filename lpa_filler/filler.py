@@ -25,8 +25,10 @@ LPA = {c: col_idx(c) for c in "ABCDEFGHIJK"}
 # Linhas a partir das quais começam os dados (a seguir aos cabeçalhos).
 CV_FIRST, DE_FIRST, LPA_FIRST = 4, 3, 2
 
-# Fórmulas do template.
-VLOOKUP_REF = "=VLOOKUP(C{r},'Doc Evaluados'!$A$1:$G$148,2,FALSE)"
+# Fórmulas do template. O intervalo do VLOOKUP cobre até à última linha
+# realmente gerada em Doc Evaluados (o template trazia $G$148 fixo, que
+# quebrava silenciosamente com mais de ~146 linhas de documentos).
+VLOOKUP_REF = "=VLOOKUP(C{r},'Doc Evaluados'!$A$1:$G${last},2,FALSE)"
 DE_ESTADO_FORMULA = '=IF(COUNTIFS(LPA!J:J,"Abierto",LPA!C:C,{ref})>0,"Abierto","Cerrado")'
 DE_COMENT_FORMULA = '=IF({estado}="Abierto","Ver pestaña LPA con los hallazgos identificados","Versión formal sin hallazgos")'
 LPA_J_FIRST = "=IF(K{r}<>0,K{r},#REF!)"
@@ -57,7 +59,7 @@ def fill(
     _fill_portada(wb["Portada"], data.get("portada", {}))
     _fill_versiones(wb["Control de versiones"], data.get("versiones", []), cv_style)
     de_last = _fill_documentos(wb["Doc Evaluados"], data.get("documentos", []), de_first, de_sub)
-    lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp)
+    lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp, de_last)
 
     if veredicto_text:
         wb.properties.description = veredicto_text
@@ -172,7 +174,7 @@ def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: d
     return r - 1
 
 
-def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict) -> int:
+def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict, de_last: int) -> int:
     styles.clear_region(ws, LPA_FIRST, max(ws.max_row, LPA_FIRST), 11)
     r = LPA_FIRST
     for pt in puntos:
@@ -194,7 +196,7 @@ def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict) -> in
         _set(ws, start, LPA["C"], pt.get("documento"))
         ref = pt.get("ref_documento", "auto")
         ws.cell(row=start, column=LPA["D"]).value = (
-            VLOOKUP_REF.format(r=start) if ref in (None, "auto") else ref
+            VLOOKUP_REF.format(r=start, last=max(de_last, DE_FIRST)) if ref in (None, "auto") else ref
         )
         _set(ws, start, LPA["E"], pt.get("punto"))
         _set(ws, start, LPA["F"], pt.get("valoracion"))
