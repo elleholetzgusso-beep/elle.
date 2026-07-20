@@ -91,6 +91,34 @@ def _validate(data: dict[str, Any]) -> None:
     return None
 
 
+PLACEHOLDERS = ("DESCREVER O HALLAZGO", "PREENCHER")
+
+
+def drop_placeholders(data: dict[str, Any]) -> list[str]:
+    """Remove puntos-placeholder (texto de exemplo por preencher) antes do fill.
+
+    Devolve avisos sobre o que foi removido e sobre campos da portada ainda
+    com 'PREENCHER' (esses não são removidos — têm de ser preenchidos).
+    """
+    avisos: list[str] = []
+    mantidos = []
+    for pt in data.get("puntos", []):
+        texto = ((pt.get("dialogo") or [{}])[0].get("texto") or "").upper()
+        if any(ph in texto for ph in PLACEHOLDERS):
+            avisos.append(
+                f"Punto {pt.get('n', '?')} descartado: texto-modelo por preencher "
+                f"(placeholder) — não entra no Excel."
+            )
+            continue
+        mantidos.append(pt)
+    data["puntos"] = mantidos
+    for campo in ("titulo", "referencia"):
+        valor = str(data.get("portada", {}).get(campo) or "")
+        if "PREENCHER" in valor.upper():
+            avisos.append(f"Portada.{campo} ainda com 'PREENCHER' — corrige antes de emitir.")
+    return avisos
+
+
 def lint(data: dict[str, Any]) -> list[str]:
     """Avisos de boas práticas do guia LPA (PE/Inspección/03). Não bloqueiam."""
     avisos: list[str] = []

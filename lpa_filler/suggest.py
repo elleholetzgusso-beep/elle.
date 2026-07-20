@@ -119,7 +119,7 @@ def search(
 def _row_to_punto(n: int, documento: str, row: dict, sc: float) -> dict:
     return {
         "n": n,
-        "eval": row.get("eval") or "",
+        "eval": "",  # a atribuir pelo avaliador DESTA obra (o eval de origem induzia em erro)
         "documento": documento,
         "ref_documento": "auto",
         "punto": row.get("punto") or "",

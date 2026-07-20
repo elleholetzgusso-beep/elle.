@@ -42,6 +42,9 @@ def _cmd_fill(args) -> int:
     from . import filler, model
 
     data = model.load(args.data)
+    descartes = model.drop_placeholders(data)
+    for d in descartes:
+        print(f"  ! {d}")
     out = filler.fill(args.template, data, args.out)
     counts = model.resumen_counts(data)
     total = sum(c["total"] for c in counts.values())
@@ -120,20 +123,9 @@ def _cmd_merge(args) -> int:
         "portada": portada,
         "versiones": versiones,
         "documentos": documentos,
-        # Esqueleto de um punto para o utilizador completar (hallazgos = critério do avaliador).
-        "puntos": [
-            {
-                "n": 1,
-                "eval": "SM",
-                "documento": documentos[0]["nombre"] if documentos else "",
-                "ref_documento": "auto",
-                "punto": "",
-                "valoracion": "Importante",
-                "version": None,
-                "estado": "Abierto",
-                "dialogo": [{"tipo": "Hallazgo", "texto": "DESCREVER O HALLAZGO AQUI"}],
-            }
-        ],
+        # Sem esqueleto de punto: um placeholder por preencher acabava no Excel final.
+        # Ver o formato em config/projeto_exemplo.yaml; o comando suggest acrescenta candidatos.
+        "puntos": [],
     }
     _dump_yaml(projeto, args.out)
     print(
