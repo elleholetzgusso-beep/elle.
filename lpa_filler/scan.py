@@ -90,6 +90,8 @@ def scan(
         for f in sorted(ed.rglob("*")):
             if not f.is_file() or f.suffix.lower() not in exts:
                 continue
+            if f.name.startswith("~$") or f.name.startswith("."):
+                continue  # ficheiro de bloqueio temporário do Word/Excel, ou oculto
             name, version = _clean_name_version(f.stem)
             referencia = f.stem.strip()
             # "folder" só faz sentido se houver uma subpasta de documento entre o
