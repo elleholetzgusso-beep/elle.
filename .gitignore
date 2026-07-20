@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Ficheiros temporários do Office
+~$*
+
+# Saídas locais de trabalho (não versionar dados de projeto)
+base_hallazgos.csv
+*.xlsm
+!examples/template_exemplo.xlsm
