@@ -39,9 +39,19 @@ def _dump_yaml(data: Any, out: str | None) -> None:
 
 
 def _cmd_fill(args) -> int:
-    from . import filler, model
+    from . import filler, model, nomenclatura
 
     data = model.load(args.data)
+    nomen = [
+        m
+        for m in (
+            nomenclatura.check_referencia((data.get("portada") or {}).get("referencia") or ""),
+            nomenclatura.check_filename(Path(args.out).stem),
+        )
+        if m
+    ] + nomenclatura.avisos_documentos(data.get("documentos", []))
+    for m in nomen:
+        print(f"  ! nomenclatura: {m}")
     descartes = model.drop_placeholders(data) + model.drop_fora_de_escopo(data)
     for d in descartes:
         print(f"  ! {d}")
@@ -80,6 +90,10 @@ def _cmd_scan(args) -> int:
         print(f"# {len(incertos)} incertos (rever manualmente; seguem no fluxo normal):", file=sys.stderr)
         for d in incertos:
             print(f"#   ? {d['nombre']}: {d['_triage_motivo']}", file=sys.stderr)
+    from . import nomenclatura
+
+    for a in nomenclatura.avisos_documentos(documentos):
+        print(f"# ! nomenclatura: {a}", file=sys.stderr)
     return 0
 
 
