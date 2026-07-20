@@ -64,9 +64,22 @@ def _cmd_fill(args) -> int:
 def _cmd_scan(args) -> int:
     from . import scan
 
-    documentos = scan.scan(args.recibida, autor=args.autor, group_by=args.group_by, estado=args.estado)
+    documentos = scan.scan(
+        args.recibida, autor=args.autor, group_by=args.group_by, estado=args.estado,
+        triage=not args.no_triage,
+    )
     _dump_yaml({"documentos": documentos}, args.out)
     print(f"# {len(documentos)} documentos encontrados", file=sys.stderr)
+    desviados = [d for d in documentos if d.get("_triage") == "desviado"]
+    incertos = [d for d in documentos if d.get("_triage") == "incerto"]
+    if desviados:
+        print(f"# {len(desviados)} desviados (não avaliativos, PE/01 — sem puntos de LPA):", file=sys.stderr)
+        for d in desviados:
+            print(f"#   - {d['nombre']}: {d['_triage_motivo']}", file=sys.stderr)
+    if incertos:
+        print(f"# {len(incertos)} incertos (rever manualmente; seguem no fluxo normal):", file=sys.stderr)
+        for d in incertos:
+            print(f"#   ? {d['nombre']}: {d['_triage_motivo']}", file=sys.stderr)
     return 0
 
 
@@ -265,6 +278,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--estado",
         default="auto",
         help='Estado dos documentos: "auto" (fórmula, default) ou literal "Abierto"/"Resuelto"/"Cerrado".',
+    )
+    s.add_argument(
+        "--no-triage",
+        action="store_true",
+        help="Desliga a triagem de documentos não avaliativos (PE/01).",
     )
     s.set_defaults(func=_cmd_scan)
 

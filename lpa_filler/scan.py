@@ -17,6 +17,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from . import filtro
+
 DEFAULT_EXTS = (".pdf", ".docx", ".doc", ".xlsx", ".xlsm", ".xls", ".dwg")
 _ENVIO_RE = re.compile(r"env[íi]o\s*0*(\d+)\D*(\d{8})?", re.IGNORECASE)
 
@@ -64,6 +66,7 @@ def scan(
     autor: str = "",
     group_by: str = "file",
     estado: str = "auto",
+    triage: bool = True,
 ) -> list[dict[str, Any]]:
     """Devolve uma lista `documentos` pronta a colocar no YAML.
 
@@ -72,6 +75,10 @@ def scan(
     group_by="folder" -> nombre = nome da pasta que contém o ficheiro,
                          referencia = nome do ficheiro (vários ficheiros da mesma
                          pasta ficam como linhas do mesmo documento).
+    triage=True       -> classifica documentos não avaliativos (PE/01): os
+                         "desviado" ficam em Doc Evaluados mas o suggest não
+                         lhes gera puntos; os "incerto" são listados p/ revisão.
+                         O motivo fica em '_triage_motivo' (registo auditável).
     """
     root = Path(recibida_dir)
     if not root.is_dir():
@@ -104,7 +111,7 @@ def scan(
                 key = name                    # 1 documento por nome de ficheiro
                 nombre = name
             if key not in docs:
-                docs[key] = {"nombre": nombre, "envios": []}
+                docs[key] = {"nombre": nombre, "envios": [], "_path": f}
                 order.append(key)
             docs[key]["envios"].append(
                 {
@@ -117,7 +124,18 @@ def scan(
                 }
             )
 
-    return [
-        {"nombre": docs[k]["nombre"], "firmado": "NA", "estado": estado, "envios": docs[k]["envios"]}
-        for k in order
-    ]
+    out: list[dict[str, Any]] = []
+    for k in order:
+        doc: dict[str, Any] = {
+            "nombre": docs[k]["nombre"],
+            "firmado": "NA",
+            "estado": estado,
+            "envios": docs[k]["envios"],
+        }
+        if triage:
+            cat, motivo = filtro.classify_file(docs[k]["_path"], docs[k]["nombre"])
+            if cat != "avaliar":
+                doc["_triage"] = cat
+                doc["_triage_motivo"] = motivo
+        out.append(doc)
+    return out

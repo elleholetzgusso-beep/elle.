@@ -182,7 +182,11 @@ def suggest_for_projeto(
             if a not in anchors:
                 anchors.append(a)
 
-    documentos = projeto.get("documentos", [])
+    # Documentos desviados na triagem do scan (não avaliativos, PE/01) ficam em
+    # Doc Evaluados mas não recebem sugestões de puntos.
+    documentos = [
+        d for d in projeto.get("documentos", []) if d.get("_triage") != "desviado"
+    ]
     # 1. Para cada hallazgo, guardar o documento onde pontua MAIS ALTO (evita que um
     #    documento anterior com nome parecido "roube" hallazgos de outro melhor).
     melhor: dict = {}
