@@ -105,9 +105,17 @@ def _cmd_merge(args) -> int:
         "normativa": mp.get("normativa") or NORMATIVA,
         "evaluadores": mp.get("evaluadores", []),
     }
-    versiones = meta.get("versiones") or [
-        {"rev": 1, "fecha": _dt.date.today(), "descripcion": "PREENCHER: descrição desta versão"}
-    ]
+    versiones = meta.get("versiones") or []
+    if not versiones:
+        from . import versiones as _vers
+
+        envios = _vers.envios_do_projeto(documentos)
+        desc = (
+            _vers.descripcion(1, envios, args.solicitante)
+            if envios
+            else "PREENCHER: descrição desta versão"
+        )
+        versiones = [{"rev": 1, "fecha": _dt.date.today(), "descripcion": desc}]
     projeto = {
         "portada": portada,
         "versiones": versiones,
@@ -204,6 +212,21 @@ def _cmd_suggest(args) -> int:
     return 0
 
 
+def _cmd_rev(args) -> int:
+    from . import versiones as _vers
+
+    projeto = _load_yaml(args.projeto)
+    entrada = _vers.nueva_revision(projeto, solicitante=args.solicitante)
+    if entrada is None:
+        print("Nada a acrescentar: todos os envíos já estão mencionados no Control de Versiones.")
+        return 0
+    _dump_yaml(projeto, args.out or args.projeto)
+    print(f"# Revisão {entrada['rev']} acrescentada:", file=sys.stderr)
+    for linha in str(entrada["descripcion"]).splitlines():
+        print(f"#   {linha}", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -249,10 +272,17 @@ def build_parser() -> argparse.ArgumentParser:
     h.set_defaults(func=_cmd_harvest)
 
     m = sub.add_parser("merge", help="Junta scan+from-docx num projeto.yaml pronto a editar.")
+    m.add_argument("--solicitante", default="", help='Quem realiza os envíos, ex. "UTE ESTEYCO-ARDANUY" (entra na descrição da versão).')
     m.add_argument("-m", "--meta", help="meta.yaml (saída do from-docx).")
     m.add_argument("-d", "--docs", help="documentos.yaml (saída do scan).")
     m.add_argument("-o", "--out", help="projeto.yaml de saída (por omissão: stdout).")
     m.set_defaults(func=_cmd_merge)
+
+    v = sub.add_parser("rev", help="Acrescenta a próxima revisão ao Control de Versiones (envíos novos).")
+    v.add_argument("-p", "--projeto", required=True, help="projeto.yaml a atualizar.")
+    v.add_argument("-o", "--out", help="YAML de saída (por omissão: reescreve o próprio projeto).")
+    v.add_argument("--solicitante", default="", help='Quem realiza os envíos, ex. "UTE ESTEYCO-ARDANUY".')
+    v.set_defaults(func=_cmd_rev)
 
     g = sub.add_parser("suggest", help="Sugere hallazgos da base de dados para um novo LPA.")
     g.add_argument("-b", "--base", required=True, help="CSV da base (saída do harvest).")
