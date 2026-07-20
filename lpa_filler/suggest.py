@@ -168,11 +168,19 @@ def suggest_for_projeto(
 
     ``anchors`` (âncoras da obra, ex. ["torre pacheco", "l352"]): se indicadas,
     os hallazgos cujo texto nomeia outra obra (e nenhuma âncora) ficam marcados
-    com ``_fora_escopo`` e afundados na ordenação — não são apagados.
+    com ``_fora_escopo`` e afundados na ordenação — não são apagados. O código
+    da própria obra (portada.referencia, ex. "EXC2026-16883") é sempre acrescentado
+    às âncoras automaticamente, para citar o próprio relatório nunca ser confundido
+    com o marcador de outra obra.
     """
     from collections import defaultdict
 
-    anchors = anchors or []
+    anchors = list(anchors or [])
+    if anchors:
+        referencia = (projeto.get("portada") or {}).get("referencia") or ""
+        for a in scope.own_code_anchors(referencia):
+            if a not in anchors:
+                anchors.append(a)
 
     documentos = projeto.get("documentos", [])
     # 1. Para cada hallazgo, guardar o documento onde pontua MAIS ALTO (evita que um

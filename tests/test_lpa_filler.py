@@ -101,6 +101,35 @@ def test_scope_find_markers_codes_and_places():
     assert any("352" in x for x in m)  # código de linha detetado
 
 
+def test_gazetteer_does_not_collide_with_ute_name():
+    # "Riquelme" é nome de UTE/consórcio construtor, não topónimo de outra obra.
+    anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
+    assert scope.classify("Informe presentado por UTE Riquelme el 12/05/2026", anchors) == "unknown"
+
+
+def test_own_code_anchor_prevents_self_reference_false_positive():
+    # Citar o PRÓPRIO relatório (EXC2026-16883) não pode marcar _fora_escopo.
+    anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
+    anchors += scope.own_code_anchors("EXC2026-16883-002-LPA-01")
+    texto = "Ver EXC2026-16883-001-PES-01 para más detalles del anejo"
+    assert scope.classify(texto, anchors) == "in"
+
+
+def test_suggest_for_projeto_auto_adds_own_code_anchor():
+    base = [{
+        "documento": "Anejo X", "punto": "1.1",
+        "hallazgo": "Ver EXC2026-16883-001-PES-01 para más detalles", "valoracion": "Importante",
+        "estado": "Cerrado", "fuente": "LPA-A",
+    }]
+    projeto = {
+        "portada": {"referencia": "EXC2026-16883-002-LPA-01"},
+        "documentos": [{"nombre": "Anejo X", "envios": []}],
+    }
+    anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
+    puntos = suggest.suggest_for_projeto(base, projeto, n_per_doc=5, min_score=0, anchors=anchors)
+    assert not puntos[0].get("_fora_escopo")
+
+
 def test_suggest_marks_out_of_scope():
     base = [
         {"documento": "[135.0] Perfilado banqueta", "punto": "1.1",

@@ -29,7 +29,10 @@ import unicodedata
 # Estende-o à medida que a base cresce (basta acrescentar tokens).
 GAZETTEER: set[str] = {
     # Corredor Torre Pacheco / L352 (Murcia)
-    "torre pacheco", "balsicas", "murcia", "cartagena", "riquelme", "sutullena",
+    # ("riquelme" NÃO entra: colide com nomes de UTE/consórcio construtor,
+    #  que não são topónimos — ver own_code_anchors() para evitar esse tipo
+    #  de falso positivo de forma mais geral.)
+    "torre pacheco", "balsicas", "murcia", "cartagena", "sutullena",
     "lorca", "totana", "alcantarilla", "beniel",
     # Sinalização Valencia (ENYSE e afins)
     "sueca", "cullera", "elx", "elche", "sagunt", "gandia", "silla", "valencia",
@@ -50,6 +53,18 @@ def _norm(s: str) -> str:
     """Minúsculas, sem acentos, espaços colapsados."""
     s = "".join(c for c in unicodedata.normalize("NFD", str(s)) if unicodedata.category(c) != "Mn")
     return re.sub(r"\s+", " ", s).strip().lower()
+
+
+_OWN_CODE_RE = re.compile(r"exc\d+-\d+", re.IGNORECASE)
+
+
+def own_code_anchors(referencia: str) -> list[str]:
+    """Extrai o código da própria obra (ex. 'EXC2026-16883') da referência do
+    projeto (portada.referencia), para que citar o PRÓPRIO código nunca seja
+    confundido com o marcador de OUTRA obra (a regra de _CODE_RE deteta
+    qualquer 'EXCnnnn', incluindo o desta obra, quando o texto cita o seu
+    próprio relatório/PES por extenso)."""
+    return [m.group(0) for m in _OWN_CODE_RE.finditer(_norm(referencia or ""))]
 
 
 def parse_anchors(scope: str | list | None) -> list[str]:
