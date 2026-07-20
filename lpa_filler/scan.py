@@ -92,7 +92,10 @@ def scan(
                 continue
             name, version = _clean_name_version(f.stem)
             referencia = f.stem.strip()
-            if group_by == "folder":
+            # "folder" só faz sentido se houver uma subpasta de documento entre o
+            # envío e o ficheiro; se o ficheiro está direto na pasta do envío
+            # (f.parent == ed), cair para o modo "file" (nome = nome do ficheiro).
+            if group_by == "folder" and f.parent != ed:
                 key = str(f.parent)          # único por pasta
                 nombre = f.parent.name        # nome da pasta como nombre
             else:
