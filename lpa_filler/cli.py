@@ -55,7 +55,13 @@ def _cmd_fill(args) -> int:
     descartes = model.drop_placeholders(data) + model.drop_fora_de_escopo(data)
     for d in descartes:
         print(f"  ! {d}")
-    out = filler.fill(args.template, data, args.out)
+    v = model.veredicto(data)
+    vtexto = model.veredicto_texto(v)
+    out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell)
+    print(f"\n== {vtexto} ==")
+    if v["criticos_abiertos"]:
+        print("   (um Crítico Abierto impede o informe favorável — PE/03; o ficheiro foi gerado na mesma)")
+    print()
     counts = model.resumen_counts(data)
     total = sum(c["total"] for c in counts.values())
     print(f"Gerado: {out}")
@@ -276,6 +282,11 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("-t", "--template", required=True, help="Template .xlsm padrão.")
     f.add_argument("-d", "--data", required=True, help="Ficheiro de dados (.yaml/.json).")
     f.add_argument("-o", "--out", required=True, help="Caminho do .xlsm a gerar.")
+    f.add_argument(
+        "--veredicto-cell",
+        help='Célula onde escrever o veredicto esperado do IES, ex. "Portada!B30". '
+        "Sem isto, o veredicto vai só para a consola e para as propriedades do ficheiro.",
+    )
     f.set_defaults(func=_cmd_fill)
 
     s = sub.add_parser("scan", help="Gera `documentos` a partir das pastas de envíos.")

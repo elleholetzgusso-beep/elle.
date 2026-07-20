@@ -165,6 +165,46 @@ def lint(data: dict[str, Any]) -> list[str]:
     return avisos
 
 
+def veredicto(data: dict[str, Any]) -> dict[str, Any]:
+    """Resultado esperado do IES segundo o PE/03: o informe "só será positivo
+    no caso de que não permaneça aberto nenhum ponto bloqueante".
+
+    - Crítico + Abierto  -> NO_FAVORABLE (bloqueante).
+    - Importantes abertos são contados e reportados em bruto: o PE/03 fala em
+      "número significativo" sem quantificar, por isso NÃO se aplica limiar —
+      a contagem é informação, não bloqueio.
+    - Conservador: um punto sem 'estado' conta como Abierto (dado em falta não
+      pode tornar um informe favorável).
+
+    Não bloqueia a geração do ficheiro — o RE pode precisar do documento para
+    discussão mesmo com críticos abertos; apenas regista o resultado esperado.
+    """
+    criticos: list = []
+    importantes: list = []
+    for pt in data.get("puntos", []):
+        aberto = (pt.get("estado") or "Abierto") == "Abierto"
+        if not aberto:
+            continue
+        if pt.get("valoracion") == "Crítico":
+            criticos.append(pt.get("n"))
+        elif pt.get("valoracion") == "Importante":
+            importantes.append(pt.get("n"))
+    return {
+        "resultado": "NO_FAVORABLE" if criticos else "FAVORABLE",
+        "criticos_abiertos": criticos,
+        "importantes_abiertos": importantes,
+    }
+
+
+def veredicto_texto(v: dict[str, Any]) -> str:
+    """Linha única e rastreável do veredito (consola, propriedade do ficheiro)."""
+    partes = [f"Veredicto esperado del IES (PE/03): {v['resultado']}"]
+    if v["criticos_abiertos"]:
+        partes.append(f"críticos abiertos: {', '.join(str(n) for n in v['criticos_abiertos'])}")
+    partes.append(f"importantes abiertos: {len(v['importantes_abiertos'])}")
+    return " | ".join(partes)
+
+
 def resumen_counts(data: dict[str, Any]) -> dict[str, dict[str, int]]:
     """Conta puntos por valoración e por estado (para a aba 'Resumen Resultados')."""
     counts = {v: {"total": 0, **{e: 0 for e in ESTADOS}} for v in VALORACIONES}

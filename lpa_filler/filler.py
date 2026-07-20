@@ -33,7 +33,17 @@ LPA_J_FIRST = "=IF(K{r}<>0,K{r},#REF!)"
 LPA_J_NEXT = "=IF(K{r}<>0,K{r},J{p})"
 
 
-def fill(template: str | Path, data: dict[str, Any], output: str | Path) -> Path:
+def fill(
+    template: str | Path,
+    data: dict[str, Any],
+    output: str | Path,
+    veredicto_text: str | None = None,
+    veredicto_cell: str | None = None,
+) -> Path:
+    """Gera o .xlsm. ``veredicto_text`` fica registado nas propriedades do
+    ficheiro (Ficheiro > Informações no Excel) e, se ``veredicto_cell`` for
+    indicado ("Aba!Célula", ex. "Portada!B30"), também nessa célula — a célula
+    não tem default porque a posição livre depende do template de cada obra."""
     template, output = Path(template), Path(output)
     wb = openpyxl.load_workbook(template, keep_vba=True)
 
@@ -48,6 +58,12 @@ def fill(template: str | Path, data: dict[str, Any], output: str | Path) -> Path
     _fill_versiones(wb["Control de versiones"], data.get("versiones", []), cv_style)
     de_last = _fill_documentos(wb["Doc Evaluados"], data.get("documentos", []), de_first, de_sub)
     lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp)
+
+    if veredicto_text:
+        wb.properties.description = veredicto_text
+        if veredicto_cell and "!" in veredicto_cell:
+            sheet_name, cell = veredicto_cell.split("!", 1)
+            wb[sheet_name][cell.strip()] = veredicto_text
 
     output.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output)
