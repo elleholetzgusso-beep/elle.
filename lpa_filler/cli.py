@@ -42,7 +42,7 @@ def _cmd_fill(args) -> int:
     from . import filler, model
 
     data = model.load(args.data)
-    descartes = model.drop_placeholders(data)
+    descartes = model.drop_placeholders(data) + model.drop_fora_de_escopo(data)
     for d in descartes:
         print(f"  ! {d}")
     out = filler.fill(args.template, data, args.out)

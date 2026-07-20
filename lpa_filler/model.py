@@ -119,6 +119,32 @@ def drop_placeholders(data: dict[str, Any]) -> list[str]:
     return avisos
 
 
+def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
+    """Remove puntos marcados ``_fora_escopo`` (provável contaminação de outra
+    obra, detetada pelo ``suggest --scope``) antes do fill.
+
+    Segurança por omissão: um punto marcado só entra no Excel se o utilizador
+    o rever e apagar manualmente a chave ``_fora_escopo`` desse punto no YAML
+    (confirmando que é um falso positivo). Renumera os puntos mantidos.
+    """
+    avisos: list[str] = []
+    mantidos = []
+    for pt in data.get("puntos", []):
+        if pt.get("_fora_escopo"):
+            marc = pt.get("_marcadores", "")
+            avisos.append(
+                f"Punto {pt.get('n', '?')} descartado: marcado _fora_escopo ({marc}) — "
+                f"provável hallazgo de outra obra. Para manter, apaga a chave "
+                f"'_fora_escopo' deste punto no YAML e corre o fill de novo."
+            )
+            continue
+        mantidos.append(pt)
+    for i, pt in enumerate(mantidos, 1):
+        pt["n"] = i
+    data["puntos"] = mantidos
+    return avisos
+
+
 def lint(data: dict[str, Any]) -> list[str]:
     """Avisos de boas práticas do guia LPA (PE/Inspección/03). Não bloqueiam."""
     avisos: list[str] = []

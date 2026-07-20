@@ -60,6 +60,27 @@ def test_scan_groups_by_document_and_parses_envio():
         assert e1["fecha_envio"] == dt.date(2025, 11, 26)
 
 
+def test_drop_fora_de_escopo_removes_and_renumbers():
+    data = {
+        "puntos": [
+            {"n": 1, "dialogo": [{"tipo": "Hallazgo", "texto": "A"}]},
+            {"n": 2, "dialogo": [{"tipo": "Hallazgo", "texto": "B"}], "_fora_escopo": True, "_marcadores": "sueca"},
+            {"n": 3, "dialogo": [{"tipo": "Hallazgo", "texto": "C"}]},
+        ]
+    }
+    avisos = model.drop_fora_de_escopo(data)
+    assert len(data["puntos"]) == 2
+    assert [pt["n"] for pt in data["puntos"]] == [1, 2]  # renumerado sem buracos
+    assert [pt["dialogo"][0]["texto"] for pt in data["puntos"]] == ["A", "C"]
+    assert len(avisos) == 1 and "sueca" in avisos[0]
+
+
+def test_drop_fora_de_escopo_keeps_if_flag_removed():
+    data = {"puntos": [{"n": 1, "dialogo": [{"tipo": "Hallazgo", "texto": "A"}]}]}
+    avisos = model.drop_fora_de_escopo(data)
+    assert len(data["puntos"]) == 1 and not avisos
+
+
 def test_scope_classify_in_out_unknown():
     anchors = scope.parse_anchors("Torre Pacheco, L352, Balsicas")
     # Nomeia a obra atual -> dentro.
