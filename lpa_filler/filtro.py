@@ -36,7 +36,17 @@ _DESVIO = [
     (r"\boferta\b.*\bdefinicion de servicios\b", "Oferta de Definición de Servicios — registo do sistema de gestão (PE/01), fora do escopo da avaliação técnica"),
     (r"\bdefinicion de servicios\b", "Definición de Servicios — marco contratual (PE/01), não avaliativo"),
     (r"\bacuse\b.*\brecibo\b", "Acuse de recibo — comunicação administrativa, não avaliativa (PE/01)"),
-    (r"\brespuesta(s)?\b.*\b(comentario|lpa|hallazgo|punto)", "Resposta a comentários/LPA — diálogo de avaliação, não documento a avaliar"),
+    # Sem restrição de ordem: nomes reais trazem tanto "respuesta a comentarios
+    # LPA" como "LPA-02 - RESP" (o código antes da palavra de resposta).
+    (r"(?=.*\brespuesta(s)?\b)(?=.*\b(comentario|lpa|hallazgo|punto)\b)",
+     "Resposta a comentários/LPA — diálogo de avaliação, não documento a avaliar"),
+    # Abreviatura "RESP"/"Resp" junto de um código de LPA (convenção real da
+    # UTE: "EXC.../LPA-02 - RESP"). "resp" sozinho (sem código) fica de fora
+    # para não colidir com "responsable" (ver _norm: \b não corta dentro da
+    # palavra "responsable", por isso este risco não existe de qualquer forma,
+    # mas exige-se o código para reduzir falsos positivos).
+    (r"(?=.*\blpa\b)(?=.*\bresp\b)",
+     "Resposta a uma revisão do LPA (código + RESP) — diálogo de avaliação, não documento a avaliar"),
     (r"\bcontestacion\b", "Contestación — comunicação de resposta, não documento a avaliar"),
     (r"\bcarta\b", "Carta — comunicação administrativa (PE/01)"),
     (r"\bcomunicado\b|\bcomunicacion\b", "Comunicado/comunicación — comunicação administrativa (PE/01)"),
