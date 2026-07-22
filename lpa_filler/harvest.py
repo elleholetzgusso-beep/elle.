@@ -12,11 +12,11 @@ import unicodedata
 from pathlib import Path
 from typing import Iterable
 
-from . import extract, scope
+from . import extract, scope, tema
 
 FIELDS = [
     "fuente", "n", "eval", "documento", "punto", "valoracion", "estado",
-    "estado_legado", "hallazgo", "discusion", "obra", "marcadores",
+    "estado_legado", "hallazgo", "discusion", "obra", "marcadores", "tema",
 ]
 
 # Código de obra no nome do ficheiro-fonte (ex. "EXC2025-16126"), quando existe.
@@ -104,6 +104,7 @@ def _punto_to_row(pt: dict, fuente: str) -> dict:
         "discusion": "\n".join(discusion),
         "obra": _obra_de_fuente(fuente),
         "marcadores": ", ".join(sorted(scope.find_markers(texto_completo))),
+        "tema": tema.as_field(texto_completo),
     }
 
 

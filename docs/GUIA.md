@@ -77,7 +77,9 @@ python -m lpa_filler harvest -i novo.xlsm -o base_hallazgos.csv --overwrite
 
 Estados legados fora do PE/03 (`Controlado`, `Conforme`, ...) são mapeados para o
 equivalente PE/03 e o valor original preservado na coluna `estado_legado`
-(migração reversível — ver §4).
+(migração reversível — ver §4). Cada hallazgo recebe também uma coluna `tema`
+com as áreas RAMS/CENELEC que menciona (Hazard Log, Safety Case, SRAC, ...) —
+ver §4.
 
 ### `scan` — catalogar documentos recebidos
 Percorre `1_Doc Recibida/Envío N AAAAMMDD/...`, agrupa por documento e deteta
@@ -160,6 +162,7 @@ python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 | **Estados legados** | PE/03 §8.4 | `harvest`, `model` | Enum oficial: `Abierto`/`Resuelto`/`Cerrado`. Estados antigos (`Controlado`→`Resuelto`, `Conforme`→`Cerrado`) são mapeados e o original preservado em `estado_legado`. `Cancelado` passa intacto (não tem equivalente PE/03 — decisão pendente do RE). |
 | **Regra de ouro** | PE/03 | `model.lint` | Nenhum Crítico pode ficar Abierto num informe favorável — gera aviso. |
 | **Anejo A.2** (módulo) | PE/05 | `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. Ainda não ligado a um comando do CLI. |
+| **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 
 ---
 
@@ -219,6 +222,7 @@ metadados de triagem — ignoradas pelo `fill`.
 | `harvest.py` | Construir a base CSV de hallazgos. |
 | `suggest.py` | Matching determinístico de hallazgos. |
 | `scope.py` | Deteção de contaminação entre obras (gazetteer + códigos). |
+| `tema.py` | Classificação temática RAMS/CENELEC dos hallazgos. |
 | `versiones.py` | Descrição das revisões (Control de Versiones). |
 | `anejo.py` | Gerar a estrutura do Anejo A.2 (PE/05). |
 | `filler.py` | Escrever o `.xlsm` final. |
