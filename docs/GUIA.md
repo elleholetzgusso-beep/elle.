@@ -203,6 +203,34 @@ Traz a evidência lado a lado com o que a resposta alega (trecho real, diff, e o
 não encontrou). **Não fecha hallazgos nem altera estados** — a decisão é do avaliador
 (ISO 17020). Sinaliza quando a resposta cita um apartado que não existe no ficheiro.
 
+### `draft` — rascunhar a réplica do avaliador (Respuesta Exceltic)
+Para cada punto aberto com resposta do contratista, localiza nos ficheiros do novo
+envío o apartado citado, extrai o trecho real + diff (reutiliza o `verify`) e escreve
+um **rascunho** da Respuesta Exceltic com essa evidência.
+
+```bash
+python -m lpa_filler draft -p projeto.yaml -r "Envío 3 20260601" -o projeto.yaml
+```
+
+É um **scaffold, não um parecer**: o texto é factual ("localizei o apartado X, diz Y;
+mudaram N linhas"), termina sempre em "pendiente de verificación y cierre por el
+evaluador", **não altera o estado** e é marcado `[RASCUNHO]` + `_rascunho: true`. O
+avaliador reescreve o parecer e define o estado à mão; o `fill` avisa enquanto houver
+rascunho por rever. Nunca fecha um hallazgo — a responsabilidade ISO 17020 é do avaliador.
+
+### Fluxo de revisão (ciclo de resposta), em resumo
+```
+extract  (do LPA-01_respuestas.xlsm — já traz Hallazgo + Respuesta do contratista)
+   │
+update   (acrescenta os documentos do novo envío; preserva puntos)
+   │
+draft    (rascunha a Respuesta Exceltic com a evidência dos ficheiros)   ← opcional
+   │
+(rever à mão: parecer + estado de cada punto)
+   │
+rev → fill   (LPA-02)
+```
+
 ---
 
 ## 4. Recursos normativos
@@ -218,6 +246,7 @@ não encontrou). **Não fecha hallazgos nem altera estados** — a decisão é d
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 | **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
 | **Verificação da resposta** | PE/03 | `verify`, `verify.py` | Localiza nos ficheiros novos o apartado que a resposta cita e mostra o trecho real + diff entre versões. Traz a evidência; nunca fecha o hallazgo — decisão do avaliador. Sinaliza citações a apartados inexistentes. |
+| **Rascunho da réplica** | PE/03 | `draft`, `draft.py` | Pré-preenche a Respuesta Exceltic com a evidência localizada (scaffold factual, não parecer). Termina em "pendiente de verificación", não altera estado, marca `[RASCUNHO]`. O `fill` avisa enquanto o rascunho não for revisto. O avaliador confirma — nunca o programa. |
 
 ---
 
@@ -288,6 +317,7 @@ metadados de triagem — ignoradas pelo `fill`.
 | `lector.py` | Ler texto de `.docx`/`.pdf`/`.txt`; localizar apartados; diff de versões. |
 | `leer.py` | Checklist estrutural dos documentos recebidos (1º LPA). |
 | `verify.py` | Verificar a resposta da UTE contra os ficheiros novos. |
+| `draft.py` | Rascunhar a réplica do avaliador (Respuesta Exceltic) com a evidência. |
 | `versiones.py` | Descrição das revisões (Control de Versiones). |
 | `anejo.py` | Gerar a estrutura do Anejo A.2 (PE/05). |
 | `filler.py` | Escrever o `.xlsm` final. |

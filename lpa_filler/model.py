@@ -162,6 +162,12 @@ def lint(data: dict[str, Any]) -> list[str]:
         # Regra de ouro: nenhum Crítico pode ficar Abierto num informe positivo.
         if pt.get("valoracion") == "Crítico" and pt.get("estado") == "Abierto":
             avisos.append(f"Punto {n}: CRÍTICO ainda 'Abierto' — bloqueia um informe positivo (regra de ouro).")
+        # Rascunho do 'draft' por rever: a réplica do avaliador ainda é o scaffold
+        # automático, não um parecer confirmado (ISO 17020) — não emitir assim.
+        if pt.get("_rascunho") or any(
+            "[RASCUNHO" in (d.get("texto") or "") for d in (pt.get("dialogo") or [])
+        ):
+            avisos.append(f"Punto {n}: réplica ainda em RASCUNHO (do 'draft') — rever e confirmar antes de emitir.")
     return avisos
 
 

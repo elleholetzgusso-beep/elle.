@@ -215,6 +215,36 @@ def _cmd_update(args) -> int:
     return 0
 
 
+def _cmd_draft(args) -> int:
+    from . import draft, lector
+
+    projeto = _load_yaml(args.projeto)
+
+    def progresso(n, documento):
+        print(f"  a redigir rascunho do punto {n}: {documento[:55]}...", file=sys.stderr, flush=True)
+
+    try:
+        r = draft.elaborar(projeto, args.recibida, on_punto=progresso)
+    except NotADirectoryError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        return 1
+    _dump_yaml(projeto, args.out or args.projeto)
+    print(
+        f"\n# {r['rascunhos']} rascunhos de Respuesta Exceltic escritos "
+        f"(marcados '[RASCUNHO]'); {r['sem_resposta']} puntos abertos sem resposta do "
+        f"contratista (nada a redigir).",
+        file=sys.stderr,
+    )
+    print(
+        "# REVER cada rascunho: reescreve o parecer e define o estado à mão. O programa "
+        "NÃO fechou nenhum punto — o fill avisa enquanto houver rascunho por rever.",
+        file=sys.stderr,
+    )
+    if not lector.PDF_OK:
+        print("# nota: suporte a .pdf desligado (pip install lpa-filler[pdf]).", file=sys.stderr)
+    return 0
+
+
 def _cmd_harvest(args) -> int:
     from . import harvest
 
@@ -501,6 +531,15 @@ def build_parser() -> argparse.ArgumentParser:
     lr.add_argument("-r", "--recibida", required=True, help="Pasta com os documentos recebidos.")
     lr.add_argument("-o", "--out", help="Relatório de saída (.txt/.md; por omissão: stdout).")
     lr.set_defaults(func=_cmd_leer)
+
+    dr = sub.add_parser(
+        "draft",
+        help="Rascunha a réplica do avaliador (Respuesta Exceltic) com a evidência dos ficheiros.",
+    )
+    dr.add_argument("-p", "--projeto", required=True, help="projeto.yaml (puntos com respostas do contratista).")
+    dr.add_argument("-r", "--recibida", required=True, help="Pasta com os ficheiros do novo envío.")
+    dr.add_argument("-o", "--out", help="YAML de saída (por omissão: reescreve o próprio projeto).")
+    dr.set_defaults(func=_cmd_draft)
 
     return p
 
