@@ -17,6 +17,7 @@ from __future__ import annotations
 import difflib
 import html
 import re
+import threading
 import zipfile
 from pathlib import Path
 
@@ -28,6 +29,18 @@ except Exception:  # noqa: BLE001
     PDF_OK = False
 
 LEGIVEIS = (".docx", ".pdf", ".txt", ".md")
+
+# Tempo máximo (segundos) para extrair texto de UM .pdf. PDFs com estrutura
+# interna corrompida (comuns em digitalizações) podem deixar o pypdf a tentar
+# recuperar-se por muito tempo. Corre-se a extração numa thread `daemon`: se
+# exceder o limite, desiste-se e segue-se para o próximo ficheiro — a thread
+# fica a correr sozinha em segundo plano (não bloqueia o resto do programa
+# nem a saída do processo, ao contrário de um ThreadPoolExecutor).
+PDF_TIMEOUT_S = 25
+
+# path (str) -> motivo do último erro/timeout, para o motivo_vazio() explicar
+# sem ter de repetir a extração (que pode ser lenta).
+_ULTIMO_ERRO: dict[str, str] = {}
 
 
 def _docx_text(path: str | Path) -> str:
@@ -47,15 +60,38 @@ def _docx_text(path: str | Path) -> str:
     return "\n".join(linhas)
 
 
-def _pdf_text(path: str | Path) -> str:
-    """Texto de um .pdf via pypdf. "" se pypdf não estiver instalado/ilegível."""
-    if not PDF_OK:
-        return ""
+def _pdf_text_worker(path: str | Path, saida: list) -> None:
     try:
         reader = pypdf.PdfReader(str(path))
-        return "\n".join((pg.extract_text() or "") for pg in reader.pages)
-    except Exception:  # noqa: BLE001
+        saida.append(("ok", "\n".join((pg.extract_text() or "") for pg in reader.pages)))
+    except Exception as e:  # noqa: BLE001
+        saida.append(("erro", f"{type(e).__name__}: {e}"))
+
+
+def _pdf_text(path: str | Path) -> str:
+    """Texto de um .pdf via pypdf, com timeout de segurança (``PDF_TIMEOUT_S``).
+
+    "" se pypdf não estiver instalado, o ficheiro for ilegível, ou a extração
+    exceder o tempo limite (PDF corrompido) — o motivo fica em ``motivo_vazio``.
+    """
+    if not PDF_OK:
         return ""
+    key = str(path)
+    saida: list = []
+    t = threading.Thread(target=_pdf_text_worker, args=(path, saida), daemon=True)
+    t.start()
+    t.join(PDF_TIMEOUT_S)
+    if t.is_alive():
+        _ULTIMO_ERRO[key] = (
+            f"extração excedeu {PDF_TIMEOUT_S}s (ficheiro grande ou corrompido) — saltado"
+        )
+        return ""
+    if saida and saida[0][0] == "ok":
+        _ULTIMO_ERRO.pop(key, None)
+        return saida[0][1]
+    if saida:
+        _ULTIMO_ERRO[key] = f"erro ao ler pdf: {saida[0][1]}"
+    return ""
 
 
 def _txt_text(path: str | Path) -> str:
@@ -83,6 +119,9 @@ def extract_text(path: str | Path) -> str:
 
 def motivo_vazio(path: str | Path) -> str:
     """Explica por que ``extract_text`` devolveu "" (para mensagens ao utilizador)."""
+    erro = _ULTIMO_ERRO.get(str(path))
+    if erro:
+        return erro
     suf = Path(path).suffix.lower()
     if suf not in LEGIVEIS:
         return f"tipo '{suf or '?'}' não legível (só {', '.join(LEGIVEIS)})"

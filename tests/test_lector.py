@@ -76,6 +76,63 @@ def test_docx_text_roundtrip():
     assert lector.localizar_seccion(txt, "3.2") is not None
 
 
+class _PdfReaderLento:
+    """Simula um pypdf.PdfReader que nunca devolve (PDF corrompido/gigante)."""
+
+    def __init__(self, _path):
+        import time
+
+        time.sleep(5)  # bem mais que o PDF_TIMEOUT_S reduzido no teste
+
+    pages: list = []
+
+
+class _PdfReaderRapido:
+    class _Pagina:
+        def extract_text(self):
+            return "3.2 Gestión de la seguridad presente."
+
+    def __init__(self, _path):
+        self.pages = [self._Pagina()]
+
+
+def test_pdf_timeout_nao_trava_e_explica_motivo():
+    # PDF "lento" nunca devolve: extract_text deve voltar rápido (não travar
+    # o teste) e motivo_vazio deve explicar que foi por timeout.
+    import types
+
+    fake = types.SimpleNamespace(PdfReader=_PdfReaderLento)
+    ok_orig, pypdf_orig, timeout_orig = lector.PDF_OK, getattr(lector, "pypdf", None), lector.PDF_TIMEOUT_S
+    lector.PDF_OK = True
+    lector.pypdf = fake
+    lector.PDF_TIMEOUT_S = 0.3
+    try:
+        texto = lector.extract_text("qualquer.pdf")
+        assert texto == ""
+        assert "excedeu" in lector.motivo_vazio("qualquer.pdf")
+    finally:
+        lector.PDF_OK = ok_orig
+        if pypdf_orig is not None:
+            lector.pypdf = pypdf_orig
+        lector.PDF_TIMEOUT_S = timeout_orig
+
+
+def test_pdf_rapido_le_normalmente_dentro_do_timeout():
+    import types
+
+    fake = types.SimpleNamespace(PdfReader=_PdfReaderRapido)
+    ok_orig, pypdf_orig = lector.PDF_OK, getattr(lector, "pypdf", None)
+    lector.PDF_OK = True
+    lector.pypdf = fake
+    try:
+        texto = lector.extract_text("outro.pdf")
+        assert "Gestión de la seguridad" in texto
+    finally:
+        lector.PDF_OK = ok_orig
+        if pypdf_orig is not None:
+            lector.pypdf = pypdf_orig
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

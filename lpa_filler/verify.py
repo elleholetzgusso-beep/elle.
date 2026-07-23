@@ -83,12 +83,16 @@ def _ultima_respuesta(dialogo: list[dict]) -> dict | None:
     return None
 
 
-def verificar(projeto: dict[str, Any], recibida_dir: str | Path) -> list[dict[str, Any]]:
+def verificar(projeto: dict[str, Any], recibida_dir: str | Path, on_punto=None) -> list[dict[str, Any]]:
     """Devolve um registo de verificação por cada punto ainda aberto.
 
     Cada registo: n, documento, valoracion, estado, respuesta, refs (apartados
     citados), ficheiro (o usado), achados [{ref, trecho|None}], mudancas
     (diff resumido entre as duas últimas versões) e notas (o que falhou).
+
+    ``on_punto(n, documento)``, se indicado, é chamado antes de cada punto —
+    serve para o chamador (CLI) mostrar progresso (a extração de PDF grandes
+    pode demorar).
     """
     ficheiros = ficheiros_legiveis(recibida_dir)
     registos: list[dict[str, Any]] = []
@@ -96,6 +100,8 @@ def verificar(projeto: dict[str, Any], recibida_dir: str | Path) -> list[dict[st
     for pt in projeto.get("puntos", []):
         if (pt.get("estado") or "Abierto") == "Cerrado":
             continue  # já fechado — não precisa de verificação
+        if on_punto:
+            on_punto(pt.get("n"), pt.get("documento") or "")
         dialogo = pt.get("dialogo") or []
         resp = _ultima_respuesta(dialogo)
         reg: dict[str, Any] = {

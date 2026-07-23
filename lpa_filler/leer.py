@@ -105,10 +105,19 @@ def revisar_ficheiro(path: str | Path) -> dict[str, Any]:
     return reg
 
 
-def revisar_pasta(recibida_dir: str | Path) -> list[dict[str, Any]]:
+def revisar_pasta(recibida_dir: str | Path, on_file=None) -> list[dict[str, Any]]:
+    """``on_file(indice, total, path)``, se indicado, é chamado antes de cada
+    ficheiro — serve para o chamador (CLI) mostrar progresso em ficheiros
+    grandes/lentos (ex. PDFs), onde a extração pode demorar."""
     from . import verify  # reutiliza a busca de ficheiros legíveis
 
-    return [revisar_ficheiro(p) for p in verify.ficheiros_legiveis(recibida_dir)]
+    ficheiros = verify.ficheiros_legiveis(recibida_dir)
+    registos = []
+    for i, p in enumerate(ficheiros, 1):
+        if on_file:
+            on_file(i, len(ficheiros), p)
+        registos.append(revisar_ficheiro(p))
+    return registos
 
 
 def relatorio(registos: list[dict[str, Any]]) -> str:

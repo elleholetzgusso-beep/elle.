@@ -278,8 +278,12 @@ def _cmd_verify(args) -> int:
     from . import verify
 
     projeto = _load_yaml(args.projeto)
+
+    def progresso(n, documento):
+        print(f"  a verificar punto {n}: {documento[:60]}...", file=sys.stderr, flush=True)
+
     try:
-        registos = verify.verificar(projeto, args.recibida)
+        registos = verify.verificar(projeto, args.recibida, on_punto=progresso)
     except NotADirectoryError as e:
         print(f"Erro: {e}", file=sys.stderr)
         return 1
@@ -311,8 +315,11 @@ def _cmd_verify(args) -> int:
 def _cmd_leer(args) -> int:
     from . import leer, lector
 
+    def progresso(i, total, path):
+        print(f"  a ler ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
+
     try:
-        registos = leer.revisar_pasta(args.recibida)
+        registos = leer.revisar_pasta(args.recibida, on_file=progresso)
     except NotADirectoryError as e:
         print(f"Erro: {e}", file=sys.stderr)
         return 1
