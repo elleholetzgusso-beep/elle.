@@ -123,12 +123,24 @@ def _merge_content_types(out_ct: str, tpl_ct: str, parts: set[str]) -> str:
 
 
 def _pivot_refresh_on_load(xml: bytes) -> bytes:
-    """Marca a PivotTable para atualizar automaticamente ao abrir o ficheiro."""
+    """Força a PivotTable a atualizar-se sozinha ao abrir o ficheiro.
+
+    Dois atributos combinados na pivotCacheDefinition:
+      - ``refreshOnLoad="1"``: refrescar a cache ao carregar o ficheiro;
+      - ``invalid="1"``: marca a cache como desatualizada, obrigando o Excel a
+        reconstruí-la a partir da folha-fonte (LPA) em vez de mostrar os dados
+        em cache herdados do template — é o que garante que a aba
+        'Resumen Resultados' reflita os puntos atuais.
+    Idempotente: acrescenta cada atributo só se ainda não estiver presente.
+    """
     m = re.search(rb"<pivotCacheDefinition\b[^>]*>", xml)
-    if not m or b"refreshOnLoad" in m.group(0):
+    if not m:
         return xml
-    tag = m.group(0)[:-1] + b' refreshOnLoad="1">'
-    return xml[: m.start()] + tag + xml[m.end() :]
+    inner = m.group(0)[:-1]  # tag sem o '>' final
+    for attr in (b"refreshOnLoad", b"invalid"):
+        if attr not in inner:
+            inner += b' ' + attr + b'="1"'
+    return xml[: m.start()] + inner + b">" + xml[m.end():]
 
 
 def preserve(output: str | Path, template: str | Path, row_overrides: dict[str, int] | None = None) -> None:

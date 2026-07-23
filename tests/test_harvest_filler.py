@@ -40,6 +40,22 @@ def test_vlookup_dinamico_cobre_todas_as_linhas():
     assert "$G$312" in f and "148" not in f
 
 
+def test_pivot_refresh_on_load_forca_refreshonload_e_invalid():
+    from lpa_filler import extensions
+
+    # Sem atributos -> acrescenta os dois.
+    xml = b'<pivotCacheDefinition xmlns="x" recordCount="5"><cacheSource/></pivotCacheDefinition>'
+    out = extensions._pivot_refresh_on_load(xml)
+    assert b'refreshOnLoad="1"' in out
+    assert b'invalid="1"' in out
+
+    # Idempotente: já tendo refreshOnLoad, não duplica e acrescenta só invalid.
+    xml2 = b'<pivotCacheDefinition refreshOnLoad="1"><cacheSource/></pivotCacheDefinition>'
+    out2 = extensions._pivot_refresh_on_load(xml2)
+    assert out2.count(b"refreshOnLoad") == 1
+    assert b'invalid="1"' in out2
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

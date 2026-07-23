@@ -75,9 +75,20 @@ def _versoes_do_documento(documento: str, ficheiros: list[Path], min_hits: int =
 
 
 def _ultima_respuesta(dialogo: list[dict]) -> dict | None:
-    """Última entrada do diálogo que seja uma resposta (não o Hallazgo inicial)."""
+    """Última resposta do CONTRATISTA no diálogo (com texto), não do avaliador.
+
+    Salta as linhas vazias e as réplicas do próprio avaliador (Exceltic) — no
+    template real o diálogo traz linhas de resposta em branco como placeholder,
+    e a última entrada costuma ser uma 'Respuesta Exceltic' vazia; sem este
+    filtro, o verify concluía 'sem resposta' e perdia a resposta real do
+    contratista (ADIF/UTE) numa linha anterior.
+    """
     for d in reversed(dialogo or []):
         tipo = _norm(d.get("tipo") or "")
+        if not (d.get("texto") or "").strip():
+            continue
+        if "exceltic" in tipo:
+            continue  # réplica do avaliador, não a resposta do contratista
         if tipo.startswith("respuesta") or tipo.startswith("contest") or "respost" in tipo:
             return d
     return None
