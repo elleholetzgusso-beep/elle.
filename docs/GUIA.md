@@ -111,13 +111,30 @@ Extrai título, código, referência e evaluadores do relatório de origem `.doc
 python -m lpa_filler from-docx -i EXC2025-16126-1-001-PES-02.docx -o meta.yaml
 ```
 
-### `merge` — montar o projeto.yaml
+### `merge` — montar o projeto.yaml (projeto NOVO)
 Junta a saída do `scan` e do `from-docx` num `projeto.yaml` pronto a editar
 (secção `puntos` vazia — preenche-se à mão ou com o `suggest`).
 
 ```bash
 python -m lpa_filler merge -m meta.yaml -d documentos.yaml -o projeto.yaml \
     --solicitante "UTE ESTEYCO-ARDANUY"
+```
+
+⚠️ O `merge` cria um projeto **novo** (zera os `puntos`). Se o `-o` já existir e
+tiver puntos (ex. saiu de um `extract` numa revisão), recusa sobrescrever — para
+não apagar os hallazgos em silêncio. Numa revisão usa-se o `update` (ver abaixo);
+`--force` ignora a trava.
+
+### `update` — acrescentar documentos a um projeto (REVISÃO)
+Numa revisão (já existe LPA anterior), o `extract` recupera os puntos + versiones
++ documentos do LPA anterior. O `update` acrescenta os documentos do novo envío
+(saída do `scan`) **sem tocar nos puntos**: documento já existente ganha só os
+envíos novos (dedup por referência); documento novo é adicionado ao fim.
+
+```bash
+python -m lpa_filler extract -i EXC..-LPA-01.xlsm -o projeto.yaml   # 1. recupera o anterior
+python -m lpa_filler scan -r "Envío novo" -o docs_novos.yaml        # 2. cataloga o envío novo
+python -m lpa_filler update -p projeto.yaml -d docs_novos.yaml      # 3. mescla (puntos intactos)
 ```
 
 ### `suggest` — propor hallazgos da base
@@ -267,6 +284,7 @@ metadados de triagem — ignoradas pelo `fill`.
 | `suggest.py` | Matching determinístico de hallazgos. |
 | `scope.py` | Deteção de contaminação entre obras (gazetteer + códigos). |
 | `tema.py` | Classificação temática RAMS/CENELEC dos hallazgos. |
+| `updater.py` | Mesclar documentos novos num projeto existente (revisão). |
 | `lector.py` | Ler texto de `.docx`/`.pdf`/`.txt`; localizar apartados; diff de versões. |
 | `leer.py` | Checklist estrutural dos documentos recebidos (1º LPA). |
 | `verify.py` | Verificar a resposta da UTE contra os ficheiros novos. |

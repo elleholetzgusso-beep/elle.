@@ -128,6 +128,22 @@ def _cmd_merge(args) -> int:
     projeto.yaml pronto a editar — basta acrescentar os 'puntos' (hallazgos)."""
     import datetime as _dt
 
+    # Trava de segurança: o merge cria um projeto novo (puntos vazios). Se o
+    # ficheiro de saída já existe e tem puntos (ex. saiu de um extract numa
+    # revisão), recusa sobrescrever — senão apagava os hallazgos em silêncio.
+    # Para acrescentar documentos a um projeto existente, usa-se o 'update'.
+    if args.out and Path(args.out).exists() and not args.force:
+        existente = _load_yaml(args.out)
+        if existente.get("puntos"):
+            print(
+                f"Erro: '{args.out}' já tem {len(existente['puntos'])} puntos — o merge "
+                f"apagá-los-ia (cria projeto novo). Para uma revisão, usa 'update' "
+                f"(acrescenta documentos sem tocar nos puntos). Para forçar mesmo "
+                f"assim, --force.",
+                file=sys.stderr,
+            )
+            return 1
+
     meta = _load_yaml(args.meta) if args.meta else {}
     docs = _load_yaml(args.docs) if args.docs else {}
 
@@ -164,6 +180,36 @@ def _cmd_merge(args) -> int:
     print(
         f"# projeto criado: {len(documentos)} documentos. "
         f"Edita a secção 'puntos' (hallazgos) e depois corre o comando 'fill'.",
+        file=sys.stderr,
+    )
+    return 0
+
+
+def _cmd_update(args) -> int:
+    """Revisão: acrescenta os documentos do novo envío a um projeto existente
+    (vindo do extract), preservando puntos, versiones e portada."""
+    from . import updater
+
+    projeto = _load_yaml(args.projeto)
+    if not projeto.get("puntos"):
+        print(
+            f"# aviso: '{args.projeto}' não tem puntos. Para um projeto novo, usa 'merge'. "
+            f"O 'update' serve para revisões (projeto já com puntos, vindo do extract).",
+            file=sys.stderr,
+        )
+    docs = _load_yaml(args.docs)
+    novos = docs.get("documentos") or []
+    r = updater.merge_documentos(projeto, novos)
+    _dump_yaml(projeto, args.out or args.projeto)
+    print(
+        f"# projeto atualizado: +{r['novos_documentos']} documentos novos, "
+        f"+{r['novos_envios']} envíos novos em documentos existentes. "
+        f"{len(projeto.get('puntos', []))} puntos preservados.",
+        file=sys.stderr,
+    )
+    print(
+        "# a seguir: 'rev' (acrescenta a nova versão) e revê os estados/diálogos "
+        "dos puntos à luz das respostas; 'verify' ajuda a localizar a evidência.",
         file=sys.stderr,
     )
     return 0
@@ -401,7 +447,14 @@ def build_parser() -> argparse.ArgumentParser:
     m.add_argument("-m", "--meta", help="meta.yaml (saída do from-docx).")
     m.add_argument("-d", "--docs", help="documentos.yaml (saída do scan).")
     m.add_argument("-o", "--out", help="projeto.yaml de saída (por omissão: stdout).")
+    m.add_argument("--force", action="store_true", help="Sobrescrever mesmo que o -o já tenha puntos (apaga-os — cuidado).")
     m.set_defaults(func=_cmd_merge)
+
+    u = sub.add_parser("update", help="Revisão: acrescenta documentos novos a um projeto existente (preserva puntos).")
+    u.add_argument("-p", "--projeto", required=True, help="projeto.yaml existente (vindo do extract do LPA anterior).")
+    u.add_argument("-d", "--docs", required=True, help="documentos.yaml do novo envío (saída do scan).")
+    u.add_argument("-o", "--out", help="YAML de saída (por omissão: reescreve o próprio projeto).")
+    u.set_defaults(func=_cmd_update)
 
     v = sub.add_parser("rev", help="Acrescenta a próxima revisão ao Control de Versiones (envíos novos).")
     v.add_argument("-p", "--projeto", required=True, help="projeto.yaml a atualizar.")
