@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 docx = ["python-docx>=1.1"]
+pdf = ["pypdf>=4.0"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]

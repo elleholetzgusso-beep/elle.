@@ -20,6 +20,7 @@ PE/Inspección/01–05 e a norma UNE-EN ISO/IEC 17020.
 ```bash
 pip install -e .            # instala o pacote e o comando 'lpa-filler'
 pip install -e '.[docx]'    # + suporte a from-docx (python-docx)
+pip install -e '.[pdf]'     # + leitura de .pdf nos comandos leer/verify (pypdf)
 pip install -e '.[dev]'     # + pytest
 ```
 
@@ -55,7 +56,16 @@ Todos os comandos correm também via `python -m lpa_filler <comando>`.
                   fill │
                       ▼
                   LPA.xlsm  +  veredicto esperado do IES
+                      │
+              (a UTE responde e reenvia documentos)
+                      │
+                verify │  (abre os ficheiros novos, localiza o que a
+                      ▼   resposta cita, faz diff entre versões)
+              relatório de verificação  →  avaliador fecha/mantém
 ```
+
+`leer` (opcional, no arranque) lê os documentos recebidos e corre um checklist
+estrutural por tipo — um radar para o avaliador antes de redigir os hallazgos.
 
 `extract` faz o caminho inverso (reconstrói `projeto.yaml` a partir de um
 `.xlsm` já preenchido) para arrancar de um LPA existente.
@@ -150,6 +160,32 @@ python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm \
 python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 ```
 
+### `leer` — ler os documentos recebidos (1º LPA)
+Abre cada documento recebido (`.docx`/`.pdf`/`.txt`), extrai o texto e corre um
+checklist estrutural por tipo (Safety Case → 6 partes; REP → perigo/medida/estado;
+Plan de Seguridad → gestión/ciclo de vida...). Assinala as normas CENELEC citadas.
+
+```bash
+python -m lpa_filler leer -r "1_Doc Recibida" -o leitura.txt
+```
+
+Uma parte "não encontrada" (`✗`) é **pista para o avaliador olhar**, nunca uma não
+conformidade: pode estar escrita com outras palavras, num anexo, ou o ficheiro ser
+uma digitalização sem texto (precisa de OCR). O programa não julga conformidade.
+
+### `verify` — verificar a resposta da UTE (ciclo de resposta)
+Para cada punto ainda aberto, lê a última *Respuesta* do diálogo, localiza o
+ficheiro do documento na pasta da resposta (a versão mais nova), abre-o e extrai o
+trecho real de cada apartado citado. Se houver duas versões, resume o que mudou.
+
+```bash
+python -m lpa_filler verify -p projeto.yaml -r "Envío 3 20260601" -o verificacao.txt
+```
+
+Traz a evidência lado a lado com o que a resposta alega (trecho real, diff, e o que
+não encontrou). **Não fecha hallazgos nem altera estados** — a decisão é do avaliador
+(ISO 17020). Sinaliza quando a resposta cita um apartado que não existe no ficheiro.
+
 ---
 
 ## 4. Recursos normativos
@@ -163,6 +199,8 @@ python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
 | **Regra de ouro** | PE/03 | `model.lint` | Nenhum Crítico pode ficar Abierto num informe favorável — gera aviso. |
 | **Anejo A.2** (módulo) | PE/05 | `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. Ainda não ligado a um comando do CLI. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
+| **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
+| **Verificação da resposta** | PE/03 | `verify`, `verify.py` | Localiza nos ficheiros novos o apartado que a resposta cita e mostra o trecho real + diff entre versões. Traz a evidência; nunca fecha o hallazgo — decisão do avaliador. Sinaliza citações a apartados inexistentes. |
 
 ---
 
@@ -207,6 +245,12 @@ puntos:
 Chaves com prefixo `_` (`_triage`, `_fora_escopo`, `_score`, `_sugerido_de`) são
 metadados de triagem — ignoradas pelo `fill`.
 
+> **Nota sobre o `suggest`:** os hallazgos sugeridos são **texto histórico copiado**
+> da base (campo `hallazgo` do LPA de origem), não adaptado a esta obra. O `suggest`
+> não abre os documentos do projeto — casa só nomes de documento com a base. Rever e
+> reescrever cada punto (e o seu `estado`, que sai sempre `Abierto` por omissão) é do
+> avaliador. Para ler o *conteúdo* dos ficheiros, usar `leer` e `verify`.
+
 ---
 
 ## 6. Módulos internos
@@ -223,6 +267,9 @@ metadados de triagem — ignoradas pelo `fill`.
 | `suggest.py` | Matching determinístico de hallazgos. |
 | `scope.py` | Deteção de contaminação entre obras (gazetteer + códigos). |
 | `tema.py` | Classificação temática RAMS/CENELEC dos hallazgos. |
+| `lector.py` | Ler texto de `.docx`/`.pdf`/`.txt`; localizar apartados; diff de versões. |
+| `leer.py` | Checklist estrutural dos documentos recebidos (1º LPA). |
+| `verify.py` | Verificar a resposta da UTE contra os ficheiros novos. |
 | `versiones.py` | Descrição das revisões (Control de Versiones). |
 | `anejo.py` | Gerar a estrutura do Anejo A.2 (PE/05). |
 | `filler.py` | Escrever o `.xlsm` final. |

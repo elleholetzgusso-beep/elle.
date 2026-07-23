@@ -274,6 +274,59 @@ def _cmd_rev(args) -> int:
     return 0
 
 
+def _cmd_verify(args) -> int:
+    from . import verify
+
+    projeto = _load_yaml(args.projeto)
+    registos = verify.verificar(projeto, args.recibida)
+    texto = verify.relatorio(registos)
+    if args.out:
+        Path(args.out).write_text(texto, encoding="utf-8")
+        print(f"Escrito: {args.out}")
+    else:
+        sys.stdout.write(texto)
+    abertos = len(registos)
+    localizados = sum(1 for r in registos if r["ficheiro"])
+    sem_evidencia = sum(1 for r in registos if r["ficheiro"] and not any(a["trecho"] for a in r["achados"]))
+    print(
+        f"\n# {abertos} puntos abertos verificados: {localizados} com ficheiro localizado, "
+        f"{sem_evidencia} sem trecho citado encontrado (rever à mão).",
+        file=sys.stderr,
+    )
+    from . import lector
+
+    if not lector.PDF_OK:
+        print(
+            "# nota: suporte a .pdf desligado (instala: pip install lpa-filler[pdf]) — "
+            "os .pdf ficaram por ler.",
+            file=sys.stderr,
+        )
+    return 0
+
+
+def _cmd_leer(args) -> int:
+    from . import leer, lector
+
+    registos = leer.revisar_pasta(args.recibida)
+    texto = leer.relatorio(registos)
+    if args.out:
+        Path(args.out).write_text(texto, encoding="utf-8")
+        print(f"Escrito: {args.out}")
+    else:
+        sys.stdout.write(texto)
+    ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
+    print(
+        f"\n# {len(registos)} documentos lidos ({ilegiveis} sem texto extraível).",
+        file=sys.stderr,
+    )
+    if not lector.PDF_OK:
+        print(
+            "# nota: suporte a .pdf desligado (instala: pip install lpa-filler[pdf]).",
+            file=sys.stderr,
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -363,6 +416,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Filtra a base só a esta valoración antes de procurar (modo -q).",
     )
     g.set_defaults(func=_cmd_suggest)
+
+    vf = sub.add_parser(
+        "verify",
+        help="Ciclo de resposta: abre os ficheiros novos e localiza o que a resposta cita.",
+    )
+    vf.add_argument("-p", "--projeto", required=True, help="projeto.yaml com os puntos e diálogos.")
+    vf.add_argument("-r", "--recibida", required=True, help="Pasta com os ficheiros da resposta (novo envío).")
+    vf.add_argument("-o", "--out", help="Relatório de saída (.txt/.md; por omissão: stdout).")
+    vf.set_defaults(func=_cmd_verify)
+
+    lr = sub.add_parser(
+        "leer",
+        help="Lê os documentos recebidos e corre um checklist estrutural por tipo.",
+    )
+    lr.add_argument("-r", "--recibida", required=True, help="Pasta com os documentos recebidos.")
+    lr.add_argument("-o", "--out", help="Relatório de saída (.txt/.md; por omissão: stdout).")
+    lr.set_defaults(func=_cmd_leer)
 
     return p
 
