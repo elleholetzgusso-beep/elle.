@@ -67,6 +67,15 @@ def test_verify_ficheiro_em_falta():
     assert any("não encontrei o ficheiro" in n for n in regs[0]["notas"])
 
 
+def test_pasta_inexistente_levanta_erro_claro():
+    try:
+        verify.ficheiros_legiveis("/caminho/que/nao/existe/xyz")
+    except NotADirectoryError:
+        pass
+    else:
+        raise AssertionError("devia ter levantado NotADirectoryError")
+
+
 def test_verify_ignora_cerrado():
     with tempfile.TemporaryDirectory() as d:
         _docx(Path(d) / "Anejo 27 Estudio Previo Seguridad_v06.docx", "3.2 Gestión")

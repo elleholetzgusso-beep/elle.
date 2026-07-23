@@ -64,6 +64,15 @@ def test_ficheiro_ilegivel_nao_rebenta():
     assert reg["notas"]
 
 
+def test_pasta_inexistente_levanta_erro_claro():
+    try:
+        leer.revisar_pasta("/caminho/que/nao/existe/xyz")
+    except NotADirectoryError:
+        pass
+    else:
+        raise AssertionError("devia ter levantado NotADirectoryError")
+
+
 def test_relatorio_pasta():
     with tempfile.TemporaryDirectory() as d:
         _docx(Path(d) / "Safety Case_v01.docx", "Definición del Sistema.", "Conclusión.")

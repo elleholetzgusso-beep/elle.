@@ -43,8 +43,14 @@ def _version_de(stem: str) -> float:
 
 
 def ficheiros_legiveis(recibida_dir: str | Path) -> list[Path]:
-    """Todos os ficheiros de tipo legível na pasta (recursivo), ignora temporários."""
+    """Todos os ficheiros de tipo legível na pasta (recursivo), ignora temporários.
+
+    Levanta ``NotADirectoryError`` se a pasta não existir — sem isto, um caminho
+    errado devolvia silenciosamente uma lista vazia (0 documentos, sem aviso).
+    """
     root = Path(recibida_dir)
+    if not root.is_dir():
+        raise NotADirectoryError(f"Pasta não encontrada: {root}")
     return sorted(
         p for p in root.rglob("*")
         if p.is_file() and p.suffix.lower() in lector.LEGIVEIS

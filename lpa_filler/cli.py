@@ -278,7 +278,11 @@ def _cmd_verify(args) -> int:
     from . import verify
 
     projeto = _load_yaml(args.projeto)
-    registos = verify.verificar(projeto, args.recibida)
+    try:
+        registos = verify.verificar(projeto, args.recibida)
+    except NotADirectoryError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        return 1
     texto = verify.relatorio(registos)
     if args.out:
         Path(args.out).write_text(texto, encoding="utf-8")
@@ -307,7 +311,11 @@ def _cmd_verify(args) -> int:
 def _cmd_leer(args) -> int:
     from . import leer, lector
 
-    registos = leer.revisar_pasta(args.recibida)
+    try:
+        registos = leer.revisar_pasta(args.recibida)
+    except NotADirectoryError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        return 1
     texto = leer.relatorio(registos)
     if args.out:
         Path(args.out).write_text(texto, encoding="utf-8")
