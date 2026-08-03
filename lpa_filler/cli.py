@@ -245,6 +245,23 @@ def _cmd_draft(args) -> int:
     return 0
 
 
+def _cmd_guide(args) -> int:
+    from . import guide
+
+    rows = guide.load_base(args.base)
+    if not rows:
+        print(f"Base vazia: {args.base}", file=sys.stderr)
+        return 1
+    r = guide.exportar(rows, args.out)
+    print(f"Escrito: {args.out}")
+    print(
+        f"# {r['hallazgos']} hallazgos de {r['obras']} obras, em {r['tipos']} tipos de documento. "
+        f"Abre a aba 'Por onde começar' para ver onde focar numa obra nova.",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def _cmd_harvest(args) -> int:
     from . import harvest
 
@@ -540,6 +557,14 @@ def build_parser() -> argparse.ArgumentParser:
     dr.add_argument("-r", "--recibida", required=True, help="Pasta com os ficheiros do novo envío.")
     dr.add_argument("-o", "--out", help="YAML de saída (por omissão: reescreve o próprio projeto).")
     dr.set_defaults(func=_cmd_draft)
+
+    gd = sub.add_parser(
+        "guide",
+        help="Exporta a base num .xlsx organizado (guia de 'por onde começar' numa obra nova).",
+    )
+    gd.add_argument("-b", "--base", required=True, help="CSV da base (saída do harvest).")
+    gd.add_argument("-o", "--out", default="base_organizada.xlsx", help="Excel de saída (default: base_organizada.xlsx).")
+    gd.set_defaults(func=_cmd_guide)
 
     return p
 

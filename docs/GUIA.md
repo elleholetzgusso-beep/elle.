@@ -91,6 +91,22 @@ equivalente PE/03 e o valor original preservado na coluna `estado_legado`
 com as áreas RAMS/CENELEC que menciona (Hazard Log, Safety Case, SRAC, ...) —
 ver §4.
 
+### `guide` — base organizada (por onde começar numa obra nova)
+Exporta a base de hallazgos num `.xlsx` de trabalho com duas vistas: uma aba
+**"Por onde começar"** com as contagens por tipo de documento e por tema RAMS,
+ordenadas por gravidade (Críticos primeiro), e uma aba **"Hallazgos"** filtrável
+(ordenada por tipo → valoración → tema, colorida por valoración).
+
+```bash
+python -m lpa_filler guide -b base_hallazgos.csv -o base_organizada.xlsx
+```
+
+Serve para, ao arrancar uma obra nova, ver onde historicamente aparecem os
+achados graves (ex.: REP/Hazard Log e V&V costumam concentrar Críticos) e por
+onde começar a avaliar. O tipo de documento é derivado do nome por regras
+(generaliza entre obras); o tema vem da coluna `tema` da base (ou é classificado
+na hora se faltar).
+
 ### `scan` — catalogar documentos recebidos
 Percorre `1_Doc Recibida/Envío N AAAAMMDD/...`, agrupa por documento e deteta
 versões (`_v06`). Faz a triagem de documentos não avaliativos (PE/01).
@@ -318,6 +334,7 @@ metadados de triagem — ignoradas pelo `fill`.
 | `leer.py` | Checklist estrutural dos documentos recebidos (1º LPA). |
 | `verify.py` | Verificar a resposta da UTE contra os ficheiros novos. |
 | `draft.py` | Rascunhar a réplica do avaliador (Respuesta Exceltic) com a evidência. |
+| `guide.py` | Exportar a base num .xlsx organizado (por onde começar numa obra nova). |
 | `versiones.py` | Descrição das revisões (Control de Versiones). |
 | `anejo.py` | Gerar a estrutura do Anejo A.2 (PE/05). |
 | `filler.py` | Escrever o `.xlsm` final. |
