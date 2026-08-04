@@ -281,7 +281,12 @@ python -m lpa_filler anejo -p projeto.yaml -o anejo_rev05.csv --solo H-007 H-008
 Um ID pedido no `--solo` que não exista no projeto é **erro**, e nada é escrito: num
 registo de compliance, um Anejo incompleto por engano de escrita é pior do que um
 comando que se recusa a correr. O que não é derivável do diálogo sai `(a preencher)`,
-nunca um valor plausível inventado — o comando conta essas linhas no fim.
+nunca um valor plausível inventado — o comando conta quantas faltam **por campo**.
+
+O `anejo` aplica os mesmos descartes que o `fill` (`model.preparar_emissao`): puntos
+`_fora_escopo` e placeholders não entram, e o `n` é o da folha emitida. Correr os dois
+a partir do mesmo `projeto.yaml` dá duas vistas coerentes do mesmo registo — se um
+descartasse e o outro não, o Anejo descreveria uma obra diferente do LPA.
 
 ### `extract` — reconstruir o YAML (bootstrap)
 ```bash
@@ -356,6 +361,7 @@ rev → fill   (LPA-02)
 | **ID estável do hallazgo** | PE/03, ISO 17020 | `model.assign_ids` | Cada punto recebe um `id` (`H-001`, `H-002`, …) na primeira vez que o projeto é escrito, e nunca mais o perde. É o `id` — não o `n`, que renumera a cada inserção ou descarte — que liga o mesmo hallazgo entre a revisão 01 e a 05, e o que o veredicto cita. IDs não são reutilizados: apagar o H-007 não faz o seguinte passar a H-007. |
 | **Transições de estado** | PE/03 §8.4 | `fill --strict`, `model.lint` | Um estado só vale se o diálogo contiver a prova que o justifica: `Resuelto` exige resposta do cliente **e** aceitação da ação pelo avaliador; `Cerrado` exige além disso evidência documental citada (versão, apartado, anexo, documento aportado). Verifica-se a **presença** da prova, nunca o seu mérito — esse é juízo do avaliador. Por omissão avisa; com `--strict` não gera o ficheiro. |
 | **Anejo A.2** | PE/05 | `anejo`, `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Indexado pelo `id` estável (a coluna Nº do PE/05), com o `n` ao lado como referência cruzada para a folha do LPA. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. |
+| **Coerência entre entregáveis** | PE/03, PE/05 | `model.preparar_emissao` | O `fill` e o `anejo` são duas vistas do mesmo registo, por isso passam pelo mesmo funil de descartes (`_fora_escopo`, placeholders) e pela mesma renumeração. Qualquer comando novo que produza um entregável a partir dos puntos tem de chamar esta função — se dois emissores filtrarem de maneira diferente, passam a descrever obras diferentes. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 | **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
 | **Radar dirigido** | PE/02–03 | `radar`, `radar.py` | Cruza o conteúdo real de cada documento com a base histórica: instrui onde procurar erros (frentes por tipo de documento + sondas no texto, com procedência e localização). Só aponta; nunca redige nem decide conformidade. `--excluir-obra` evita colar da própria resposta. |

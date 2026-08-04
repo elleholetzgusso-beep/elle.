@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest  # noqa: E402
 
-from lpa_filler import anejo  # noqa: E402
+from lpa_filler import anejo, model  # noqa: E402
 
 
 def _punto(id_="H-001", n=1, estado="Cerrado", dialogo=None):
@@ -82,6 +82,35 @@ def test_id_ilegivel_e_erro():
 
 def test_sem_solo_gera_todos():
     assert len(anejo.build(_projeto())) == 3
+
+
+# --- coerência com o LPA emitido --------------------------------------------
+#
+# Regressão de um caso real (obra EXC2026-16883, Torre Pacheco): o LPA saiu com
+# 82 puntos e o Anejo A.2 com 114 — os 32 que o fill descarta por serem de outra
+# obra (Sueca, Cullera, Lleida...) entravam na Base de No Conformidades de Torre
+# Pacheco, e o 'n' do Anejo ia até 114 quando a folha só tinha 82 linhas.
+
+def test_preparar_emissao_deixa_anejo_e_lpa_com_os_mesmos_puntos():
+    projeto = {"puntos": [
+        _punto("H-001", 1),
+        {**_punto("H-002", 2), "_fora_escopo": True, "_marcadores": "sueca"},
+        _punto("H-003", 3),
+    ]}
+    model.preparar_emissao(projeto)
+    linhas = anejo.build(projeto)
+    assert [ln["id"] for ln in linhas] == ["H-001", "H-003"]
+    # E o 'n' do Anejo é o da folha emitida (renumerada), não o do YAML original.
+    assert [ln["n"] for ln in linhas] == [1, 2]
+
+
+def test_preparar_emissao_tambem_tira_os_placeholders():
+    projeto = {"puntos": [
+        _punto("H-001", 1, dialogo=[{"tipo": "Hallazgo", "texto": "DESCREVER O HALLAZGO aqui"}]),
+        _punto("H-002", 2),
+    ]}
+    model.preparar_emissao(projeto)
+    assert [ln["id"] for ln in anejo.build(projeto)] == ["H-002"]
 
 
 # --- derivação sem fabricar -------------------------------------------------

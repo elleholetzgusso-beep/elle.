@@ -214,6 +214,22 @@ def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
     return avisos
 
 
+def preparar_emissao(data: dict[str, Any]) -> list[str]:
+    """Deixa ``data`` no estado exato do que vai ser emitido, e devolve os avisos.
+
+    **Todo** o comando que produz um entregável a partir dos puntos tem de passar
+    por aqui — o ``fill`` e o ``anejo`` produzem duas vistas do mesmo registo, e
+    se aplicarem filtros diferentes passam a descrever obras diferentes. Foi o que
+    aconteceu: o Anejo A.2 saía com os hallazgos que o LPA descarta por serem de
+    outra obra, e com um ``n`` que já não correspondia ao da folha.
+
+    Mutação intencional: os puntos descartados saem de ``data`` e os mantidos são
+    renumerados, para que o ``n`` signifique a mesma linha em todos os ficheiros
+    gerados nesta passagem.
+    """
+    return drop_placeholders(data) + drop_fora_de_escopo(data)
+
+
 # ---------------------------------------------------------------------------
 # Transições de estado (PE/Inspección/03 §8.4)
 # ---------------------------------------------------------------------------

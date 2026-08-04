@@ -63,7 +63,7 @@ def _cmd_fill(args) -> int:
     ] + nomenclatura.avisos_documentos(data.get("documentos", []))
     for m in nomen:
         print(f"  ! nomenclatura: {m}")
-    descartes = model.drop_placeholders(data) + model.drop_fora_de_escopo(data)
+    descartes = model.preparar_emissao(data)
     for d in descartes:
         print(f"  ! {d}")
     # Estados sem suporte no diálogo (PE/03 §8.4). Com --strict, não se emite:
@@ -79,7 +79,10 @@ def _cmd_fill(args) -> int:
         return 1
     v = model.veredicto(data)
     vtexto = model.veredicto_texto(v)
-    out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell)
+    try:
+        out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell)
+    except PermissionError:
+        return _erro_bloqueado(args.out)
     print(f"\n== {vtexto} ==")
     if v["criticos_abiertos"]:
         print("   (um Crítico Abierto impede o informe favorável — PE/03; o ficheiro foi gerado na mesma)")
@@ -133,6 +136,20 @@ def _cmd_from_docx(args) -> int:
     return 0
 
 
+def _erro_bloqueado(path: str) -> int:
+    """O caso do dia-a-dia: o ficheiro de saída está aberto no Excel.
+
+    O Windows recusa a escrita e o openpyxl deixa passar um PermissionError em
+    bruto — um traceback de 15 linhas para algo que se resolve fechando a janela.
+    """
+    print(
+        f"\nNão consigo escrever '{path}': o ficheiro está aberto noutro programa "
+        f"(tipicamente o Excel).\nFecha-o e corre o comando outra vez.",
+        file=sys.stderr,
+    )
+    return 1
+
+
 def _cmd_anejo(args) -> int:
     from . import anejo, model
 
@@ -159,21 +176,46 @@ def _cmd_anejo(args) -> int:
         _dump_yaml(projeto, args.projeto)
         print(f"{len(novos)} ID(s) atribuídos e gravados em {args.projeto}.")
 
+    # Mesmo funil do fill: o Anejo A.2 e o LPA são duas vistas do mesmo registo,
+    # por isso têm de descrever o mesmo conjunto de hallazgos. Sem isto, o Anejo
+    # levava os puntos que o fill descarta por serem de outra obra, e um 'n' que
+    # não correspondia a nenhuma linha da folha emitida.
+    antes = {model.normalize_id(pt.get("id") or "") for pt in puntos}
+    for aviso in model.preparar_emissao(projeto):
+        print(f"  ! {aviso}")
+    descartados = antes - {model.normalize_id(pt.get("id") or "") for pt in projeto["puntos"]}
+
+    if args.solo and (pedidos_fora := sorted(
+        {model.normalize_id(v) for v in args.solo} & descartados
+    )):
+        print(
+            f"IDs pedidos mas descartados nesta emissão: {', '.join(pedidos_fora)}. "
+            f"Ver o motivo acima — não entram no LPA, logo não entram no Anejo.",
+            file=sys.stderr,
+        )
+        return 1
+
     try:
         linhas = anejo.build(projeto, solo=args.solo)
     except anejo.IdDesconhecido as e:
         print(str(e), file=sys.stderr)
         return 1
 
-    out = anejo.to_csv(linhas, args.out)
-    pendentes = sum(1 for ln in linhas if anejo.A_PREENCHER in [str(v) for v in ln.values()])
+    try:
+        out = anejo.to_csv(linhas, args.out)
+    except PermissionError:
+        return _erro_bloqueado(args.out)
     print(f"Gerado: {out}")
-    print(f"  linhas: {len(linhas)}" + (f" (de {len(puntos)} puntos)" if args.solo else ""))
-    if pendentes:
-        print(
-            f"  ! {pendentes} linha(s) com campos '{anejo.A_PREENCHER}' — o que não é "
-            f"derivável do diálogo não é fabricado. Completar à mão antes de entregar."
-        )
+    print(f"  linhas: {len(linhas)} (de {len(puntos)} puntos no projeto"
+          + (f", {len(descartados)} descartados" if descartados else "") + ")")
+    # Contar por campo, não por linha: a 'fecha_deteccion' não é derivável de
+    # lado nenhum, por isso sai sempre por preencher e sozinha marcaria 100% das
+    # linhas — um número que não distingue nada.
+    for campo in anejo.CAMPOS:
+        falta = sum(1 for ln in linhas if str(ln.get(campo)) == anejo.A_PREENCHER)
+        if falta:
+            print(f"  ! {campo}: {falta}/{len(linhas)} por preencher")
+    print("  (o que não é derivável do diálogo não é fabricado — completar à mão.)")
     return 0
 
 
