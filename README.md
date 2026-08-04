@@ -4,6 +4,14 @@ Ferramenta Python que automatiza a criação e gestão de documentos LPA — rel
 de conformidade e segurança usados em avaliações ISA de projetos de infraestruturas
 ferroviárias em Espanha (marco PE/Inspección/01–05, UNE-EN ISO/IEC 17020).
 
+## Documentação
+
+| | |
+|---|---|
+| [`docs/01_GUIA_LPA.md`](docs/01_GUIA_LPA.md) | **O processo.** O que é um LPA, como se escreve um hallazgo, o ciclo de vida de um punto. Começa aqui. |
+| [`docs/02_MANUAL_LPA_FILLER.md`](docs/02_MANUAL_LPA_FILLER.md) | **A ferramenta.** Referência dos comandos e do `projeto.yaml`. |
+| [`docs/03_REGRAS_DE_AUTOMACAO.md`](docs/03_REGRAS_DE_AUTOMACAO.md) | **Os limites.** O que o programa decide, o que recusa decidir, e porquê. |
+
 ## Fluxo
 
 | Comando | O que faz |
