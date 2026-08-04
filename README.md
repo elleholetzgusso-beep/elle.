@@ -33,6 +33,12 @@ python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm
 ## Convenções normativas
 
 - Estados de hallazgo (PE/Inspección/03 §8.4): `Abierto` / `Resuelto` / `Cerrado`.
+  Cada degrau exige que a prova exista no diálogo: `Resuelto` pede resposta do cliente
+  e aceitação da ação pelo avaliador; `Cerrado` pede ainda evidência documental citada.
+  O `fill` avisa; com `--strict` recusa gerar. Verifica-se a presença da prova, não o
+  seu mérito — esse continua a ser juízo do avaliador.
+- Cada punto tem um `id` estável (`H-001`, …) atribuído uma vez e nunca reutilizado:
+  é ele que segue o mesmo hallazgo entre revisões, ao contrário do `n`, que renumera.
 - Valoración: `Crítico` / `Importante` / `Informativo` / `Formal`.
 - Regra de ouro: nenhum `Crítico` pode permanecer `Abierto` num informe favorable —
   o `fill` calcula e regista o veredito esperado (`FAVORABLE` / `NO_FAVORABLE`)

@@ -254,6 +254,14 @@ python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm \
     --veredicto-cell "Portada!B30"
 ```
 
+Com `--strict`, o `fill` recusa gerar se algum punto estiver `Resuelto`/`Cerrado` sem
+o suporte que o PE/03 §8.4 exige no diálogo (§4). Sem a flag, os mesmos casos saem
+como avisos e o ficheiro é gerado à mesma.
+
+```bash
+python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm --strict
+```
+
 ### `extract` — reconstruir o YAML (bootstrap)
 ```bash
 python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
@@ -324,6 +332,8 @@ rev → fill   (LPA-02)
 | **Veredicto esperado do IES** | PE/03 | `fill` | `NO_FAVORABLE` se houver Crítico Abierto; senão `FAVORABLE`. Importantes abertos contam-se em bruto (sem limiar arbitrário — o PE/03 não quantifica "número significativo"). Punto sem estado conta como Abierto. Vai à consola, às propriedades do `.xlsm` e, opcionalmente, a uma célula. Não bloqueia a geração. |
 | **Estados legados** | PE/03 §8.4 | `harvest`, `model` | Enum oficial: `Abierto`/`Resuelto`/`Cerrado`. Estados antigos (`Controlado`→`Resuelto`, `Conforme`→`Cerrado`) são mapeados e o original preservado em `estado_legado`. `Cancelado` passa intacto (não tem equivalente PE/03 — decisão pendente do RE). |
 | **Regra de ouro** | PE/03 | `model.lint` | Nenhum Crítico pode ficar Abierto num informe favorável — gera aviso. |
+| **ID estável do hallazgo** | PE/03, ISO 17020 | `model.assign_ids` | Cada punto recebe um `id` (`H-001`, `H-002`, …) na primeira vez que o projeto é escrito, e nunca mais o perde. É o `id` — não o `n`, que renumera a cada inserção ou descarte — que liga o mesmo hallazgo entre a revisão 01 e a 05, e o que o veredicto cita. IDs não são reutilizados: apagar o H-007 não faz o seguinte passar a H-007. |
+| **Transições de estado** | PE/03 §8.4 | `fill --strict`, `model.lint` | Um estado só vale se o diálogo contiver a prova que o justifica: `Resuelto` exige resposta do cliente **e** aceitação da ação pelo avaliador; `Cerrado` exige além disso evidência documental citada (versão, apartado, anexo, documento aportado). Verifica-se a **presença** da prova, nunca o seu mérito — esse é juízo do avaliador. Por omissão avisa; com `--strict` não gera o ficheiro. |
 | **Anejo A.2** (módulo) | PE/05 | `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. Ainda não ligado a um comando do CLI. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 | **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
@@ -359,7 +369,8 @@ documentos:
          envio: 2, fecha_envio: 2026-02-16}
 
 puntos:
-  - n: 1
+  - id: "H-001"                               # identidade estável, atribuída uma vez
+    n: 1                                      # nº de apresentação, renumera-se
     eval: "SM"
     documento: "Anejo 27. Estudio Previo Seguridad"
     ref_documento: "auto"                     # "auto" => VLOOKUP a Doc Evaluados
@@ -373,6 +384,12 @@ puntos:
 
 Chaves com prefixo `_` (`_triage`, `_fora_escopo`, `_score`, `_sugerido_de`) são
 metadados de triagem — ignoradas pelo `fill`.
+
+> **Nota sobre o `id`:** é atribuído automaticamente por qualquer comando que escreva
+> o projeto (`merge`, `update`, `suggest`, `extract`, …) e não deve ser editado à mão.
+> Vive no `projeto.yaml`, que é a fonte de verdade: o `.xlsm` gerado não tem coluna de
+> `id`, por isso um `extract` a partir de um Excel atribui IDs novos por ordem — usa-o
+> para arrancar de um LPA legado, não para recuperar o projeto.
 
 > **Nota sobre o `suggest`:** os hallazgos sugeridos são **texto histórico copiado**
 > da base (campo `hallazgo` do LPA de origem), não adaptado a esta obra. O `suggest`

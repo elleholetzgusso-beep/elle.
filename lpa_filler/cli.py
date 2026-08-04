@@ -28,6 +28,15 @@ class _NoAliasDumper(yaml.SafeDumper):
 
 
 def _dump_yaml(data: Any, out: str | None) -> None:
+    # Ponto único de escrita de um projeto: garante que todo o punto sai daqui
+    # com um 'id' estável, seja qual for o comando que o criou.
+    if isinstance(data, dict) and "puntos" in data:
+        from . import model
+
+        novos = model.assign_ids(data)
+        if novos:
+            print(f"# {len(novos)} ID(s) estáveis atribuídos ({novos[0]}..{novos[-1]}).",
+                  file=sys.stderr)
     text = yaml.dump(
         data, Dumper=_NoAliasDumper, allow_unicode=True, sort_keys=False, default_flow_style=False
     )
@@ -55,6 +64,17 @@ def _cmd_fill(args) -> int:
     descartes = model.drop_placeholders(data) + model.drop_fora_de_escopo(data)
     for d in descartes:
         print(f"  ! {d}")
+    # Estados sem suporte no diálogo (PE/03 §8.4). Com --strict, não se emite:
+    # um 'Cerrado' sem prova de execução falseia o veredito do IES.
+    transicoes = model.check_transiciones(data)
+    if transicoes and args.strict:
+        print(f"\n== ESTADOS SEM SUPORTE NO DIÁLOGO ({len(transicoes)}) — PE/03 §8.4 ==",
+              file=sys.stderr)
+        for t in transicoes:
+            print(f"  ✗ {t}", file=sys.stderr)
+        print("\nFicheiro NÃO gerado (--strict). Corrige os estados acima, ou corre "
+              "sem --strict para gerar mesmo assim.", file=sys.stderr)
+        return 1
     v = model.veredicto(data)
     vtexto = model.veredicto_texto(v)
     out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell)
@@ -502,6 +522,13 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("-t", "--template", required=True, help="Template .xlsm padrão.")
     f.add_argument("-d", "--data", required=True, help="Ficheiro de dados (.yaml/.json).")
     f.add_argument("-o", "--out", required=True, help="Caminho do .xlsm a gerar.")
+    f.add_argument(
+        "--strict",
+        action="store_true",
+        help="Não gerar o ficheiro se algum punto estiver 'Resuelto'/'Cerrado' sem o "
+             "suporte que o PE/03 §8.4 exige no diálogo (resposta do cliente, aceitação "
+             "do avaliador, evidência documental no fecho).",
+    )
     f.add_argument(
         "--veredicto-cell",
         help='Célula onde escrever o veredicto esperado do IES, ex. "Portada!B30". '
