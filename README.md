@@ -13,6 +13,7 @@ ferroviárias em Espanha (marco PE/Inspección/01–05, UNE-EN ISO/IEC 17020).
 | `from-docx` | Extrai metadados (título, código, evaluadores) do relatório PES |
 | `merge` | Junta documentos + metadados num `projeto.yaml` pronto para editar |
 | `suggest` | Propõe hallazgos históricos similares via matching determinístico |
+| `radar` | Lê o conteúdo real de cada documento recebido e, cruzando-o com a base, instrui onde procurar erros (frentes históricas + sondas no texto, com procedência e localização) |
 | `rev` | Gera automaticamente a descrição da próxima revisão (envíos novos) |
 | `fill` | Gera o Excel final (`.xlsm`) com macros, fórmulas e pivot tables, e calcula o veredito esperado do IES |
 | `extract` | Reconstrói `projeto.yaml` a partir de um LPA existente (bootstrap) |
@@ -25,6 +26,7 @@ python -m lpa_filler scan -r "1_Doc Recibida" -o documentos.yaml
 python -m lpa_filler from-docx -i origem_PES.docx -o meta.yaml
 python -m lpa_filler merge -m meta.yaml -d documentos.yaml -o projeto.yaml
 python -m lpa_filler suggest -b base_hallazgos.csv -p projeto.yaml -o projeto.yaml --scope "Torre Pacheco, L352"
+python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv -o radar.txt --excluir-obra EXC2026-16883
 python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm
 ```
 

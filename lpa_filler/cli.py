@@ -435,6 +435,46 @@ def _cmd_leer(args) -> int:
     return 0
 
 
+def _cmd_radar(args) -> int:
+    from . import lector, radar
+
+    base = radar.load_base(args.base)
+
+    def progresso(i, total, path):
+        print(f"  a analisar ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
+
+    try:
+        registos = radar.analisar_pasta(
+            args.recibida, base, excluir_obra=args.excluir_obra, on_file=progresso
+        )
+    except NotADirectoryError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        return 1
+    texto = radar.relatorio(registos)
+    if args.out:
+        Path(args.out).write_text(texto, encoding="utf-8")
+        print(f"Escrito: {args.out}")
+    else:
+        sys.stdout.write(texto)
+
+    n_pistas = sum(len(r["pistas"]) for r in registos)
+    criticas = sum(1 for r in registos for p in r["pistas"] if p.nivel == "Crítico")
+    ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
+    print(
+        f"\n# {len(registos)} documentos analisados: {n_pistas} pistas "
+        f"({criticas} de nível Crítico), {ilegiveis} sem texto extraível. "
+        f"Base: {len(base)} hallazgos.",
+        file=sys.stderr,
+    )
+    if args.excluir_obra:
+        print(f"# obra '{args.excluir_obra}' excluída da base (não cola da própria resposta).",
+              file=sys.stderr)
+    if not lector.PDF_OK:
+        print("# nota: suporte a .pdf desligado (instala: pip install lpa-filler[pdf]).",
+              file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -565,6 +605,17 @@ def build_parser() -> argparse.ArgumentParser:
     gd.add_argument("-b", "--base", required=True, help="CSV da base (saída do harvest).")
     gd.add_argument("-o", "--out", default="base_organizada.xlsx", help="Excel de saída (default: base_organizada.xlsx).")
     gd.set_defaults(func=_cmd_guide)
+
+    rd = sub.add_parser(
+        "radar",
+        help="Instrui onde procurar erros em cada documento recebido, cruzando o texto real com a base.",
+    )
+    rd.add_argument("-r", "--recibida", required=True, help="Pasta com os documentos recebidos.")
+    rd.add_argument("-b", "--base", required=True, help="CSV da base de hallazgos (saída do harvest).")
+    rd.add_argument("-o", "--out", help="Relatório de saída (.txt/.md; por omissão: stdout).")
+    rd.add_argument("--excluir-obra", dest="excluir_obra",
+                    help="Código de obra a excluir da base (ex. EXC2026-16883) — evita colar da própria resposta.")
+    rd.set_defaults(func=_cmd_radar)
 
     return p
 

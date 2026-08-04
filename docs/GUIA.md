@@ -67,6 +67,19 @@ Todos os comandos correm também via `python -m lpa_filler <comando>`.
 `leer` (opcional, no arranque) lê os documentos recebidos e corre um checklist
 estrutural por tipo — um radar para o avaliador antes de redigir os hallazgos.
 
+`radar` (opcional, no arranque) vai além do `leer`: cruza o **conteúdo real** de
+cada documento recebido com a `base_hallazgos.csv`, instruindo *onde* procurar
+erros naquele tipo de documento (frentes históricas + sondas no texto). É a ponte
+que o `suggest` — que só casa nomes — não faz:
+
+```
+  Doc Recibida/  +  base_hallazgos.csv
+        └──────────┬──────────┘
+               radar │  (lê o texto, cruza com o histórico por tipo)
+                     ▼
+              radar.txt  →  o avaliador vê onde olhar e por quê, e redige
+```
+
 `extract` faz o caminho inverso (reconstrói `projeto.yaml` a partir de um
 `.xlsm` já preenchido) para arrancar de um LPA existente.
 
@@ -171,6 +184,37 @@ nomeia outra obra ficam marcadas `_fora_escopo` e afundadas na ordenação
 (nunca apagadas). `--debug` mostra o melhor score por documento para calibrar
 `--min-score`.
 
+### `radar` — onde procurar erros em cada documento (a ponte base ↔ conteúdo)
+Enquanto o `suggest` só casa *nomes* de documento com a base, o `radar` **abre e
+lê o conteúdo real** de cada documento recebido e cruza-o com o que a *sua* base
+histórica diz que costuma falhar naquele tipo de documento. Para cada documento
+emite:
+
+- **Frentes de atenção** (da base): os temas RAMS onde aquele tipo de documento
+  concentra achados, ordenados por gravidade (Críticos primeiro), com contagens
+  reais (nº de obras, nº de Cerrados);
+- **Pistas no texto real**: sondas determinísticas (referência cruzada de anexos
+  incoerente, coluna de Evidencias ausente, perigos sem estado/ID, ...) que só
+  disparam quando (a) o sinal existe no texto e (b) a base apoia aquele tipo de
+  achado para aquele tipo de documento — cada pista traz o *porquê* (contagens +
+  exemplo com fonte) e o *onde* (o sinal encontrado);
+- **Estrutura esperada** e **normas CENELEC** citadas (reusa o `leer`).
+
+```bash
+python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv -o radar.txt
+python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv \
+    --excluir-obra EXC2026-16883      # ao reavaliar uma obra já na base
+```
+
+`--excluir-obra` remove os hallazgos da própria obra da base, para que, ao correr
+o radar numa obra **já presente** na base, ele instrua a partir das *outras*
+obras e não "cole da própria resposta".
+
+Como o `leer`, é um **radar, não um veredito**: cada pista diz "olhe aqui,
+porque…"; nunca redige o hallazgo nem decide conformidade. A leitura e a decisão
+são do avaliador (ISO 17020). Tudo determinístico e rastreável — nada é inventado:
+sem sinal no texto ou sem apoio na base, a sonda cala-se.
+
 ### `rev` — próxima revisão do Control de Versiones
 Deteta os envíos ainda não mencionados e compõe a descrição da revisão nova.
 
@@ -261,6 +305,7 @@ rev → fill   (LPA-02)
 | **Anejo A.2** (módulo) | PE/05 | `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. Ainda não ligado a um comando do CLI. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 | **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
+| **Radar dirigido** | PE/02–03 | `radar`, `radar.py` | Cruza o conteúdo real de cada documento com a base histórica: instrui onde procurar erros (frentes por tipo de documento + sondas no texto, com procedência e localização). Só aponta; nunca redige nem decide conformidade. `--excluir-obra` evita colar da própria resposta. |
 | **Verificação da resposta** | PE/03 | `verify`, `verify.py` | Localiza nos ficheiros novos o apartado que a resposta cita e mostra o trecho real + diff entre versões. Traz a evidência; nunca fecha o hallazgo — decisão do avaliador. Sinaliza citações a apartados inexistentes. |
 | **Rascunho da réplica** | PE/03 | `draft`, `draft.py` | Pré-preenche a Respuesta Exceltic com a evidência localizada (scaffold factual, não parecer). Termina em "pendiente de verificación", não altera estado, marca `[RASCUNHO]`. O `fill` avisa enquanto o rascunho não for revisto. O avaliador confirma — nunca o programa. |
 
@@ -326,7 +371,8 @@ metadados de triagem — ignoradas pelo `fill`.
 | `nomenclatura.py` | Validar o padrão documental Exceltic (PE/05). |
 | `docx_source.py` | Extrair metadados do PES `.docx`. |
 | `harvest.py` | Construir a base CSV de hallazgos. |
-| `suggest.py` | Matching determinístico de hallazgos. |
+| `suggest.py` | Matching determinístico de hallazgos (por nome de documento). |
+| `radar.py` | Cruza o conteúdo real de cada documento com a base: frentes históricas por tipo + sondas no texto (a ponte que o `suggest` não faz). |
 | `scope.py` | Deteção de contaminação entre obras (gazetteer + códigos). |
 | `tema.py` | Classificação temática RAMS/CENELEC dos hallazgos. |
 | `updater.py` | Mesclar documentos novos num projeto existente (revisão). |
