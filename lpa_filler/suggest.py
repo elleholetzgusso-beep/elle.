@@ -98,6 +98,16 @@ def score(query_tokens: set[str], row: dict, doc_hint: str = "") -> float:
     return base * peso_estado
 
 
+def chave_texto(row_ou_texto: Any) -> str:
+    """Chave de deduplicação de um hallazgo: o texto normalizado.
+
+    O mesmo achado aparece em vários LPAs com o 'punto' ligeiramente diferente,
+    por isso é o texto que identifica o hallazgo, não a linha da base.
+    """
+    texto = row_ou_texto if isinstance(row_ou_texto, str) else (row_ou_texto.get("hallazgo") or "")
+    return " ".join(str(texto).split()).lower()
+
+
 def search(
     base: list[dict],
     query: str,
@@ -105,12 +115,21 @@ def search(
     n: int = 8,
     min_score: float = 1,
     valoracion: str | None = None,
+    skip_texts: set[str] | None = None,
 ) -> list[tuple[float, dict]]:
-    """valoracion: se indicado (Crítico/Importante/Informativo/Formal), filtra a base antes de pontuar."""
+    """valoracion: se indicado (Crítico/Importante/Informativo/Formal), filtra a base antes de pontuar.
+
+    ``skip_texts``: hallazgos a excluir (tipicamente os que já estão no projeto).
+    Excluídos ANTES do corte aos ``n`` melhores — se fossem retirados depois, os
+    puntos já existentes gastavam as vagas e o comando não teria nada para propor
+    numa revisão, que é precisamente quando se corre.
+    """
     pool = base
     if valoracion:
         alvo = _strip_accents(valoracion).strip().lower()
         pool = [r for r in base if _strip_accents((r.get("valoracion") or "")).strip().lower() == alvo]
+    if skip_texts:
+        pool = [r for r in pool if chave_texto(r) not in skip_texts]
     q = _tokens(query) | _tokens(doc_hint)
     scored = [(score(q, r, doc_hint or query), r) for r in pool]
     scored = [(s, r) for s, r in scored if s >= min_score]
@@ -192,11 +211,13 @@ def suggest_for_projeto(
     melhor: dict = {}
     for doc in documentos:
         nombre = doc.get("nombre") or ""
-        for sc, row in search(base, nombre, doc_hint=nombre, n=n_per_doc, min_score=min_score):
-            # Deduplicar pelo TEXTO do hallazgo (o mesmo achado surge em vários
-            # LPAs com 'punto' ligeiramente diferente) — fica o de maior score.
-            chave = " ".join((row.get("hallazgo") or "").split()).lower()
-            if not chave or (skip_texts and chave in skip_texts):
+        for sc, row in search(
+            base, nombre, doc_hint=nombre, n=n_per_doc, min_score=min_score,
+            skip_texts=skip_texts,
+        ):
+            # Deduplicar pelo TEXTO do hallazgo — fica o de maior score.
+            chave = chave_texto(row)
+            if not chave:
                 continue
             if chave not in melhor or sc > melhor[chave][0]:
                 melhor[chave] = (sc, nombre, row)

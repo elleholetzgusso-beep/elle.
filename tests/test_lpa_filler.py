@@ -102,6 +102,31 @@ def test_suggest_marks_out_of_scope():
     assert puntos.index(dentro) < puntos.index(fora)
 
 
+def test_skip_texts_nao_gasta_as_vagas_dos_n_melhores():
+    """Regressão (obra EXC2026-16883): numa revisão, o `suggest` devolvia 0 de 862.
+
+    Os puntos já no projeto eram os melhores matches, mas só eram excluídos DEPOIS
+    do corte aos `n_per_doc` melhores — gastavam as vagas e não sobrava nada para
+    propor. Numa revisão, que é quando o comando serve, dava sempre zero.
+    """
+    base = [
+        {"documento": "Plan de Seguridad", "punto": f"1.{i}", "estado": "Cerrado",
+         "hallazgo": f"Hallazgo {i} del plan de seguridad.", "valoracion": "Importante",
+         "fuente": "LPA-A"}
+        for i in range(1, 11)
+    ]
+    projeto = {"documentos": [{"nombre": "Plan de Seguridad", "envios": []}]}
+
+    primeira = suggest.suggest_for_projeto(base, projeto, n_per_doc=3, min_score=1)
+    assert len(primeira) == 3
+
+    # Segunda passagem: as 3 já estão no projeto. Sobram 7 na base, igualmente boas.
+    skip = {suggest.chave_texto(p["dialogo"][0]["texto"]) for p in primeira}
+    segunda = suggest.suggest_for_projeto(base, projeto, n_per_doc=3, min_score=1, skip_texts=skip)
+    assert len(segunda) == 3, "as vagas foram gastas pelos puntos já existentes"
+    assert not {suggest.chave_texto(p["dialogo"][0]["texto"]) for p in segunda} & skip
+
+
 def test_fill_roundtrip_if_template_present():
     if not TEMPLATE.exists():
         print("SKIP: template não presente (examples/template_exemplo.xlsm)")

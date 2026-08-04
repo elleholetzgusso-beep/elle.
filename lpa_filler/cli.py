@@ -427,9 +427,20 @@ def _cmd_suggest(args) -> int:
         fora = [pt for pt in sugeridos if pt.get("_fora_escopo")]
         print(
             f"# {len(existentes)} puntos existentes + {len(sugeridos)} sugeridos "
-            f"(rever!) de {len(base)} hallazgos.",
+            f"(rever!) de {len(base)} hallazgos"
+            + (f", {len(skip)} já no projeto (não repetidos)." if skip else "."),
             file=sys.stderr,
         )
+        if not sugeridos:
+            # Zero sugestões tem duas causas muito diferentes, e a diferença
+            # decide o que fazer a seguir. Sem isto, um limiar mal calibrado é
+            # indistinguível de uma base já toda aproveitada.
+            print(
+                f"# Nenhuma sugestão nova. Ou a base já está toda no projeto, ou nada "
+                f"chega ao limiar --min-score {args.min_score:g} — corre com --debug "
+                f"para ver o melhor score de cada documento.",
+                file=sys.stderr,
+            )
         # Distribuição dos scores: sem isto não há como calibrar --min-score, e um
         # LPA cheio de sugestões fracas gera um veredito que não significa nada.
         scores = sorted((pt.get("_score") or 0) for pt in sugeridos)
