@@ -139,6 +139,20 @@ def assign_ids(data: dict[str, Any]) -> list[str]:
     return novos
 
 
+def normalize_id(valor: Any) -> str | None:
+    """Aceita ``H-001``, ``h-1``, ``001`` ou ``1`` e devolve a forma canónica.
+
+    Serve as linhas de comando, onde escrever o prefixo e os zeros à mão é ruído.
+    Devolve ``None`` se não for reconhecível como ID — quem chama decide se isso
+    é erro (num registo de compliance, é).
+    """
+    txt = str(valor).strip()
+    m = _ID_RE.match(txt) or re.match(r"^(\d+)$", txt)
+    if not m:
+        m = re.match(rf"^{re.escape(ID_PREFIXO)}(\d+)$", txt, re.IGNORECASE)
+    return f"{ID_PREFIXO}{int(m.group(1)):03d}" if m else None
+
+
 def _etiqueta(pt: dict[str, Any]) -> str:
     """Como referir um punto numa mensagem: pelo ID estável, com o nº visível."""
     pid = str(pt.get("id") or "").strip()

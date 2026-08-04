@@ -5,12 +5,14 @@ Comandos:
   scan       Percorre as pastas de "Doc Recibida" e gera a secção `documentos`.
   from-docx  Extrai portada/evaluadores/documentos do relatório PES (.docx).
   extract    Lê um .xlsm já preenchido e reconstrói o YAML (bootstrap).
+  anejo      Gera o Anejo A.2 — Base de No Conformidades (CSV), indexado por ID.
 
 Exemplos:
   python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm
   python -m lpa_filler scan -r "1_Doc Recibida" -o documentos.yaml
   python -m lpa_filler from-docx -i origem_PES.docx -o meta.yaml
   python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
+  python -m lpa_filler anejo -p projeto.yaml -o anejo_a2.csv
 """
 from __future__ import annotations
 
@@ -128,6 +130,50 @@ def _cmd_from_docx(args) -> int:
 
     meta = docx_source.extract(args.input)
     _dump_yaml(meta, args.out)
+    return 0
+
+
+def _cmd_anejo(args) -> int:
+    from . import anejo, model
+
+    projeto = _load_yaml(args.projeto)
+    puntos = projeto.get("puntos") or []
+    if not puntos:
+        print(f"Sem puntos em {args.projeto} — nada a gerar.", file=sys.stderr)
+        return 1
+
+    # O Anejo A.2 é indexado pelo ID estável (§4). Atribuir IDs só em memória
+    # seria pior do que não os ter: saíam números que o projeto.yaml não conhece
+    # e que mudavam ao correr de novo. Ou se persistem no projeto, ou não se gera.
+    sem_id = [pt for pt in puntos if not model.normalize_id(pt.get("id") or "")]
+    if sem_id and not args.asignar_ids:
+        print(
+            f"{len(sem_id)} punto(s) sem 'id' estável em {args.projeto}.\n"
+            f"O Anejo A.2 é indexado por ID — corre de novo com --asignar-ids "
+            f"para os atribuir e gravar no projeto.",
+            file=sys.stderr,
+        )
+        return 1
+    if sem_id:
+        novos = model.assign_ids(projeto)
+        _dump_yaml(projeto, args.projeto)
+        print(f"{len(novos)} ID(s) atribuídos e gravados em {args.projeto}.")
+
+    try:
+        linhas = anejo.build(projeto, solo=args.solo)
+    except anejo.IdDesconhecido as e:
+        print(str(e), file=sys.stderr)
+        return 1
+
+    out = anejo.to_csv(linhas, args.out)
+    pendentes = sum(1 for ln in linhas if anejo.A_PREENCHER in [str(v) for v in ln.values()])
+    print(f"Gerado: {out}")
+    print(f"  linhas: {len(linhas)}" + (f" (de {len(puntos)} puntos)" if args.solo else ""))
+    if pendentes:
+        print(
+            f"  ! {pendentes} linha(s) com campos '{anejo.A_PREENCHER}' — o que não é "
+            f"derivável do diálogo não é fabricado. Completar à mão antes de entregar."
+        )
     return 0
 
 
@@ -567,6 +613,28 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("-i", "--input", required=True, help=".xlsm já preenchido.")
     e.add_argument("-o", "--out", help="YAML de saída (por omissão: stdout).")
     e.set_defaults(func=_cmd_extract)
+
+    an = sub.add_parser(
+        "anejo",
+        help="Gera o Anejo A.2 — Base de Datos de No Conformidades (CSV), indexado por ID.",
+    )
+    an.add_argument("-p", "--projeto", required=True, help="projeto.yaml com os puntos.")
+    an.add_argument("-o", "--out", default="anejo_a2.csv", help="CSV de saída (default: anejo_a2.csv).")
+    an.add_argument(
+        "--solo",
+        nargs="+",
+        metavar="ID",
+        help="Restringe aos puntos com estes IDs estáveis (ex. as não conformidades novas "
+             "desta revisão). Aceita 'H-007', 'h-7' ou '7'. Um ID inexistente é erro.",
+    )
+    an.add_argument(
+        "--asignar-ids",
+        action="store_true",
+        dest="asignar_ids",
+        help="Atribuir 'id' aos puntos que não o tenham e GRAVAR no projeto.yaml "
+             "(o Anejo é indexado por ID, e um ID só é estável se ficar no projeto).",
+    )
+    an.set_defaults(func=_cmd_anejo)
 
     h = sub.add_parser("harvest", help="Extrai hallazgos de LPAs para uma base de dados (CSV).")
     h.add_argument("-i", "--input", nargs="+", help="Um ou mais ficheiros .xlsm de LPA.")

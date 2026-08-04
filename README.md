@@ -28,6 +28,7 @@ python -m lpa_filler merge -m meta.yaml -d documentos.yaml -o projeto.yaml
 python -m lpa_filler suggest -b base_hallazgos.csv -p projeto.yaml -o projeto.yaml --scope "Torre Pacheco, L352" --min-score 12
 python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv -o radar.txt --excluir-obra EXC2026-16883
 python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm
+python -m lpa_filler anejo -p projeto.yaml -o anejo_a2.csv
 ```
 
 ## Convenções normativas

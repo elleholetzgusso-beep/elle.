@@ -262,6 +262,27 @@ como avisos e o ficheiro é gerado à mesma.
 python -m lpa_filler fill -t template.xlsm -d projeto.yaml -o LPA.xlsm --strict
 ```
 
+### `anejo` — Base de Datos de No Conformidades (Anejo A.2)
+Gera o registo de não conformidades que o PE/05 exige, derivado dos puntos: a ação
+e o responsável saem da primeira resposta do cliente, a fecha de cierre da última
+data do diálogo (só se o punto estiver `Cerrado`), e o resultado da verificação
+mapeia o estado PE/03.
+
+É indexado pelo `id` estável — é a coluna Nº do registo. Por isso recusa correr se
+algum punto não tiver `id`; `--asignar-ids` atribui-os e **grava-os no projeto.yaml**
+(um ID que só existisse no CSV mudava na próxima passagem, e não seria estável).
+
+```bash
+python -m lpa_filler anejo -p projeto.yaml -o anejo_a2.csv
+# só as não conformidades novas desta revisão (aceita 'H-007', 'h-7' ou '7'):
+python -m lpa_filler anejo -p projeto.yaml -o anejo_rev05.csv --solo H-007 H-008 12
+```
+
+Um ID pedido no `--solo` que não exista no projeto é **erro**, e nada é escrito: num
+registo de compliance, um Anejo incompleto por engano de escrita é pior do que um
+comando que se recusa a correr. O que não é derivável do diálogo sai `(a preencher)`,
+nunca um valor plausível inventado — o comando conta essas linhas no fim.
+
 ### `extract` — reconstruir o YAML (bootstrap)
 ```bash
 python -m lpa_filler extract -i LPA_existente.xlsm -o projeto.yaml
@@ -334,7 +355,7 @@ rev → fill   (LPA-02)
 | **Regra de ouro** | PE/03 | `model.lint` | Nenhum Crítico pode ficar Abierto num informe favorável — gera aviso. |
 | **ID estável do hallazgo** | PE/03, ISO 17020 | `model.assign_ids` | Cada punto recebe um `id` (`H-001`, `H-002`, …) na primeira vez que o projeto é escrito, e nunca mais o perde. É o `id` — não o `n`, que renumera a cada inserção ou descarte — que liga o mesmo hallazgo entre a revisão 01 e a 05, e o que o veredicto cita. IDs não são reutilizados: apagar o H-007 não faz o seguinte passar a H-007. |
 | **Transições de estado** | PE/03 §8.4 | `fill --strict`, `model.lint` | Um estado só vale se o diálogo contiver a prova que o justifica: `Resuelto` exige resposta do cliente **e** aceitação da ação pelo avaliador; `Cerrado` exige além disso evidência documental citada (versão, apartado, anexo, documento aportado). Verifica-se a **presença** da prova, nunca o seu mérito — esse é juízo do avaliador. Por omissão avisa; com `--strict` não gera o ficheiro. |
-| **Anejo A.2** (módulo) | PE/05 | `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. Ainda não ligado a um comando do CLI. |
+| **Anejo A.2** | PE/05 | `anejo`, `anejo.py` | Gera a Base de No Conformidades a partir dos puntos, derivando datas/responsável dos diálogos. Indexado pelo `id` estável (a coluna Nº do PE/05), com o `n` ao lado como referência cruzada para a folha do LPA. Campos não deriváveis ficam `(a preencher)` — nunca fabricados. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas de segurança que menciona (Hazard Log/REP, Safety Case, SRAC, Análisis RAM, Software/SIL, V&V, Ciclo de vida, Interfaces). Coluna `tema` na base; sem palavra-chave, fica sem etiqueta (não força). Palavras-chave calibradas contra os 625 hallazgos reais. Glossário em `config/referencias_rams.yaml`. |
 | **Leitura estrutural** | PE/02 | `leer`, `leer.py` | Extrai o texto dos documentos recebidos e verifica se as partes esperadas do tipo estão presentes (radar, não veredito). Ausência de palavra-chave nunca é não conformidade. |
 | **Radar dirigido** | PE/02–03 | `radar`, `radar.py` | Cruza o conteúdo real de cada documento com a base histórica: instrui onde procurar erros (frentes por tipo de documento + sondas no texto, com procedência e localização). Só aponta; nunca redige nem decide conformidade. `--excluir-obra` evita colar da própria resposta. |
@@ -421,7 +442,7 @@ metadados de triagem — ignoradas pelo `fill`.
 | `draft.py` | Rascunhar a réplica do avaliador (Respuesta Exceltic) com a evidência. |
 | `guide.py` | Exportar a base num .xlsx organizado (por onde começar numa obra nova). |
 | `versiones.py` | Descrição das revisões (Control de Versiones). |
-| `anejo.py` | Gerar a estrutura do Anejo A.2 (PE/05). |
+| `anejo.py` | Gerar o Anejo A.2 — Base de No Conformidades (PE/05), indexado por ID. |
 | `filler.py` | Escrever o `.xlsm` final. |
 | `styles.py`, `extensions.py` | Clonar estilos e preservar o que o openpyxl descarta. |
 | `extract.py` | Reconstruir o YAML a partir do `.xlsm`. |

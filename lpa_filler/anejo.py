@@ -24,8 +24,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+# A coluna "Nº" do PE/05 é a chave do registo, por isso é o ``id`` estável que a
+# ocupa: uma Base de No Conformidades tem de referir a mesma não conformidade da
+# mesma maneira em todas as revisões. O ``n`` fica ao lado como referência cruzada
+# para a folha do LPA, onde é por ele que o punto aparece — mas renumera-se, por
+# isso não serve de chave.
 CAMPOS = [
-    "n", "aspecto_detectado", "fecha_deteccion", "accion_a_implantar",
+    "id", "n", "aspecto_detectado", "fecha_deteccion", "accion_a_implantar",
     "responsable", "resultado_verificacion", "fecha_cierre",
 ]
 
@@ -75,6 +80,7 @@ def punto_to_anejo(pt: dict) -> dict[str, Any]:
     estado = pt.get("estado") or "Abierto"
     cerrado = estado == "Cerrado"
     return {
+        "id": pt.get("id") or A_PREENCHER,
         "n": pt.get("n"),
         "aspecto_detectado": hallazgo.strip() or A_PREENCHER,
         # Fecha de detección: não há campo próprio; o hallazgo raramente traz data.
@@ -88,18 +94,48 @@ def punto_to_anejo(pt: dict) -> dict[str, Any]:
     }
 
 
-def build(data: dict[str, Any], solo_nuevos: list[int] | None = None) -> list[dict[str, Any]]:
+class IdDesconhecido(ValueError):
+    """Pediu-se ao filtro um ID que não existe no projeto."""
+
+
+def build(data: dict[str, Any], solo: list[str] | None = None) -> list[dict[str, Any]]:
     """Gera as linhas do Anejo A.2 a partir dos puntos do projeto.
 
-    ``solo_nuevos``: se indicado, restringe às linhas dos puntos com esses Nº
-    (ex. os novos/alterados numa revisão). Sem isto, gera todos.
+    ``solo``: se indicado, restringe aos puntos com esses IDs estáveis (ex. os
+    novos ou alterados nesta revisão). Aceita as formas que o ``normalize_id``
+    reconhece — ``H-007``, ``h-7``, ``7``. Sem isto, gera todos.
+
+    Um ID pedido que não exista é erro, não uma linha em falta: num registo de
+    não conformidades, um Anejo incompleto por engano de escrita é pior do que
+    um comando que se recusa a correr.
     """
-    filtro = set(solo_nuevos) if solo_nuevos is not None else None
+    from . import model
+
+    filtro: set[str] | None = None
+    if solo is not None:
+        filtro = set()
+        maus = []
+        for v in solo:
+            norm = model.normalize_id(v)
+            (filtro.add(norm) if norm else maus.append(str(v)))
+        if maus:
+            raise IdDesconhecido(f"IDs ilegíveis: {', '.join(maus)} (esperado H-001, 1, …)")
+
     linhas = []
+    vistos: set[str] = set()
     for pt in data.get("puntos", []):
-        if filtro is not None and pt.get("n") not in filtro:
-            continue
+        pid = model.normalize_id(pt.get("id") or "")
+        if filtro is not None:
+            if pid not in filtro:
+                continue
+            vistos.add(pid)
         linhas.append(punto_to_anejo(pt))
+
+    if filtro is not None and (ausentes := sorted(filtro - vistos)):
+        raise IdDesconhecido(
+            f"IDs não encontrados no projeto: {', '.join(ausentes)}. "
+            f"O Anejo não foi gerado — verifica os IDs pedidos."
+        )
     return linhas
 
 
