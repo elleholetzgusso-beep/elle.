@@ -1,0 +1,57 @@
+# Exemplo de projeto.yaml do lpa_filler.
+#
+# Fluxo típico: 'scan' e 'from-docx' geram as secções 'documentos' e 'portada';
+# 'merge' junta-as neste ficheiro; 'suggest' preenche 'puntos' com candidatos da
+# base histórica; edita-se à mão; 'fill' gera o .xlsm final.
+#
+# Este ficheiro é a referência de formato citada em `lpa_filler merge`.
+
+portada:
+  titulo: "PROYECTO DE CONSTRUCCIÓN DE ..."
+  subtitulo: "Listado de Puntos Abiertos (LPA)"
+  referencia: "EXC2025-16126-1/002/LPA/05"      # padrão PE/05 (ver validação de nomenclatura)
+  normativa: "Anexo I del Reglamento de Ejecución UE/402/2013 (modificado por UE/2015/1136)"
+  evaluadores:
+    - {nombre: "Miriam Romera (MRG)", rol: "Evaluador técnico (supervisada)"}
+    - {nombre: "Soukaina Meliani (SM)", rol: "Evaluador técnico"}
+    - {nombre: "Roberto Abad (RAM)", rol: "Responsable de Evaluación"}
+
+# Âncoras da obra atual (topónimos/códigos) — o 'suggest --scope' usa-as para
+# marcar sugestões que na verdade são de outra obra (contaminação cruzada).
+scope: "Torre Pacheco, L352, Balsicas"
+
+versiones:                                        # aba "Control de versiones"
+  - {rev: 1, fecha: 2026-01-12, descripcion: "Primera versión de LPA ..."}
+
+documentos:                                       # aba "Doc Evaluados"
+  - nombre: "Anejo 27. Estudio Previo Seguridad"
+    firmado: "Si"
+    estado: auto                                  # "auto" => fórmula; ou literal "Cerrado"
+    envios:
+      - referencia: "Anejo 27. Estudio Previo Seguridad_v06"
+        version: 6
+        fecha: 2026-02-03
+        autor: "UTE"
+        envio: 2
+        fecha_envio: 2026-02-16
+  # Documento desviado pela triagem (PE/01): fica catalogado mas não gera puntos.
+  - nombre: "Oferta de Definición de Servicios"
+    firmado: "NA"
+    estado: auto
+    _triage: desviado
+    _triage_motivo: "Oferta de Definición de Servicios — registo do sistema de gestão (PE/01)"
+    envios:
+      - {referencia: "Oferta ...", version: null, envio: 1, fecha_envio: 2025-11-26}
+
+puntos:                                           # aba "LPA"
+  - n: 1
+    eval: "SM"
+    documento: "Anejo 27. Estudio Previo Seguridad"
+    ref_documento: "auto"                         # "auto" => VLOOKUP a Doc Evaluados
+    punto: "Anexo I, 2.4.2"                        # requisito normativo
+    valoracion: "Crítico"                          # Crítico/Importante/Informativo/Formal
+    version: null
+    estado: "Abierto"                              # Abierto/Resuelto/Cerrado (PE/03 §8.4)
+    dialogo:
+      - {tipo: "Hallazgo", texto: "El estudio no identifica ..."}
+      - {tipo: "Respuesta UTE (02/02/2026)", texto: "Se corregirá en la próxima versión."}

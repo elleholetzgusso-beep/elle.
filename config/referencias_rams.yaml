@@ -1,0 +1,61 @@
+# Referências RAMS / CENELEC — glossário de apoio ao lpa_filler.
+#
+# Resumo do marco de gestão RAMS (Fiabilidad, Disponibilidad, Mantenibilidad y
+# Seguridad) no setor ferroviário, base do módulo `tema.py` (classificação
+# temática dos hallazgos) e referência de vocabulário para os avaliadores.
+#
+# Fonte: resumo do documento "documentacion.pdf" fornecido pela Elle. Não é o
+# texto normativo original — para citação formal num hallazgo, consultar a norma.
+
+normas_cenelec:
+  EN_50126: "Processos RAMS genéricos e requisitos básicos ao longo do ciclo de vida."
+  EN_50128: "Segurança em software ferroviário (competência, ciclo de vida do SW, técnicas por SIL)."
+  EN_50129: "Sistemas eletrónicos relacionados com a segurança para sinalização (estrutura do Safety Case)."
+
+safety_case:
+  descricao: >
+    Dossier de Segurança: evidências de que o sistema é seguro para a sua
+    aplicação. Segundo a EN 50129, estruturado em 6 partes.
+  partes:
+    - "1. Definición del Sistema"
+    - "2. Gestión de la Calidad"
+    - "3. Gestión de la Seguridad"
+    - "4. Seguridad Técnica"
+    - "5. Safety Cases relacionados"
+    - "6. Conclusión"
+
+documentos_seguridad:
+  Hazard_Log: >
+    Registro de Peligros (REP). Iniciado na análise de riscos, atualizado
+    continuamente para rastrear perigos e as suas medidas mitigadoras.
+  SRAC: >
+    Safety Related Application Conditions — condições de segurança exportadas
+    para níveis superiores ou para o mantenedor/operador.
+  Plan_de_Seguridad: "Plano que define a gestão da segurança no ciclo de vida."
+
+ciclo_de_vida:
+  descricao: "Ciclo em 'V', 14 fases, do Conceito à Retirada/Eliminação."
+  VeV:
+    Verificacion: "Confirma que os requisitos específicos foram cumpridos."
+    Validacion: "Confirma que os requisitos para o uso pretendido foram satisfeitos por prova objetiva."
+
+analisis_ram:
+  indicadores: ["Fiabilidad", "Disponibilidad", "Mantenibilidad", "Seguridad"]
+  ferramentas: ["Tablas de verdad", "FMEA", "FTA (árbol de fallos)"]
+
+software_en50128:
+  SIL: "Nível de Integridade de Segurança — determina as técnicas/medidas exigidas."
+  independencia_papeis:
+    ["Gestor de Requisitos", "Diseñador", "Verificador", "Validador", "Evaluador"]
+
+# Temas usados por `tema.py` para etiquetar hallazgos (ver o módulo para as
+# palavras-chave exatas). Calibrados contra a base real de 625 hallazgos.
+temas_hallazgo:
+  - "Hazard Log / REP"
+  - "V&V"
+  - "Safety Case"
+  - "Interfaces"
+  - "SRAC"
+  - "Software / SIL"
+  - "Ciclo de vida / Gestión (EN 50126)"
+  - "Análisis RAM"
