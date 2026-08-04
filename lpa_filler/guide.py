@@ -26,6 +26,16 @@ from . import tema as _tema
 # Tipo de documento a partir do nome (ordem = prioridade). Generaliza entre obras.
 TIPOS: list[tuple[str, str]] = [
     ("Safety Case / Caso de Seguridad", r"safety case|caso de seguridad|dossier de seguridad"),
+    # Fichas do processo CSM-RA (formulários SAG/AsBo: F3..F7). Vêm ANTES dos tipos
+    # genéricos porque quase todas trazem '-REP' no nome (o sistema avaliado) sem
+    # serem o Registro de Peligros — a identidade do documento é o nº da ficha.
+    # F6.1 antes de F6, senão '\bf6\b' apanha também o 'F6.1'.
+    ("Informe de Desviaciones", r"informe (de )?desviaciones|analisis de impacto en seguridad"),
+    ("Ficha de Requisitos (F4)", r"\bf4(\.\d+)?\b|\bfr-resp"),
+    ("Informe Previo a la Autorización (F7)", r"\bf7\b|\bipa-rep\b|informe previo a la autorizacion"),
+    ("Plan de Pruebas / PeS", r"\bf6\.1\b|\bpp-rep\b|plan de pruebas|puesta en servicio|\bpes\b|\bpps\b"
+                              r"|registro.{0,3}pruebas|acta.{0,3}pruebas"),
+    ("Informe de Seguridad", r"\bf6\b|\bis-rep\b|informe de seguridad"),
     # F3 (DS-REP = Definición del Sistema + Registro de Peligros) vem ANTES do REP:
     # é um documento combinado cujo nome contém 'REP', mas a identidade é o F3.
     ("Definición del Sistema (F3)", r"definicion de(l)? sistema|\bf3\b|ds-rep"),
@@ -33,8 +43,6 @@ TIPOS: list[tuple[str, str]] = [
     ("Estudio Previo de Seguridad", r"estudio previo.{0,4} de seguridad|estudio previo seguridad"),
     ("Informe de Validación", r"informe de validacion|\bival\b"),
     ("Informe de No Regresión", r"no regresion|\binr\b"),
-    ("Informe de Seguridad", r"informe de seguridad"),
-    ("Plan de Pruebas / PeS", r"plan de pruebas|puesta en servicio|\bpes\b|\bpps\b|registro.{0,3}pruebas|acta.{0,3}pruebas"),
     ("Plan de Seguridad", r"plan de seguridad|plan de gestion de la seguridad"),
     ("SRAC", r"\bsrac\b|condiciones de aplicacion"),
     ("Pliego (PPTP/PCAP)", r"\bpptp\b|\bpcap\b|pliego"),

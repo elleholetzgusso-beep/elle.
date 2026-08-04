@@ -18,6 +18,22 @@ def test_tipo_documento_generaliza_entre_obras():
     assert guide.tipo_documento("Documento raríssimo qualquer") == "Otros"
 
 
+def test_tipo_documento_reconhece_fichas_sag_csm_ra():
+    """As fichas F3..F7 trazem quase todas '-REP' no nome sem serem o REP:
+    a identidade é o nº da ficha, e é ele que manda (senão tudo cai em REP)."""
+    t = guide.tipo_documento
+    assert t("SAG1-AP2-F3 DS-REP. DE LA L352 Y ANDEN 3 TP_v0.5") == "Definición del Sistema (F3)"
+    assert t("SAG1-AP2-F5 REP-L352 Y ANDEN 3 TP_v1.0_fe") == "REP / Registro de Peligros"
+    assert t("SAG1.AP2-F6 IS-REP. L352 Y ANDEN 3 EST. TORRE PACHECO_v1.0") == "Informe de Seguridad"
+    # F6.1 tem de ganhar ao F6, senão o Plan de Pruebas vira Informe de Seguridad.
+    assert t("SAG1.AP2-F6.1-PP-REP L352 Y ANDEN 3 EST. TORRE-PACHECO_V0.1") == "Plan de Pruebas / PeS"
+    assert t("SAG1-AP2-F7 IPA-REP L352 Y ANDEN 3 EST. TORRE PACHECO_v0.0") == \
+        "Informe Previo a la Autorización (F7)"
+    assert t("SAG1-AP2-F4.1-FR-RESP001_v0.1") == "Ficha de Requisitos (F4)"
+    # Sem o 'de' no meio, como aparece nos envíos reais.
+    assert t("INFORME DESVIACIONES SAG1.AP2_v0.3") == "Informe de Desviaciones"
+
+
 def test_temas_usa_coluna_ou_classifica():
     # Usa a coluna 'tema' quando existe.
     assert guide._temas_da_linha({"tema": "Safety Case, V&V"}) == ["Safety Case", "V&V"]

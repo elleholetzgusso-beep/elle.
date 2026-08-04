@@ -322,6 +322,25 @@ def _cmd_suggest(args) -> int:
             f"(rever!) de {len(base)} hallazgos.",
             file=sys.stderr,
         )
+        # Distribuição dos scores: sem isto não há como calibrar --min-score, e um
+        # LPA cheio de sugestões fracas gera um veredito que não significa nada.
+        scores = sorted((pt.get("_score") or 0) for pt in sugeridos)
+        if scores:
+            fracos = [s for s in scores if s < args.min_score * 1.5]
+            print(
+                f"# scores das sugestões: min {scores[0]:.1f} / mediana "
+                f"{scores[len(scores) // 2]:.1f} / max {scores[-1]:.1f} "
+                f"(limiar atual --min-score {args.min_score:g}).",
+                file=sys.stderr,
+            )
+            if len(fracos) > len(scores) // 3:
+                print(
+                    f"# ATENÇÃO: {len(fracos)} das {len(scores)} sugestões estão perto do "
+                    f"limiar — matches fracos (uma palavra em comum no nome do documento) "
+                    f"entram como hallazgos. Sobe o limiar até só sobrar o que reconheces: "
+                    f"--min-score {max(args.min_score * 2, 12):g}",
+                    file=sys.stderr,
+                )
         if anchors:
             print(
                 f"# scope={anchors}: {len(fora)} sugestões marcadas _fora_escopo "
@@ -450,7 +469,7 @@ def _cmd_radar(args) -> int:
     except NotADirectoryError as e:
         print(f"Erro: {e}", file=sys.stderr)
         return 1
-    texto = radar.relatorio(registos)
+    texto = radar.relatorio(registos, so_pistas=args.so_pistas)
     if args.out:
         Path(args.out).write_text(texto, encoding="utf-8")
         print(f"Escrito: {args.out}")
@@ -555,7 +574,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("-p", "--projeto", help="projeto.yaml a pré-preencher com puntos sugeridos.")
     g.add_argument("-o", "--out", help="YAML de saída (modo -p; por omissão stdout).")
     g.add_argument("-n", type=int, default=8, help="Nº de sugestões (por documento no modo -p).")
-    g.add_argument("--min-score", type=float, default=1.0, help="Pontuação mínima para sugerir (modo -p). Aumenta para menos/melhores sugestões.")
+    g.add_argument("--min-score", type=float, default=8.0,
+                   help="Pontuação mínima para sugerir (modo -p; default 8). Abaixo de ~8 basta "
+                        "uma palavra comum no nome do documento para casar, e a LPA enche-se de "
+                        "hallazgos de outras obras. Sobe para 12+ se ainda vier ruído; "
+                        "usa --debug para ver o melhor score de cada documento.")
     g.add_argument("--replace", action="store_true", help="Substituir os puntos existentes em vez de acrescentar (modo -p).")
     g.add_argument("--debug", action="store_true", help="Mostrar o melhor score por documento (modo -p), para calibrar --min-score.")
     g.add_argument(
@@ -615,6 +638,8 @@ def build_parser() -> argparse.ArgumentParser:
     rd.add_argument("-o", "--out", help="Relatório de saída (.txt/.md; por omissão: stdout).")
     rd.add_argument("--excluir-obra", dest="excluir_obra",
                     help="Código de obra a excluir da base (ex. EXC2026-16883) — evita colar da própria resposta.")
+    rd.add_argument("--so-pistas", dest="so_pistas", action="store_true",
+                    help="Omite a lista dos documentos lidos sem sinal específico (relatório curto).")
     rd.set_defaults(func=_cmd_radar)
 
     return p

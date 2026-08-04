@@ -117,6 +117,36 @@ def test_documento_ilegivel_nao_rebenta(tmp_path):
     assert reg["notas"]
 
 
+def test_relatorio_nao_repete_as_frentes_por_documento(tmp_path):
+    """As frentes são iguais para todos os documentos do mesmo tipo: saem uma vez
+    no preâmbulo. Repeti-las por documento afogava as pistas reais em ruído."""
+    base = [_rep_row(tema="Hazard Log / REP", hallazgo="no se observa columna de Evidencias")]
+    for i in range(3):
+        _escrever(tmp_path, f"Anejo 1{i}. Registro de Peligros (REP).txt", "Peligro sin nada.")
+    txt = radar.relatorio(radar.analisar_pasta(tmp_path, base))
+    assert txt.count("• Hazard Log / REP:") == 1
+    assert "ONDE CADA TIPO DE DOCUMENTO COSTUMA FALHAR" in txt
+
+
+def test_relatorio_agrupa_no_resumo_as_pistas_e_os_ilegiveis(tmp_path):
+    base = [_rep_row(hallazgo="no se observa columna de Evidencias")]
+    _escrever(tmp_path, "Anejo 12. Registro de Peligros (REP).txt", "Peligro 1 sin nada.")
+    (tmp_path / "escaneado.pdf").write_bytes(b"%PDF-1.4 nao-legivel")
+    txt = radar.relatorio(radar.analisar_pasta(tmp_path, base))
+    assert "1 pista(s) em 1 documento(s) · 1 sem texto extraível" in txt
+    # O ilegível é listado logo no resumo, não perdido no meio do relatório.
+    assert "escaneado.pdf" in txt.split("ONDE CADA TIPO")[0]
+
+
+def test_so_pistas_omite_os_documentos_sem_sinal(tmp_path):
+    base = [_rep_row(hallazgo="no se observa columna de Evidencias")]
+    _escrever(tmp_path, "Anejo 12. Registro de Peligros (REP).txt", "Peligro 1 sin nada.")
+    _escrever(tmp_path, "005.0 Nombramiento DO.txt", "Se nombra al director de obra.")
+    registos = radar.analisar_pasta(tmp_path, base)
+    assert "LIDOS, SEM SINAL" in radar.relatorio(registos)
+    assert "LIDOS, SEM SINAL" not in radar.relatorio(registos, so_pistas=True)
+
+
 def test_relatorio_menciona_porque_e_onde(tmp_path):
     base = [_rep_row(hallazgo="no se observa columna de Evidencias", fuente="LPA-DEMO")]
     texto = "Registro de peligros. Peligro 1 sin nada."

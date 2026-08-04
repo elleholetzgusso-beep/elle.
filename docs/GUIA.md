@@ -173,7 +173,7 @@ histórica. Dois modos:
 ```bash
 # Modo projeto: pré-preenche 'puntos' com candidatos (rever sempre!)
 python -m lpa_filler suggest -b base_hallazgos.csv -p projeto.yaml -o projeto.yaml \
-    --scope "Torre Pacheco, L352, Balsicas" --min-score 2
+    --scope "Torre Pacheco, L352, Balsicas" --min-score 12
 
 # Modo consulta: imprime correspondências para um texto
 python -m lpa_filler suggest -b base_hallazgos.csv -q "perfilado de banqueta" -n 5
@@ -184,6 +184,15 @@ nomeia outra obra ficam marcadas `_fora_escopo` e afundadas na ordenação
 (nunca apagadas). `--debug` mostra o melhor score por documento para calibrar
 `--min-score`.
 
+**Calibrar o `--min-score` é obrigatório, não opcional.** O score é
+`3×(palavras em comum no nome do documento) + 2×(no punto) + 1×(no hallazgo)`.
+Com um limiar baixo, basta uma palavra genérica ("informe", "plan") para colar
+um hallazgo de outra obra a um documento desta — e uma LPA com dezenas de
+Críticos sugeridos produz um veredito `NO_FAVORABLE` que é artefacto do ruído,
+não da avaliação. O default é 8; o comando imprime a distribuição dos scores e
+avisa quando demasiadas sugestões ficam perto do limiar. Sobe até só sobrar o
+que reconheces como pertinente a esta obra.
+
 ### `radar` — onde procurar erros em cada documento (a ponte base ↔ conteúdo)
 Enquanto o `suggest` só casa *nomes* de documento com a base, o `radar` **abre e
 lê o conteúdo real** de cada documento recebido e cruza-o com o que a *sua* base
@@ -192,7 +201,9 @@ emite:
 
 - **Frentes de atenção** (da base): os temas RAMS onde aquele tipo de documento
   concentra achados, ordenados por gravidade (Críticos primeiro), com contagens
-  reais (nº de obras, nº de Cerrados);
+  reais (nº de obras, nº de Cerrados). Saem **uma vez por tipo**, no preâmbulo:
+  são iguais para todos os documentos do mesmo tipo, e repeti-las por documento
+  afogava as pistas reais em ruído;
 - **Pistas no texto real**: sondas determinísticas (referência cruzada de anexos
   incoerente, coluna de Evidencias ausente, perigos sem estado/ID, ...) que só
   disparam quando (a) o sinal existe no texto e (b) a base apoia aquele tipo de
@@ -204,11 +215,22 @@ emite:
 python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv -o radar.txt
 python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv \
     --excluir-obra EXC2026-16883      # ao reavaliar uma obra já na base
+python -m lpa_filler radar -r "1_Doc Recibida" -b base_hallazgos.csv --so-pistas
 ```
+
+O relatório abre com um **resumo**: quantas pistas e em que documentos, e quais
+os documentos de que não se extraiu texto (PDF escaneado ou grande demais) — são
+esses que ficam por rever à mão ou por passar por OCR. `--so-pistas` omite a
+lista final dos documentos lidos sem sinal específico.
 
 `--excluir-obra` remove os hallazgos da própria obra da base, para que, ao correr
 o radar numa obra **já presente** na base, ele instrua a partir das *outras*
 obras e não "cole da própria resposta".
+
+Um documento que caia em `tipo: Otros` não recebe sondas específicas. Se muitos
+documentos de um envío caírem em `Otros`, o dicionário de tipos
+(`guide.TIPOS`) não conhece a nomenclatura daquele cliente — acrescentar lá o
+padrão é o que faz as sondas passarem a correr nesses documentos.
 
 Como o `leer`, é um **radar, não um veredito**: cada pista diz "olhe aqui,
 porque…"; nunca redige o hallazgo nem decide conformidade. A leitura e a decisão

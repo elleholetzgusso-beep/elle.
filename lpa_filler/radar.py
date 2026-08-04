@@ -325,48 +325,101 @@ def analisar_pasta(recibida_dir: str | Path, base: list[dict],
 _SIMBOLO = {"Crítico": "‼", "Importante": "►", "Informativo": "·", "Formal": "·"}
 
 
-def relatorio(registos: list[dict]) -> str:
+def _bloco_documento(r: dict) -> list[str]:
+    """O que há de específico DESTE documento (as frentes do tipo saem no preâmbulo)."""
+    L: list[str] = []
+    if r["pistas"]:
+        L.append(" PISTAS NO TEXTO REAL DESTE DOCUMENTO")
+        for p in r["pistas"]:
+            L.append(f"   {_SIMBOLO.get(p.nivel, '►')} OLHAR [{p.nivel}] — {p.titulo}")
+            L.append(f"       porquê: {p.porque}")
+            L.append(f"       no texto: {p.no_texto}")
+            L.append(f"       onde: {p.onde}")
+    if r["estrutura"]:
+        if L:
+            L.append("")
+        L.append(" ESTRUTURA ESPERADA (✓ presente / ✗ olhar)")
+        for rotulo, ok in r["estrutura"]:
+            L.append(f"   {'✓' if ok else '✗'} {rotulo}")
+    if r["normas"]:
+        L.append(f"   normas CENELEC citadas: {', '.join(r['normas'])}")
+    return L
+
+
+def relatorio(registos: list[dict], so_pistas: bool = False) -> str:
+    """Relatório para o avaliador.
+
+    As "frentes" (o que a base diz que falha em cada TIPO de documento) são
+    iguais para todos os documentos do mesmo tipo, por isso saem UMA vez no
+    preâmbulo — não repetidas 74 vezes. Cada documento mostra só o que é seu:
+    pistas no texto, estrutura em falta, normas citadas.
+
+    ``so_pistas``: omite os documentos lidos sem qualquer sinal.
+    """
+    com_pistas = [r for r in registos if r["pistas"]]
+    sem_texto = [r for r in registos if not r["caracteres"]]
+    n_pistas = sum(len(r["pistas"]) for r in registos)
+
     L: list[str] = [
         f"# RADAR DIRIGIDO — {len(registos)} documento(s)",
         "# Cada pista diz ONDE olhar e POR QUÊ. Não é veredito: a decisão é do avaliador.",
         "",
+        " RESUMO",
+        f"   {n_pistas} pista(s) em {len(com_pistas)} documento(s)"
+        f" · {len(sem_texto)} sem texto extraível",
     ]
+    if com_pistas:
+        L.append("")
+        L.append("   documentos com pistas (detalhe mais abaixo):")
+        for r in com_pistas:
+            pior = min((p.nivel for p in r["pistas"]), key=lambda v: _VAL_ORDER.get(v, 9))
+            L.append(f"     {_SIMBOLO.get(pior, '►')} {len(r['pistas'])}  {r['ficheiro']}")
+    if sem_texto:
+        L.append("")
+        L.append("   sem texto — nenhuma sonda pôde correr, rever à mão (ou passar por OCR):")
+        for r in sem_texto:
+            motivo = r["notas"][0] if r["notas"] else "sem texto"
+            L.append(f"     - {r['ficheiro']}: {motivo}")
+
+    # Frentes por tipo: uma vez por tipo, não uma vez por documento.
+    por_tipo: dict[str, dict] = {}
     for r in registos:
+        d = por_tipo.setdefault(r["tipo"], {"n": 0, "frentes": r["frentes"]})
+        d["n"] += 1
+        if r["frentes"]:
+            d["frentes"] = r["frentes"]
+    L.append("")
+    L.append("═" * 70)
+    L.append(" ONDE CADA TIPO DE DOCUMENTO COSTUMA FALHAR (da sua base)")
+    L.append("═" * 70)
+    for tipo, d in sorted(por_tipo.items(), key=lambda kv: -kv[1]["n"]):
+        L.append(f" ─ {tipo}  ({d['n']} documento(s) neste envío)")
+        if not d["frentes"]:
+            L.append("     (a base não tem hallazgos deste tipo — sem histórico para orientar)")
+        for f in d["frentes"]:
+            L.append(f"     • {f['tema']}: {f['criticos']} Críticos / {f['total']} achados, "
+                     f"{f['obras']} obra(s), {f['cerrados']} Cerrados")
+    L.append("")
+
+    mudos: list[dict] = []
+    for r in registos:
+        if not r["caracteres"]:
+            continue  # já listado no resumo
+        bloco = _bloco_documento(r)
+        if not bloco:
+            mudos.append(r)
+            continue
         L.append("═" * 70)
         L.append(f" {r['ficheiro']}   [tipo: {r['tipo']}]  ·  {r['caracteres']} caracteres")
         L.append("═" * 70)
-        for nota in r["notas"]:
-            L.append(f"  ! {nota}")
-        if r["notas"] and not r.get("frentes"):
-            L.append("")
-            continue
+        L.extend(bloco)
+        L.append("")
 
-        if r["frentes"]:
-            L.append("")
-            L.append(" ONDE ESTE TIPO DE DOCUMENTO COSTUMA FALHAR (da sua base)")
-            for f in r["frentes"]:
-                L.append(f"   • {f['tema']}: {f['criticos']} Críticos / {f['total']} achados, "
-                         f"{f['obras']} obra(s), {f['cerrados']} Cerrados")
-
-        if r["pistas"]:
-            L.append("")
-            L.append(" PISTAS NO TEXTO REAL DESTE DOCUMENTO")
-            for p in r["pistas"]:
-                L.append(f"   {_SIMBOLO.get(p.nivel, '►')} OLHAR [{p.nivel}] — {p.titulo}")
-                L.append(f"       porquê: {p.porque}")
-                L.append(f"       no texto: {p.no_texto}")
-                L.append(f"       onde: {p.onde}")
-        elif r["frentes"]:
-            L.append("")
-            L.append("   (nenhuma sonda determinística disparou no texto — rever à mão"
-                     " as frentes acima)")
-
-        if r["estrutura"]:
-            L.append("")
-            L.append(" ESTRUTURA ESPERADA (✓ presente / ✗ olhar)")
-            for rotulo, ok in r["estrutura"]:
-                L.append(f"   {'✓' if ok else '✗'} {rotulo}")
-        if r["normas"]:
-            L.append(f"   normas CENELEC citadas: {', '.join(r['normas'])}")
+    if mudos and not so_pistas:
+        L.append("═" * 70)
+        L.append(f" LIDOS, SEM SINAL ESPECÍFICO ({len(mudos)}) — orientar-se pelas frentes do tipo")
+        L.append("═" * 70)
+        for r in mudos:
+            L.append(f"   · {r['ficheiro']}  [{r['tipo']}]")
         L.append("")
     return "\n".join(L)
