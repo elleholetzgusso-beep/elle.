@@ -46,6 +46,8 @@ from typing import Any
 
 import yaml
 
+from . import scope
+
 VALORACIONES = ["Crítico", "Importante", "Informativo", "Formal"]
 ESTADOS = ["Abierto", "Resuelto", "Cerrado"]
 
@@ -198,8 +200,10 @@ def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
     """
     avisos: list[str] = []
     mantidos = []
+    descartados = []
     for pt in data.get("puntos", []):
         if pt.get("_fora_escopo"):
+            descartados.append(pt)
             marc = pt.get("_marcadores", "")
             avisos.append(
                 f"{_etiqueta(pt)} descartado: marcado _fora_escopo ({marc}) — "
@@ -211,6 +215,27 @@ def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
     for i, pt in enumerate(mantidos, 1):
         pt["n"] = i
     data["puntos"] = mantidos
+
+    # Falso positivo com uma causa fixa: a proteção do código próprio só funciona
+    # se 'portada.referencia' estiver preenchida (é de lá que sai a âncora
+    # 'exc2026-16883'). Sem ela, um hallazgo que cite o relatório DESTA obra é
+    # marcado como sendo de outra e sai do LPA em silêncio. Vale a pena dizer,
+    # porque o utilizador vê "descartado (exc2026)" numa obra que é EXC2026 e
+    # não tem como ligar as duas coisas.
+    codigos = sorted({
+        m for pt in descartados
+        for m in str(pt.get("_marcadores") or "").split(", ")
+        if scope.is_code_marker(m)
+    })
+    referencia = str((data.get("portada") or {}).get("referencia") or "")
+    if codigos and not scope.own_code_anchors(referencia):
+        avisos.append(
+            f"{len(codigos)} descarte(s) por código de obra ({', '.join(codigos)}) com "
+            f"'portada.referencia' por preencher — sem ela o código desta obra não é "
+            f"reconhecido como próprio, e um punto que cite o relatório desta obra é "
+            f"descartado como sendo de outra. Preenche a referência e corre o suggest "
+            f"de novo para reclassificar."
+        )
     return avisos
 
 

@@ -67,6 +67,16 @@ def own_code_anchors(referencia: str) -> list[str]:
     return [m.group(0) for m in _OWN_CODE_RE.finditer(_norm(referencia or ""))]
 
 
+def is_code_marker(marcador: str) -> bool:
+    """O marcador é um código de obra (``exc2026``, ``l352``) e não um topónimo?
+
+    Serve para distinguir os dois modos de falhar: um hallazgo marcado 'sueca'
+    é quase de certeza de outra obra; um marcado 'exc2026' pode ser esta mesma,
+    a citar o seu próprio relatório.
+    """
+    return bool(_CODE_RE.fullmatch((marcador or "").strip()))
+
+
 def parse_anchors(scope: str | list | None) -> list[str]:
     """Aceita 'Torre Pacheco, L352' ou ['Torre Pacheco', 'L352'] -> lista normalizada."""
     if not scope:

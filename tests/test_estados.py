@@ -115,3 +115,40 @@ def test_rascunho_do_draft_nao_conta_como_aceitacao():
 def test_problemas_de_transicao_aparecem_no_lint():
     avisos = model.lint({"puntos": [_punto(estado="Resuelto", id="H-009")]})
     assert any("H-009" in a and "sem resposta do cliente" in a for a in avisos)
+
+
+# --- falso positivo do _fora_escopo pelo código próprio ---------------------
+#
+# Caso real (EXC2026-16883): o H-019 saiu do LPA marcado _fora_escopo (exc2026)
+# — numa obra que É a EXC2026. A âncora do código próprio vem de
+# 'portada.referencia', que estava por preencher, por isso citar o relatório
+# desta obra contava como marcador de outra.
+
+def _projeto_com_descarte_por_codigo(referencia: str) -> dict:
+    return {
+        "portada": {"referencia": referencia},
+        "puntos": [
+            {"id": "H-001", "n": 1, "dialogo": [{"tipo": "Hallazgo", "texto": "ok"}]},
+            {"id": "H-002", "n": 2, "dialogo": [{"tipo": "Hallazgo", "texto": "x"}],
+             "_fora_escopo": True, "_marcadores": "exc2026"},
+        ],
+    }
+
+
+def test_descarte_por_codigo_com_referencia_vazia_avisa():
+    avisos = model.drop_fora_de_escopo(_projeto_com_descarte_por_codigo(""))
+    assert any("portada.referencia" in a and "exc2026" in a for a in avisos)
+
+
+def test_com_referencia_preenchida_nao_ha_aviso_extra():
+    avisos = model.drop_fora_de_escopo(
+        _projeto_com_descarte_por_codigo("EXC2026-16883/002/LPA/03")
+    )
+    assert not any("portada.referencia" in a for a in avisos)
+
+
+def test_marcador_toponimo_nao_dispara_o_aviso():
+    """'sueca' é outra obra mesmo — o aviso é só para códigos ambíguos."""
+    projeto = _projeto_com_descarte_por_codigo("")
+    projeto["puntos"][1]["_marcadores"] = "sueca, cullera"
+    assert not any("portada.referencia" in a for a in model.drop_fora_de_escopo(projeto))

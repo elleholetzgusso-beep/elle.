@@ -404,6 +404,17 @@ def _cmd_suggest(args) -> int:
         skip.discard("")
         # Âncoras da obra: --scope na linha de comandos, senão a chave 'scope' do projeto.
         anchors = _scope.parse_anchors(args.scope or projeto.get("scope"))
+        referencia = (projeto.get("portada") or {}).get("referencia") or ""
+        if anchors and not _scope.own_code_anchors(referencia):
+            # Aqui é que os _fora_escopo são atribuídos; avisar depois (no fill)
+            # já é tarde, porque a marcação ficou gravada no YAML.
+            print(
+                f"# ATENÇÃO: 'portada.referencia' ({referencia or 'vazia'}) não dá o código "
+                f"desta obra. Sem ele, um hallazgo que cite o relatório desta obra é marcado "
+                f"_fora_escopo como se fosse de outra. Preenche a referência (ex. "
+                f"EXC2026-16883/002/LPA/03) antes de confiar na marcação.",
+                file=sys.stderr,
+            )
         sugeridos = suggest.suggest_for_projeto(
             base, projeto, n_per_doc=args.n, min_score=args.min_score, skip_texts=skip,
             anchors=anchors,
