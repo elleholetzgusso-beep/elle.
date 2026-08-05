@@ -5,12 +5,14 @@ se escreve um hallazgo, e o que tem de existir para um punto poder fechar. Não 
 de comandos — isso é o `02_MANUAL_LPA_FILLER.md`. O que o programa pode e não pode
 decidir sozinho está no `03_REGRAS_DE_AUTOMACAO.md`.
 
-Todos os exemplos aqui são reais, de dois LPAs em fases opostas do seu ciclo:
+Todos os exemplos aqui são reais, de três LPAs — dois deles a mesma obra em duas
+revisões, para se poder seguir um punto do princípio ao fim:
 
 | | |
 |---|---|
-| **EXC2025-16126-1/002/LPA/01** | Estación de Posadas (Córdoba), revisão **01**. 14 puntos, todos `Abierto`, todos com uma única linha de diálogo. É assim que um LPA nasce. |
-| **EXC2026-16883-002-LPA-03** | Estación de Torre Pacheco, revisão **03**. 21 puntos, 20 `Cerrado` e 1 `Resuelto`. É assim que um LPA acaba. |
+| **Posadas rev. 01** (`EXC2025-16126-1/002/LPA/01`) | 14 puntos, todos `Abierto`, todos com uma única linha de diálogo. É assim que um LPA nasce. |
+| **Posadas rev. 03** (`EXC2025-16126-1/002/LPA/03`) | Os mesmos puntos, mais 4 novos. 17 `Cerrado`, 1 `Abierto`. Permite seguir **o mesmo punto** do nascimento ao fecho (§5). |
+| **Torre Pacheco rev. 03** (`EXC2026-16883-002-LPA-03`) | 21 puntos, 20 `Cerrado` e 1 `Resuelto` — o exemplo de RESUELTO. |
 
 Nenhum exemplo foi inventado — se um parecer estranho ou incompleto, é porque a
 realidade é assim.
@@ -72,10 +74,11 @@ E o diálogo, que é onde vive a história do punto:
 
 Três coisas a reter deste exemplo:
 
-**O cliente não se chama "UTE".** Aqui é a **ADIF**. Noutros projetos é uma UTE, um
-consórcio, uma empresa. A linha do diálogo é `Respuesta <SOLICITANTE> (dd/mm/aaaa)`,
-e o solicitante é do projeto, não um campo fixo do sistema. Se vires "UTE" num
-exemplo, é só isso — um exemplo.
+**O cliente não se chama sempre "UTE".** A linha do diálogo é
+`Respuesta <SOLICITANTE> (dd/mm/aaaa)`, e o solicitante é do projeto, não um campo
+fixo do sistema. Nos dois LPAs deste guia é diferente: em **Torre Pacheco** é a
+`Respuesta ADIF`; em **Posadas** é a `Respuesta UTE`. Noutro projeto pode ser um
+consórcio ou uma empresa.
 
 **Cada punto traz mais duas linhas de diálogo por preencher**, literalmente
 `Respuesta ADIF (dd/mm/aaaa)` e `Respuesta Exceltic (dd/mm/aaaa)`, vazias. São espaço
@@ -158,6 +161,8 @@ fecha por si. O Nº 9 é o que generaliza:
 > peligros, siendo estos planos referentes a electrificación. Revisar las evidencias
 > de los peligros de forma general.
 
+É este punto que o §5 segue até ao fim.
+
 ### 🟡 RESUELTO
 
 O cliente respondeu **e** o avaliador aceitou a ação proposta — mas a execução ainda
@@ -209,7 +214,88 @@ que é exatamente o que se exige a um fecho auditável.
 
 ---
 
-## 5. Os três níveis
+## 5. Um punto de ponta a ponta
+
+Este é o **Nº 9 de Posadas**, o mesmo que apareceu no §4 acabado de nascer. Duas
+revisões depois está fechado, e o caminho até lá é o que este guia todo tenta ensinar.
+
+**Revisão 01 — nasce.** Uma linha só:
+
+> **Hallazgo** *(Crítico)* — De forma general, se incluye como evidencia los planos
+> 8.1 y 8.2 en la mayoría de peligros, siendo estos planos referentes a
+> electrificación. Revisar las evidencias de los peligros de forma general.
+
+**A UTE responde.** *(Em Posadas o solicitante é uma UTE; em Torre Pacheco é a ADIF —
+o campo é `Respuesta <SOLICITANTE>`, e varia.)*
+
+> **Respuesta UTE (02/02/2025)** — Se revisan y se corrigen en aquellos que no son de
+> aplicación
+
+**E o avaliador não aceita.** Este é o momento decisivo, e a razão pela qual "o
+cliente respondeu" nunca basta:
+
+> **Respuesta Exceltic (25/02/2026)** — Se observa que **siguen apareciendo** los
+> planos 8.1 y 8.2 en peligros en los que no parece ser de aplicación. Por ejemplo, en
+> el peligro ID 10 relativo a la normativa de accesibilidad se indican como evidencia
+> los planos 8.1 y 8.2 relativos a instalaciones de seguridad y señalización. Se
+> solicita revisar e indicar las evidencias adecuadas.
+
+Repara no que o avaliador faz: **foi verificar, e traz um contraexemplo concreto** —
+o perigo ID 10, de acessibilidade, ainda com os planos de sinalização como evidência.
+Não escreveu "não concordo"; mostrou onde. É isso que torna a recusa auditável, e é
+isso que dá à UTE uma instrução acionável em vez de uma discussão.
+
+O punto continua **ABIERTO**, agora com duas linhas de diálogo em cima. Isto é o que a
+regra 3 quer dizer.
+
+**Segunda volta.** Agora a resposta é específica e localizável:
+
+> **Respuesta UTE (26/02/2026)** — Se actualiza la evidencia (Anejo 21. Accesibilidad;
+> Planos 5.1, 5.2 y 5.5)
+
+**E fecha.**
+
+> **Respuesta Exceltic (03/03/2026)** — Se comprueba y se da por cerrado el hallazgo.
+
+```text
+rev.01   Hallazgo                                          ABIERTO
+           ↓
+         Respuesta UTE     "se revisan y se corrigen"      ABIERTO  ← vago demais
+           ↓
+         Respuesta Exceltic "siguen apareciendo, p.ej. ID 10"
+           ↓
+         Respuesta UTE     "Anejo 21; Planos 5.1, 5.2, 5.5"
+           ↓
+rev.03   Respuesta Exceltic "se comprueba"                 CERRADO
+```
+
+A diferença entre as duas respostas da UTE é a mesma diferença do §3, agora do outro
+lado da mesa: *"se revisan y se corrigen"* não é verificável; *"Anejo 21. Accesibilidad;
+Planos 5.1, 5.2 y 5.5"* é. **Uma resposta que não se consegue verificar não fecha nada**,
+por muito bem-intencionada que seja.
+
+Nem todos os puntos precisam de duas voltas. O Nº 1 de Posadas — o dos documentos por
+assinar — resolveu-se à primeira:
+
+> **Respuesta UTE (02/02/2025)** — El anejo de estudio previo de seguridad se
+> encuentra firmado (Pág 20)
+>
+> **Respuesta Exceltic (25/02/2026)** — Se observa el documento firmado y se cierra el
+> hallazgo.
+
+Porque a resposta trazia logo onde ver: *Pág 20*.
+
+**E nem todos fecham.** Na revisão 03 sobra um punto aberto, o Nº 18 — que nem sequer
+existia na revisão 01. Puntos novos aparecem em revisões seguintes, à medida que se
+avalia documentação nova:
+
+> **Hallazgo** *(Importante, Abierto)* — En el apartado 7 se indica […] "Se han
+> identificado un total de veintinueve (29) peligros." Pero en el REP hay 30 amenazas
+> identificadas. Se solicita corregir.
+
+---
+
+## 6. Os três níveis
 
 Esta é a moldura que atravessa tudo o resto, e a razão pela qual o programa se recusa
 a fazer certas coisas:
@@ -229,7 +315,7 @@ sítio que o cliente citou **não é** um fecho. São todos nível 1: pistas.
 
 ---
 
-## 6. As dez regras
+## 7. As dez regras
 
 1. **Um hallazgo tem de ser rastreável.** Documento → apartado → requisito → problema.
 2. **"Falta información" não é um hallazgo.** Qual informação, e porque é que falta importa.
@@ -244,7 +330,7 @@ sítio que o cliente citou **não é** um fecho. São todos nível 1: pistas.
 
 ---
 
-## 7. Onde entra o programa
+## 8. Onde entra o programa
 
 O `lpa_filler` automatiza o trabalho à volta do LPA — organizar o que o cliente
 entregou, dizer onde procurar, propor candidatos do histórico, localizar a evidência
