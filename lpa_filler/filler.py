@@ -41,11 +41,13 @@ def fill(
     output: str | Path,
     veredicto_text: str | None = None,
     veredicto_cell: str | None = None,
+    skip_lpa: bool = False,
 ) -> Path:
     """Gera o .xlsm. ``veredicto_text`` fica registado nas propriedades do
     ficheiro (Ficheiro > Informações no Excel) e, se ``veredicto_cell`` for
     indicado ("Aba!Célula", ex. "Portada!B30"), também nessa célula — a célula
-    não tem default porque a posição livre depende do template de cada obra."""
+    não tem default porque a posição livre depende do template de cada obra.
+    Se ``skip_lpa`` for True, deixa a aba LPA vazia para editar manualmente."""
     template, output = Path(template), Path(output)
     wb = openpyxl.load_workbook(template, keep_vba=True)
 
@@ -59,7 +61,12 @@ def fill(
     _fill_portada(wb["Portada"], data.get("portada", {}))
     _fill_versiones(wb["Control de versiones"], data.get("versiones", []), cv_style)
     de_last = _fill_documentos(wb["Doc Evaluados"], data.get("documentos", []), de_first, de_sub)
-    lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp, de_last)
+    if skip_lpa:
+        # Limpar a aba LPA deixando espaço vazio para editar manualmente
+        styles.clear_region(wb["LPA"], LPA_FIRST, max(wb["LPA"].max_row, LPA_FIRST), 11)
+        lpa_last = LPA_FIRST - 1
+    else:
+        lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp, de_last)
 
     if veredicto_text:
         wb.properties.description = veredicto_text
@@ -70,7 +77,10 @@ def fill(
     output.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output)
     # Repor o que o openpyxl descarta e expandir as validações às linhas geradas.
-    extensions.preserve(output, template, row_overrides={"LPA": lpa_last, "Doc Evaluados": de_last})
+    row_overrides = {"Doc Evaluados": de_last}
+    if not skip_lpa:
+        row_overrides["LPA"] = lpa_last
+    extensions.preserve(output, template, row_overrides=row_overrides)
     return output
 
 

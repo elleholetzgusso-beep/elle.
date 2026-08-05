@@ -80,7 +80,7 @@ def _cmd_fill(args) -> int:
     v = model.veredicto(data)
     vtexto = model.veredicto_texto(v)
     try:
-        out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell)
+        out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell, skip_lpa=args.skip_lpa)
     except PermissionError:
         return _erro_bloqueado(args.out)
     print(f"\n== {vtexto} ==")
@@ -638,6 +638,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Não gerar o ficheiro se algum punto estiver 'Resuelto'/'Cerrado' sem o "
              "suporte que o PE/03 §8.4 exige no diálogo (resposta do cliente, aceitação "
              "do avaliador, evidência documental no fecho).",
+    )
+    f.add_argument(
+        "--skip-lpa",
+        action="store_true",
+        help="Deixa a aba LPA vazia para editar manualmente; preenche só Portada, "
+             "Control de versiones e Doc Evaluados.",
     )
     f.add_argument(
         "--veredicto-cell",
