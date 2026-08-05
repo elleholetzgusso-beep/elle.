@@ -5,9 +5,15 @@ se escreve um hallazgo, e o que tem de existir para um punto poder fechar. Não 
 de comandos — isso é o `02_MANUAL_LPA_FILLER.md`. O que o programa pode e não pode
 decidir sozinho está no `03_REGRAS_DE_AUTOMACAO.md`.
 
-Todos os exemplos aqui são reais, tirados do **EXC2026-16883-002-LPA-03** (Estación
-de Torre Pacheco, revisão 03). Nenhum foi inventado — se um exemplo parecer estranho
-ou incompleto, é porque a realidade é assim.
+Todos os exemplos aqui são reais, de dois LPAs em fases opostas do seu ciclo:
+
+| | |
+|---|---|
+| **EXC2025-16126-1/002/LPA/01** | Estación de Posadas (Córdoba), revisão **01**. 14 puntos, todos `Abierto`, todos com uma única linha de diálogo. É assim que um LPA nasce. |
+| **EXC2026-16883-002-LPA-03** | Estación de Torre Pacheco, revisão **03**. 21 puntos, 20 `Cerrado` e 1 `Resuelto`. É assim que um LPA acaba. |
+
+Nenhum exemplo foi inventado — se um parecer estranho ou incompleto, é porque a
+realidade é assim.
 
 ---
 
@@ -116,15 +122,48 @@ O problema foi detetado e comunicado. É o estado inicial de todo o punto, e é 
 fica enquanto a resposta não chegar **ou** enquanto a resposta que chegou não for
 suficiente.
 
+Um LPA acabado de emitir é inteiramente assim. O de Posadas, revisão 01, tem 14
+puntos, **todos** `Abierto`, e cada um com uma só linha de diálogo — o hallazgo. Ainda
+não há nada mais para haver.
+
+O punto Nº 1 desse LPA:
+
+| Campo | Conteúdo |
+|---|---|
+| Documento | Firmas documentación evaluada |
+| Pto. | pestaña "Doc Evaluados" de este documento |
+| Valoración | **Crítico** |
+| Estado | **Abierto** |
+
+> **Hallazgo** — Todos los documentos evaluados deben estar debidamente firmados (ver
+> aquellos que figuran sin firmar en la pestaña "Doc Evaluados").
+
+É um hallazgo curto porque o problema é simples de enunciar e a prova está no próprio
+LPA — a aba "Doc Evaluados" mostra quais faltam. Curto não é o mesmo que vago: sabe-se
+o que falta, onde ver, e é Crítico porque avaliar documentação não assinada põe em
+causa tudo o resto.
+
 > **ABIERTO não quer dizer "o cliente ainda não respondeu".** Pode haver resposta e o
-> punto continuar aberto, se a resposta não resolver o problema.
+> punto continuar aberto, se a resposta não resolver o problema. Em Posadas rev. 01
+> ainda não houve resposta nenhuma; em revisões seguintes, um punto pode continuar
+> aberto já com duas ou três voltas de diálogo em cima.
+
+**Um problema transversal dá vários puntos, não um.** Ainda em Posadas, os puntos
+Nº 4, 6, 8, 9 e 10 são todos Críticos sobre a mesma coisa — evidências do REP que não
+correspondem ao perigo que dizem sustentar (planos de eletrificação citados em perigos
+de drenagem, e por aí). Cada perigo é um punto próprio, porque cada um se resolve e
+fecha por si. O Nº 9 é o que generaliza:
+
+> De forma general, se incluye como evidencia los planos 8.1 y 8.2 en la mayoría de
+> peligros, siendo estos planos referentes a electrificación. Revisar las evidencias
+> de los peligros de forma general.
 
 ### 🟡 RESUELTO
 
 O cliente respondeu **e** o avaliador aceitou a ação proposta — mas a execução ainda
 não está comprovada.
 
-Exemplo real, o Nº 20 do mesmo LPA (o único em RESUELTO dos 21 puntos):
+Exemplo real, o Nº 20 de Torre Pacheco (o único em RESUELTO dos 21 puntos):
 
 > **Hallazgo** — Queda pendiente de recepción las evidencias que son consideradas
 > como Punto Pendiente y condición para la puesta en servicio. Se mantendrá abierta
@@ -145,10 +184,10 @@ distingue RESUELTO de CERRADO — a ação está aceite, a prova ainda não cheg
 
 Além da aceitação, existe **evidência documental verificada pelo avaliador**.
 
-No Nº 1, a evidência é curta e localizável: *"Se comprueba en la pag 18"*. Não é "o
-cliente diz que corrigiu" — é o avaliador a dizer onde foi ver.
+No Nº 1 de Torre Pacheco (§2), a evidência é curta e localizável: *"Se comprueba en la
+pag 18"*. Não é "o cliente diz que corrigiu" — é o avaliador a dizer onde foi ver.
 
-Um exemplo mais difícil, o Nº 2 (Crítico, ciclo completo):
+Um exemplo mais difícil, o Nº 2 do mesmo LPA (Crítico, ciclo completo):
 
 > **Hallazgo** — Peligro ID-299: falta de validación funcional de campo del pedal
 > (traslado del pedal de Balsicas). La documentación disponible […] no acredita la
