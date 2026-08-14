@@ -358,7 +358,7 @@ PATRON_EXCELTIC = re.compile(
     (?P<anio>\d{4})                         # año, 4 dígitos: "2026"
     -(?P<codigo>[A-Za-z0-9]+)               # código de proyecto (letras y/o dígitos, incluye placeholders tipo "XXXXXX")
     -(?P<numero_proyecto>\d+)               # nº de proyecto: "001"
-    -(?P<tipo>[A-Za-z]+\d*)                 # tipo de documento: letras, con dígitos opcionales al final ("PES", "F03")
+    -(?P<tipo>[A-Za-z]+\d*(?:\.\d+)?)       # tipo de documento: letras, con dígitos opcionales, y opcionalmente punto + más dígitos ("PES", "F03", "F3.2")
     -(?P<numero_doc>\d+)                    # nº de documento: "01"
     (?P<sufijo>.*)                          # lo que sobre al final (p. ej. "(2)", "_atualizado"), se guarda tal cual
     $
