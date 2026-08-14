@@ -349,7 +349,8 @@ PATRON_EXTENSION = re.compile(
 #   aquí ".v04" es en realidad una versión, no hay que confundirla con la extensión de archivo)
 
 TIPOS_DOCUMENTO_CONOCIDOS = {
-    "LPA", "PES", "F03", "F3", "F5", "REP", "PPI", "ISA", "EV", "CIE",
+    "LPA", "PES", "F03", "F3", "F5", "F5-REP", "REP",
+    "PPI", "ISA", "EV", "CIE",
 }
 
 PATRON_EXCELTIC = re.compile(
