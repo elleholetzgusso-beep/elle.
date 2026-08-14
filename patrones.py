@@ -483,10 +483,11 @@ def analizar_nombre_archivo(nombre_archivo: str) -> ResultadoParseo:
             avisos=avisos,
         )
 
-    # Modo alternativo: el nombre no sigue el patrón Exceltic (típico de
-    # documentación recibida de terceros). Se trocea por separadores
-    # habituales y se busca, entre los trozos, algún tipo de documento
-    # conocido.
+    # Modo alternativo: documentación recibida de terceros.
+    # Primero intentamos extraer una referencia documental estructurada
+    # (EV.INFRA-106.3, RGP-53, INF2.03, RQ_041.1, PPI 047, etc.).
+    tipo_referencia, numero_referencia = extraer_referencia(base)
+
     tokens = [t for t in re.split(r"[-_.\s]+", base) if t]
     candidatos_tipo = [t.upper() for t in tokens if t.upper() in TIPOS_DOCUMENTO_CONOCIDOS]
 
@@ -496,7 +497,10 @@ def analizar_nombre_archivo(nombre_archivo: str) -> ResultadoParseo:
         "se ha hecho una extracción parcial, revisar manualmente."
     ]
     tipo_documento: Optional[str] = None
-    if len(candidatos_tipo) == 1:
+    if tipo_referencia:
+        # La referencia estructurada tiene prioridad sobre los tokens sueltos.
+        tipo_referencia = tipo_referencia.upper()
+    elif len(candidatos_tipo) == 1:
         tipo_documento = candidatos_tipo[0]
     elif len(candidatos_tipo) > 1:
         avisos.append(
@@ -506,7 +510,13 @@ def analizar_nombre_archivo(nombre_archivo: str) -> ResultadoParseo:
     else:
         avisos.append("No se ha reconocido ningún tipo de documento conocido en el nombre.")
 
-    tuvo_alguna_pista = bool(tipo_documento) or bool(version) or bool(candidatos_tipo)
+    tuvo_alguna_pista = (
+        bool(tipo_documento)
+        or bool(tipo_referencia)
+        or bool(numero_referencia)
+        or bool(version)
+        or bool(candidatos_tipo)
+    )
     confianza = "baja" if tuvo_alguna_pista else "no_reconocido"
 
     return ResultadoParseo(
@@ -516,8 +526,8 @@ def analizar_nombre_archivo(nombre_archivo: str) -> ResultadoParseo:
         numero_proyecto=None,
         tipo_documento=tipo_documento,
         numero_documento=None,
-        tipo_referencia=None,
-        numero_referencia=None,
+        tipo_referencia=tipo_referencia,
+        numero_referencia=numero_referencia,
         version=version,
         confianza=confianza,
         avisos=avisos,
