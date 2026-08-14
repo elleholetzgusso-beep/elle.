@@ -353,6 +353,40 @@ TIPOS_DOCUMENTO_CONOCIDOS = {
     "PPI", "ISA", "EV", "CIE",
 }
 
+TIPOS_REFERENCIA_CONOCIDOS = {
+    "EV.INFRA", "RGP", "INF", "RQ", "PPI",
+}
+
+# Patrones para extraer referencias documentales de terceros.
+# Cada patrón captura el tipo y el número de referencia por separado.
+PATRONES_REFERENCIA = [
+    # EV.INFRA-106.3
+    re.compile(
+        r"(?P<tipo>EV\.INFRA)-(?P<numero>\d+(?:\.\d+)?)",
+        re.IGNORECASE,
+    ),
+    # RGP-53
+    re.compile(
+        r"(?P<tipo>RGP)-(?P<numero>\d+)",
+        re.IGNORECASE,
+    ),
+    # INF2.03
+    re.compile(
+        r"(?P<tipo>INF)(?P<numero>\d+\.\d+)",
+        re.IGNORECASE,
+    ),
+    # RQ_041.1
+    re.compile(
+        r"(?P<tipo>RQ)_(?P<numero>\d+(?:\.\d+)?)",
+        re.IGNORECASE,
+    ),
+    # PPI 047
+    re.compile(
+        r"(?P<tipo>PPI)\s+(?P<numero>\d+)",
+        re.IGNORECASE,
+    ),
+]
+
 PATRON_EXCELTIC = re.compile(
     r"""
     ^EXC                                    # prefijo fijo de los proyectos Exceltic
@@ -397,6 +431,21 @@ def _separar_extension(nombre_archivo: str) -> Tuple[str, Optional[str]]:
     if m:
         return nombre_archivo[: m.start()], m.group(0)
     return nombre_archivo, None
+
+
+def extraer_referencia(nombre: str) -> Tuple[Optional[str], Optional[str]]:
+    """Extrae referencias documentales conocidas de nombres de archivo.
+
+    Busca patrones como "EV.INFRA-106.3", "RGP-53", "INF2.03", "RQ_041.1", "PPI 047".
+
+    :param nombre: nombre del archivo (con o sin extensión).
+    :return: tupla (tipo_referencia, numero_referencia), o (None, None) si no encuentra nada.
+    """
+    for patron in PATRONES_REFERENCIA:
+        m = patron.search(nombre)
+        if m:
+            return (m.group("tipo").upper(), m.group("numero"))
+    return None, None
 
 
 def analizar_nombre_archivo(nombre_archivo: str) -> ResultadoParseo:
