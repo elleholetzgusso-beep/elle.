@@ -384,6 +384,8 @@ class ResultadoParseo(NamedTuple):
     numero_proyecto: Optional[str]
     tipo_documento: Optional[str]
     numero_documento: Optional[str]
+    tipo_referencia: Optional[str]
+    numero_referencia: Optional[str]
     version: Optional[InfoVersion]
     confianza: str  # "alta" | "baja" | "no_reconocido"
     avisos: List[str]
