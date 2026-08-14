@@ -1,0 +1,16 @@
+# Bytecode de Python
+__pycache__/
+*.py[cod]
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Ficheros temporales de Microsoft Office
+~$*
+
+# Salidas generadas por el módulo
+*.docx
+*.xlsx
+*.csv
+*.pdf
