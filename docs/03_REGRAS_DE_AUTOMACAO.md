@@ -129,6 +129,8 @@ perda de trabalho ou registo incompleto:
 | Módulo | Responsabilidade |
 |---|---|
 | `cli.py` | Interface de linha de comandos (argparse). |
+| `pipeline.py` | Passos do fluxo para a janela: que comandos correr, e o que exigir antes de correr. |
+| `gui.py` | Janela gráfica (tkinter). Monta e chama os comandos do `cli.py` — não sabe fazer mais nada. |
 | `model.py` | Carregar/validar o `projeto.yaml`, IDs, veredicto, lint, transições, contagens. |
 | `scan.py` | Catalogar documentos recebidos + triagem. |
 | `filtro.py` | Classificar documentos avaliar/desviado/incerto (PE/01). |
@@ -165,3 +167,7 @@ perda de trabalho ou registo incompleto:
    entre revisões — veredicto, Anejo, mensagens — usa o `id`.
 4. **O que não é derivável não é fabricado.** Fica por preencher, visivelmente.
 5. **Nenhum comando escreve `estado`.**
+6. **A janela não pode fazer o que a linha de comandos não faz.** O `gui.py`
+   monta argumentos e chama o `cli.py`; não tem lógica própria. Um teste passa
+   tudo o que a janela oferece pelo analisador de argumentos do CLI, para não se
+   repetir o caso de uma opção que parecia existir e não existia.

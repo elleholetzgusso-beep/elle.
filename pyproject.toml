@@ -17,9 +17,14 @@ dependencies = [
 docx = ["python-docx>=1.1"]
 pdf = ["pypdf>=4.0"]
 dev = ["pytest>=7.0"]
+exe = ["pyinstaller>=6.0"]
 
 [project.scripts]
 lpa-filler = "lpa_filler.cli:main"
+
+[project.gui-scripts]
+# Abre a janela sem consola por trás (no Windows, gera um .exe sem terminal).
+lpa-filler-gui = "lpa_filler.gui:main"
 
 [tool.setuptools]
 packages = ["lpa_filler"]

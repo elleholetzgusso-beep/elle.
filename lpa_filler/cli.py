@@ -624,6 +624,17 @@ def _cmd_radar(args) -> int:
     return 0
 
 
+def _cmd_gui(args) -> int:
+    try:
+        from . import gui
+    except ImportError:
+        print("A janela gráfica precisa do tkinter, que falta nesta instalação de Python.\n"
+              "No Windows, reinstala o Python com a opção 'tcl/tk and IDLE' ligada.",
+              file=sys.stderr)
+        return 1
+    return gui.main()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lpa_filler", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -806,6 +817,9 @@ def build_parser() -> argparse.ArgumentParser:
     rd.add_argument("--so-pistas", dest="so_pistas", action="store_true",
                     help="Omite a lista dos documentos lidos sem sinal específico (relatório curto).")
     rd.set_defaults(func=_cmd_radar)
+
+    gu = sub.add_parser("gui", help="Abre a janela gráfica (não precisa de terminal).")
+    gu.set_defaults(func=_cmd_gui)
 
     return p
 

@@ -1,0 +1,30 @@
+# Identificação do ficheiro para o Windows (Propriedades > Detalhes).
+#
+# Um .exe sem esta informação parece anónimo e é o primeiro a ser travado pelo
+# antivírus e pelo SmartScreen. Não substitui uma assinatura digital, mas ajuda.
+VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=(0, 2, 0, 0),
+        prodvers=(0, 2, 0, 0),
+        mask=0x3F,
+        flags=0x0,
+        OS=0x40004,
+        fileType=0x1,
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable("080904B0", [
+                StringStruct("CompanyName", "Exceltic"),
+                StringStruct("FileDescription", "Automatização de LPA (Listado de Puntos Abiertos)"),
+                StringStruct("FileVersion", "0.2.0"),
+                StringStruct("InternalName", "LPA-Exceltic"),
+                StringStruct("OriginalFilename", "LPA-Exceltic.exe"),
+                StringStruct("ProductName", "LPA Exceltic"),
+                StringStruct("ProductVersion", "0.2.0"),
+            ]),
+        ]),
+        VarFileInfo([VarStruct("Translation", [0x0809, 1200])]),
+    ],
+)

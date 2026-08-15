@@ -1,7 +1,7 @@
 # Documentação do `lpa_filler`
 
-A documentação está em três documentos, porque são três públicos diferentes e
-misturá-los tornava difícil encontrar qualquer coisa.
+A documentação está separada por público, porque misturá-los tornava difícil
+encontrar qualquer coisa.
 
 ### [`01_GUIA_LPA.md`](01_GUIA_LPA.md) — o processo
 Para quem nunca trabalhou com um LPA. O que é, como se escreve um hallazgo, o ciclo
@@ -20,9 +20,14 @@ Para quem desenvolve ou audita o programa. O que está automatizado, o que está
 deliberadamente **não** automatizado e porquê, os bloqueios, os módulos internos e as
 invariantes.
 
+### [`04_ENTREGAR_O_PROGRAMA.md`](04_ENTREGAR_O_PROGRAMA.md) — a janela e o `.exe`
+Para quem vai usar isto sem terminal, e para quem lho vai entregar. A janela
+gráfica (`python -m lpa_filler gui`), como construir o executável, e o que fazer
+quando o antivírus o bloqueia.
+
 ---
 
-A ideia que atravessa os três:
+A ideia que atravessa todos:
 
 ```text
 NÍVEL 1 — DETEÇÃO      🤖  "Encontrei uma pista."

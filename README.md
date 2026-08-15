@@ -11,6 +11,17 @@ ferroviárias em Espanha (marco PE/Inspección/01–05, UNE-EN ISO/IEC 17020).
 | [`docs/01_GUIA_LPA.md`](docs/01_GUIA_LPA.md) | **O processo.** O que é um LPA, como se escreve um hallazgo, o ciclo de vida de um punto. Começa aqui. |
 | [`docs/02_MANUAL_LPA_FILLER.md`](docs/02_MANUAL_LPA_FILLER.md) | **A ferramenta.** Referência dos comandos e do `projeto.yaml`. |
 | [`docs/03_REGRAS_DE_AUTOMACAO.md`](docs/03_REGRAS_DE_AUTOMACAO.md) | **Os limites.** O que o programa decide, o que recusa decidir, e porquê. |
+| [`docs/04_ENTREGAR_O_PROGRAMA.md`](docs/04_ENTREGAR_O_PROGRAMA.md) | **A janela e o `.exe`.** Usar sem terminal, e entregar a quem não tem Python. |
+
+## Sem terminal
+
+```bash
+python -m lpa_filler gui
+```
+
+Janela com as entradas de um lado e os cinco passos do outro. Corre os mesmos
+comandos abaixo — não faz nada que eles não façam. Para entregar a quem não tem
+Python, `empacotar\construir.bat` embrulha isto num `.exe`.
 
 ## Fluxo
 
