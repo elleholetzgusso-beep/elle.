@@ -1,0 +1,20 @@
+ORGANIZADOR DE CARPETAS Y PROYECTOS - EXCELTIC
+
+QUE HACE: crea carpetas de proyecto (AAAA-CODIGO-NOMBRE), registra envios
+de cliente y organiza documentos en subcarpetas por tipo, fecha o codigo.
+
+COMO SE USA: doble clic en "Organizador_Exceltic_Ventana.bat" (o arrastra una
+carpeta encima del .bat: la ruta aparece ya rellenada). Se abre una ventana
+con las cuatro operaciones a la izquierda. Elige una, rellena los datos y
+pulsa "Ver previsualizacion": veras la lista de lo que va a pasar ANTES de
+que se toque nada. Si esta bien, pulsa "Aplicar".
+
+Si algun dia la ventana no se abre, ese mismo .bat abre solo el menu de
+siempre en una consola: se usa escribiendo el numero de la opcion.
+
+QUE NO HACE: no borra ni sobrescribe archivos (los repetidos se guardan como
+"nombre (1)"). No sustituye tu criterio: revisa siempre el resultado antes
+de darlo por bueno. "Historial y deshacer" devuelve las cosas a como estaban.
+
+DUDAS O ERRORES: si aparece un archivo "ERROR_organizador_...txt", enviaselo
+a Elle Holetzgusso (elleholetzgusso@gmail.com).

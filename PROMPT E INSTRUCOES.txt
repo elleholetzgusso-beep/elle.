@@ -1,0 +1,117 @@
+REQUISITOS
+
+Python 3.9 ou superior.
+
+```cmd
+python -m organizador --help
+```
+
+INSTALAR
+
+```cmd
+pip install .
+organizador --help
+```
+
+CRIAR PROJETO
+
+```cmd
+python -m organizador novo-projeto "Estación de Torre Pacheco (Apeadero)" --ano 2026 --codigo 16883 --destino "7.- Proyectos/1.- En curso"
+```
+
+Cria:
+
+```text
+2026-16883-ESTACIÓN DE TORRE PACHECO (APEADERO)
+├── 1_Oferta
+├── 2_Doc Recebida
+├── 3_Doc Trabajo
+└── 4_Doc Generada
+    └── Doc
+```
+
+REGISTRAR ENVIO
+
+```cmd
+
+python -m organizador envio "PROYECTOS\2026-16883-ESTACIÓN DE TORRE PACHECO (APEADERO)" --data 20260807 --obs "sin revisar"
+
+```
+
+Cria automaticamente o próximo `Envío N`.
+
+ORGANIZAR ARQUIVOS
+
+```cmd
+
+python -m organizador organizar "PROYECTOS\2026-16883-ESTACIÓN DE TORRE PACHECO (APEADERO)\3_Doc Trabajo" --por documento
+
+```
+
+Opções de `--por`:
+
+```text
+tipo        → Documentos, Planilhas, etc.
+documento   → 001-PES, 002-LPA, etc.
+extensao    → PDF, XLSX, etc.
+data        → 2026/07-Julho
+alfabetico  → A, B, C, 0-9
+```
+
+Outras opções:
+
+```cmd
+-r, --recursivo
+-i, --ignorar "*.tmp"
+--incluir-ocultos
+--categorias meu.json
+-d, --detalhado
+```
+
+Não sobrescreve arquivos existentes. Cria automaticamente `arquivo (1).pdf`.
+
+COMANDOS
+
+```cmd
+python -m organizador criar <destino>
+python -m organizador novo-projeto <nome>
+python -m organizador envio <projeto>
+python -m organizador organizar <pasta>
+python -m organizador limpar <pasta>
+python -m organizador arvore [pasta]
+python -m organizador modelos
+python -m organizador categorias
+python -m organizador historico
+python -m organizador desfazer [id]
+```
+
+CRIAR ESTRUTURAS
+
+```cmd
+python -m organizador modelos
+python -m organizador criar "C:\Obras" --modelo proyecto
+python -m organizador criar . --pastas Contratos Faturas "Fotos/2026"
+python -m organizador criar . --arquivo minha-estrutura.txt
+```
+
+SIMULAR SEM ALTERAR ARQUIVOS
+
+```cmd
+
+python -m organizador organizar "3_Doc Trabajo" --por documento --simular
+
+```
+
+DESFAZER
+
+```cmd
+python -m organizador historico
+python -m organizador desfazer
+python -m organizador desfazer 20260814-091514-005 --simular
+```
+
+TESTES
+
+```cmd
+python -m unittest discover -s tests -v
+```

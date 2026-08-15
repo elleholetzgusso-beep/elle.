@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+historico.json
+
+# Intérprete portátil de Windows: se descarga de python.org al preparar la
+# carpeta de red (ver README, "Distribución"). No se versiona.
+python-embed/
+
+# Registros de error que genera el programa junto al resultado.
+ERROR_organizador_*.txt
