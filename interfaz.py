@@ -418,11 +418,15 @@ class App(tk.Tk):
         base = resultado.pasta
         filas = []
         for creada in resultado.criacao.criadas:
-            etiqueta = str(creada.relative_to(base.parent))
+            # Relativo a la propia carpeta del proyecto: la columna de la
+            # izquierda ya dice dentro de qué se crea, no hace falta repetirlo.
+            relativa = creada.relative_to(base)
+            etiqueta = str(relativa) if relativa != Path(".") else "(carpeta del proyecto)"
             filas.append((base.name, etiqueta))
         self.previa = {
-            "filas": filas, "ignorados": [], "carpetas": len(filas), "base": base,
-            "titulo": f"Proyecto {base.name} creado",
+            # La carpeta del proyecto no cuenta como subcarpeta suya.
+            "filas": filas, "ignorados": [], "carpetas": max(len(filas) - 1, 0),
+            "base": base, "titulo": f"Proyecto {base.name} creado",
         }
         if simular:
             self.etapa = "previa"
@@ -740,10 +744,16 @@ class App(tk.Tk):
             tk.Label(caja, text=rotulo, bg=caja["bg"], fg=BLANCO,
                      font=(F, 8, "bold")).pack(anchor="w", padx=16, pady=(2, 12))
 
+        if deshecho:
+            cabeceras = ("DESDE", "DEVUELTO A")
+        elif self.operacion == "organizar":
+            cabeceras = ("ORIGEN", "DESTINO")
+        else:
+            cabeceras = ("DENTRO DE", "CARPETA QUE SE CREA")
         tabla = ttk.Treeview(self.contenido, columns=("origen", "destino"),
                              show="headings", height=10)
-        tabla.heading("origen", text="ORIGEN")
-        tabla.heading("destino", text="DESTINO")
+        tabla.heading("origen", text=cabeceras[0])
+        tabla.heading("destino", text=cabeceras[1])
         tabla.column("origen", width=340, anchor="w")
         tabla.column("destino", width=340, anchor="w")
         estilo = ttk.Style(self)
