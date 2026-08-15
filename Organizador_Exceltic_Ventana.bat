@@ -28,7 +28,7 @@ if not exist "%PYTHON_CONSOLA%" (
     exit /b 1
 )
 
-REM ¿Tiene Tkinter este interprete?
+REM Tiene Tkinter este interprete?
 "%PYTHON_CONSOLA%" -c "import tkinter" >nul 2>&1
 if errorlevel 1 (
     echo Este equipo no puede abrir la ventana grafica ^(falta Tkinter^).

@@ -1,0 +1,12 @@
+# Los archivos que acaban en el PC de Roberto (Windows) se guardan con CRLF:
+# los .bat los interpreta cmd.exe y el LEEME.txt lo abre con el Bloc de notas.
+*.bat           text eol=crlf
+LEEME.txt       text eol=crlf
+
+# El resto es código y documentación: LF, igual en cualquier sistema.
+*.py            text eol=lf
+*.md            text eol=lf
+*.toml          text eol=lf
+*.json          text eol=lf
+
+*.png           binary

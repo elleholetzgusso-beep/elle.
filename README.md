@@ -31,11 +31,14 @@ Python instalado, linha de comandos ou permissões de administrador.
   instalar nada nem ter permissões de admin.
 - **`Preparar_Tkinter.bat`** — corre-se **uma única vez**, a partir de um PC
   com Python instalado, para completar o `python-embed` com o Tkinter que o
-  pacote *embeddable* não traz. Detalhes em `LEEME_VISUAL.md`.
+  pacote *embeddable* não traz. Detalhes em `docs/INSTALACION_VENTANA.md`.
 - **`assets/`** — `logo-mark.png` e `logo-lockup.png`. Se existirem, a janela
   mostra o logótipo; se não, mostra o nome em texto.
 - **`LEEME.txt`** — instruções em espanhol para o Roberto (o único ficheiro
-  de texto que ele deve ler). O `LEEME_VISUAL.md` é para quem instala.
+  de texto que ele deve ler).
+- **`docs/`** — documentação que não vai para o `Y:\`:
+  `INSTALACION_VENTANA.md` (como completar o `python-embed` com Tkinter) e
+  `USO_CLI.md` (o CLI de desenvolvimento, `python -m organizador`).
 
 ### O que foi traduzido para espanhol e o que ficou intacto
 
@@ -64,7 +67,7 @@ A estrutura de projeto (`1_Oferta`, `2_Doc Recebida`, `2_Doc Recebida/mails`,
 3. Corre `Preparar_Tkinter.bat` **uma vez**, a partir de um PC com Python
    instalado: copia o Tkinter que falta ao `python-embed`. Sem este passo o
    `.bat` da janela abre o menu de consola em vez da janela
-   (ver `LEEME_VISUAL.md`).
+   (ver `docs/INSTALACION_VENTANA.md`).
 4. O Roberto acede pela unidade mapeada `Y:\` e corre
    `Organizador_Exceltic_Ventana.bat`.
 
