@@ -1,21 +1,42 @@
 # Marca
 
-> **Os ficheiros que aqui estão são provisórios.** Não são a marca da Exceltic:
-> são um substituto tipográfico (`gerar_marca_provisoria.py`) para a janela e o
-> executável não ficarem anónimos — um `.exe` sem ícone é dos sinais que mais
-> depressa fazem um antivírus desconfiar. Assim que houver os ficheiros a sério,
-> substituí-los e apagar o gerador.
+> **O `logo.png` e o `logo.ico` que aqui estão são provisórios** — um quadrado
+> laranja com um E. Não são a marca da Exceltic. Estão cá porque um `.exe` sem
+> ícone é dos sinais que mais depressa fazem um antivírus desconfiar.
 
-Dois ficheiros, ambos opcionais. Sem eles a janela mostra o nome em texto e o
-executável fica com o ícone genérico — funciona à mesma.
+## Pôr a marca verdadeira
 
-| Ficheiro | Onde aparece | Formato |
+Um ficheiro e um comando:
+
+1. Guardar o símbolo em **`assets/simbolo.png`** — PNG com fundo transparente,
+   256 px ou mais.
+2. ```bash
+   pip install Pillow
+   python assets/gerar_marca.py
+   ```
+3. `empacotar\construir.bat`
+
+O gerador escreve o `logo.png` e o `logo.ico` a partir dele, e diz na consola se
+usou o símbolo verdadeiro ou o provisório. Não é preciso mexer no `LPA.spec`:
+já apanha o que estiver em `assets/`.
+
+## Os dois ficheiros gerados
+
+| Ficheiro | Onde aparece | O que é |
 |---|---|---|
-| `logo.png` | Barra de topo da janela | PNG **sobre fundo branco** — a barra é branca. Cerca de 44 px de altura; o tkinter não redimensiona, por isso convém já vir no tamanho certo. |
-| `logo.ico` | Ícone do `.exe` e da barra de tarefas | ICO com vários tamanhos (16, 32, 48, 256). |
+| `logo.png` | Barra de topo da janela | O símbolo a 44 px, achatado sobre branco — a barra é branca. O tkinter não redimensiona, por isso o tamanho tem de vir certo do gerador. |
+| `logo.ico` | Ícone do `.exe` e da barra de tarefas | O símbolo com transparência, em 16/32/48/64/128/256 px. |
 
-As cores estão no dicionário `PALETA`, no topo de `lpa_filler/gui.py`. É o único
-sítio onde vivem — mudar lá muda a janela toda.
+Na barra vai **só o símbolo**, sem a palavra: já lá está «AUTOMATIZAÇÃO DE LPA»
+em texto, ao lado, e a palavra duas vezes na mesma barra não acrescenta nada.
+
+Ambos são opcionais. Sem eles a janela mostra `EXCELTIC` em texto e o executável
+fica com o ícone genérico — funciona à mesma.
+
+## Cores
+
+Estão no dicionário `PALETA`, no topo de `lpa_filler/gui.py`. É o único sítio
+onde vivem — mudar lá muda a janela toda.
 
 ```python
 PALETA = {
@@ -31,5 +52,3 @@ O laranja é a única cor de marca. O resto são brancos, cinzas e as três core
 estado da consola (verde/âmbar/vermelho), que não são decorativas — distinguem
 "escrito" de "atenção" de "erro". Trocar os três tons de `marca` muda a
 identidade toda sem lhes tocar.
-
-Depois de trocar os ficheiros ou as cores, voltar a correr `empacotar\construir.bat`.
