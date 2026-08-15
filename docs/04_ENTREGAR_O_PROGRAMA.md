@@ -12,24 +12,36 @@ janela com botões, embrulhada num `.exe` que se copia e se abre.
 python -m lpa_filler gui
 ```
 
-Cinco botões pela ordem do fluxo, à esquerda as entradas, à direita uma consola
+À esquerda as entradas, em cima os cinco passos do fluxo, em baixo uma consola
 que mostra exatamente o que está a acontecer:
 
 ```text
-ENTRADAS                          O QUE ESTÁ A ACONTECER
-  Relatório PES (.docx)             $ lpa_filler scan -r ... -o documentos.yaml
-  Pasta dos documentos recebidos    # 72 documentos encontrados
-  Base de hallazgos (.csv)          # 1 incertos (rever manualmente)
-  Template LPA (.xlsm)              Escrito: documentos.yaml
-  Pasta onde gravar                 Concluído.
+ENTRADAS               FLUXO   2 de 5 passos concluídos
+ ✓ Relatório PES        ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
+ ✓ Documentos recebidos │ ✓ FEITO││ ✓ FEITO││3 SEGUIN││4 ESPERA││5 ESPERA│
+ ✓ Base de hallazgos    │Preparar││Analisar││Sugerir ││Gerar o ││Gerar o │
+ ! Template LPA         │o proje…││os docu…││hallaz… ││LPA     ││Anejo   │
+ ✓ Pasta de trabalho    └────────┘└────────┘└────────┘└────────┘└────────┘
 
-PASSOS
-  1 · Preparar o projeto
-  2 · Analisar os documentos
-  3 · Sugerir hallazgos
-  4 · Gerar o LPA
-  5 · Gerar o Anejo A.2
+CONTEXTO DA OBRA        [ CORRER PASSO 3 ]  [ ABRIR PASTA ]   ▓▓▓▓░░░░ 40%
+  Solicitante
+  Âncoras desta obra    O QUE ESTÁ A ACONTECER
+  Código desta obra       $ lpa_filler scan -r ... -o documentos.yaml
+                          # 72 documentos encontrados
+EXIGÊNCIA               # 1 incertos (rever manualmente)
+  ──────●─────  12       Escrito: documentos.yaml
+                         Concluído.
 ```
+
+Três coisas que a janela diz sem ser preciso perguntar:
+
+- **O que falta preencher.** Cada entrada tem um `!` âmbar por preencher e um
+  `✓` verde quando está — vê-se antes de tentar correr.
+- **Por onde se vai.** Os passos mostram-se `FEITO` / `SEGUINTE` / `EM ESPERA`,
+  e o botão principal aponta sempre ao seguinte. Também se pode clicar num
+  cartão para repetir um passo anterior.
+- **O que correu.** A consola imprime o comando exato antes de cada saída, por
+  isso o que se vê na janela é reproduzível no terminal.
 
 A janela **não sabe fazer nada** que a linha de comandos não faça: monta os
 mesmos comandos e chama-os. Um teste garante que todos os comandos que a janela
@@ -114,9 +126,23 @@ anunciar. Descobrir o bloqueio na máquina de quem ia usar é a pior altura.
 
 Duas coisas, e nada mais no programa depende delas:
 
-- **Cores** — o dicionário `PALETA`, no topo de `lpa_filler/gui.py`.
-- **Logótipo** — `assets/logo.png` (janela) e `assets/logo.ico` (ícone do
-  `.exe`). Ver `assets/LEIA-ME.md` para os tamanhos.
+**Cores** — o dicionário `PALETA`, no topo de `lpa_filler/gui.py`. O laranja é a
+única cor de marca; trocar os três tons de `marca` muda a janela toda.
+
+**Logótipo** — largar o símbolo em `assets/simbolo.png` (PNG transparente,
+≥256 px) e correr:
+
+```bash
+python assets/gerar_marca.py
+```
+
+Escreve o `logo.png` da barra (44 px sobre branco) e o `logo.ico` do executável
+(16→256 px), e diz na consola se usou o símbolo verdadeiro ou o provisório —
+para não se entregar um `.exe` com o símbolo de teste sem dar por isso.
+
+> Os `logo.png` e `logo.ico` no repositório são **provisórios**: um quadrado
+> laranja com um E. Não são a marca da Exceltic. Estão lá porque um `.exe` sem
+> ícone é dos primeiros a ser travado pelo antivírus.
 
 Ambos são opcionais: sem eles a janela mostra o nome em texto e o executável
 fica com o ícone genérico. Depois de mudar, voltar a correr `construir.bat`.
