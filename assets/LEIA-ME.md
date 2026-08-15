@@ -1,5 +1,11 @@
 # Marca
 
+> **Os ficheiros que aqui estão são provisórios.** Não são a marca da Exceltic:
+> são um substituto tipográfico (`gerar_marca_provisoria.py`) para a janela e o
+> executável não ficarem anónimos — um `.exe` sem ícone é dos sinais que mais
+> depressa fazem um antivírus desconfiar. Assim que houver os ficheiros a sério,
+> substituí-los e apagar o gerador.
+
 Dois ficheiros, ambos opcionais. Sem eles a janela mostra o nome em texto e o
 executável fica com o ícone genérico — funciona à mesma.
 
