@@ -114,7 +114,9 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 ## Checklist antes de entregar ao Roberto
 
 - [ ] `python -m unittest discover -s tests -v` — todos os testes a passar
-      (36 testes, motor `organizador/` intacto na lógica).
+      (43 testes: 36 do motor `organizador/`, intacto na lógica, e 7 da
+      janela — estes saltam se o PC não tiver Tkinter ou ecrã, confirma que
+      dizem `ok` e não `skipped`).
 - [ ] Correr `interfaz.py` no meu PC: as 4 operações da janela (organizar,
       novo projeto, envio, histórico/desfazer), sempre passando pela
       pré-visualização antes de aplicar.
@@ -152,4 +154,23 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 
 ```bash
 python -m unittest discover -s tests -v
+```
+
+São 43, em dois ficheiros:
+
+- **`tests/test_organizador.py`** (36) — o motor. Não abre janela nenhuma,
+  corre em qualquer sítio.
+- **`tests/test_interfaz.py`** (7) — a janela, com **cliques reais**. Os
+  botões da interface são `tk.Label` com um binding `<Button-1>` próprio (não
+  `tk.Button`), por isso os testes entregam um evento de rato de verdade
+  (`event_generate`) em vez de chamar os métodos por dentro: assim um binding
+  mal ligado é apanhado. Verificam também o disco — aplicar move mesmo os
+  ficheiros, desfazer põe-nos de volta, e a pré-visualização não toca em nada.
+
+Os testes da janela **saltam sozinhos** (`skipped`) se faltar Tkinter ou um
+ecrã, em vez de falhar. Se quiseres corrê-los numa máquina sem ecrã (CI,
+SSH), com um servidor X virtual:
+
+```bash
+xvfb-run -a python -m unittest discover -s tests -v
 ```
