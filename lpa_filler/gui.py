@@ -1,8 +1,8 @@
-"""Janela gráfica do lpa_filler.
+"""Janela gráfica do lpa_filler — aspeto Exceltic.
 
-Corre os mesmos comandos da linha de comandos, sem terminal à vista. Os comandos
-são chamados dentro do próprio processo (``cli.main``), e não por subprocesso,
-porque dentro de um ``.exe`` não há interpretador de Python para invocar.
+Mesma lógica de sempre (corre ``cli.main`` dentro do processo, sem terminal à
+vista). Só o aspeto mudou: fundo branco, régua laranja, os passos como fluxo com
+estado (feito / seguinte / em espera) em vez de cinco botões iguais.
 
 Para mudar o aspeto, ver PALETA e ``assets/logo.png`` — nada mais depende delas.
 """
@@ -22,25 +22,30 @@ from . import pipeline
 from .pipeline import Config
 
 # --------------------------------------------------------------------------- #
-# Aspeto. Trocar aqui pelas cores da casa; o resto do ficheiro não as conhece.
+# Aspeto Exceltic: uma cor de marca (laranja), branco, cinzas e réguas.
 
 PALETA = {
-    "tinta": "#12263A",       # barra de topo
-    "destaque": "#2E7DA8",    # botões e realces
-    "fundo": "#F4F6F8",
+    "marca": "#F15722",
+    "marca_escura": "#D94E14",
+    "marca_clara": "#FDE7D9",
+    "fundo": "#F2F2F2",
     "cartao": "#FFFFFF",
     "texto": "#1A1A1A",
-    "apagado": "#6B7280",
-    "linha": "#D9DEE5",
-    "bom": "#1B7A4B",
-    "aviso": "#A85B00",
-    "mau": "#B3261E",
+    "texto_2": "#4A4A4A",
+    "apagado": "#7A7A7A",
+    "linha": "#C1C2C4",
+    "bom": "#2E7D4F",
+    "aviso": "#C98A1C",
+    "mau": "#C62828",
     "consola_fundo": "#12181F",
     "consola_texto": "#E4E8EC",
 }
 
 MARCA = "EXCELTIC"
-SUBTITULO = "Automatização de LPA · Listado de Puntos Abiertos"
+TITULO = "AUTOMATIZAÇÃO DE LPA"
+SUBTITULO = "Listado de Puntos Abiertos · RAMS & Validación"
+
+FONTE = "Arial"
 
 
 def _recurso(nome: str) -> Path:
@@ -89,12 +94,79 @@ def _classificar(linha: str) -> str:
     return "normal"
 
 
+class _CartaoPasso(tk.Frame):
+    """Um passo do fluxo: número, estado, título e descrição. Clicável."""
+
+    def __init__(self, pai: tk.Widget, indice: int, passo, correr) -> None:
+        super().__init__(pai, bg=PALETA["linha"])
+        self._indice = indice
+        self._correr = correr
+        self._estado = "espera"
+
+        self._dentro = tk.Frame(self, bg=PALETA["cartao"])
+        self._dentro.pack(fill="both", expand=True, padx=1, pady=1)
+
+        topo = tk.Frame(self._dentro, bg=PALETA["cartao"])
+        topo.pack(fill="x", padx=10, pady=(10, 0))
+        self._num = tk.Label(topo, text=str(indice), width=2, height=1,
+                             font=(FONTE, 9, "bold"), bg=PALETA["cartao"],
+                             fg=PALETA["apagado"], relief="solid", bd=1)
+        self._num.pack(side="left")
+        self._etiqueta = tk.Label(topo, text="EM ESPERA", font=(FONTE, 7, "bold"),
+                                  bg=PALETA["cartao"], fg=PALETA["apagado"])
+        self._etiqueta.pack(side="right")
+
+        self._titulo = tk.Label(self._dentro, text=passo.titulo.split("·", 1)[-1].strip(),
+                                font=(FONTE, 9, "bold"), bg=PALETA["cartao"],
+                                fg=PALETA["texto_2"], wraplength=150, justify="left",
+                                anchor="w")
+        self._titulo.pack(fill="x", padx=10, pady=(8, 2))
+
+        self._desc = tk.Label(self._dentro, text=passo.descricao, font=(FONTE, 7),
+                              bg=PALETA["cartao"], fg=PALETA["apagado"],
+                              wraplength=150, justify="left", anchor="nw")
+        self._desc.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        for w in (self, self._dentro, topo, self._num, self._etiqueta,
+                  self._titulo, self._desc):
+            w.bind("<Button-1>", lambda _e: self._correr(self._indice))
+            w.configure(cursor="hand2")
+
+    def _pintar(self, fundo: str, borda: str, num_fundo: str, num_cor: str,
+                etiqueta: str, etiqueta_cor: str, titulo_cor: str, num_texto: str) -> None:
+        self.configure(bg=borda)
+        for w in (self._dentro, self._titulo, self._desc, self._num.master):
+            w.configure(bg=fundo)
+        self._num.configure(text=num_texto, bg=num_fundo, fg=num_cor)
+        self._etiqueta.configure(text=etiqueta, fg=etiqueta_cor, bg=fundo)
+        self._titulo.configure(fg=titulo_cor, bg=fundo)
+        self._desc.configure(bg=fundo)
+
+    def estado(self, estado: str) -> None:
+        self._estado = estado
+        if estado == "feito":
+            self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["bom"], "#FFFFFF",
+                         "FEITO", PALETA["bom"], PALETA["texto"], "✓")
+        elif estado == "correr":
+            self._pintar(PALETA["marca_clara"], PALETA["marca"], PALETA["marca"],
+                         "#FFFFFF", "A CORRER", PALETA["marca_escura"], PALETA["texto"],
+                         str(self._indice))
+        elif estado == "seguinte":
+            self._pintar(PALETA["marca_clara"], PALETA["marca"], PALETA["marca"],
+                         "#FFFFFF", "SEGUINTE", PALETA["marca_escura"], PALETA["texto"],
+                         str(self._indice))
+        else:
+            self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["cartao"],
+                         PALETA["apagado"], "EM ESPERA", PALETA["apagado"],
+                         PALETA["texto_2"], str(self._indice))
+
+
 class Janela(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(f"{MARCA} · LPA")
-        self.geometry("1120x720")
-        self.minsize(940, 600)
+        self.geometry("1240x820")
+        self.minsize(1060, 700)
         self.configure(bg=PALETA["fundo"])
 
         icone = _recurso("assets/logo.ico")
@@ -106,26 +178,32 @@ class Janela(tk.Tk):
 
         self._fila: queue.Queue = queue.Queue()
         self._a_correr = False
-        self._botoes: list[ttk.Button] = []
         self._campos: dict[str, tk.StringVar] = {}
+        self._cartoes: dict[int, _CartaoPasso] = {}
+        self._feitos = 0
 
         self._estilos()
         self._cabecalho()
 
-        corpo = tk.Frame(self, bg=PALETA["fundo"])
-        corpo.pack(fill="both", expand=True, padx=16, pady=(0, 12))
-        corpo.columnconfigure(0, minsize=430)
-        corpo.columnconfigure(1, weight=1)
-        corpo.rowconfigure(0, weight=1)
+        corpo = tk.Frame(self, bg=PALETA["linha"])
+        corpo.pack(fill="both", expand=True)
+        grelha = tk.Frame(corpo, bg=PALETA["cartao"])
+        grelha.pack(fill="both", expand=True)
+        grelha.columnconfigure(0, minsize=392)
+        grelha.columnconfigure(1, weight=1)
+        grelha.rowconfigure(0, weight=1)
 
-        esquerda = tk.Frame(corpo, bg=PALETA["fundo"])
-        esquerda.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
-        self._painel_entradas(esquerda)
-        self._painel_opcoes(esquerda)
-        self._painel_passos(esquerda)
+        esquerda = tk.Frame(grelha, bg=PALETA["cartao"], highlightthickness=0)
+        esquerda.grid(row=0, column=0, sticky="nsew")
+        tk.Frame(grelha, bg=PALETA["linha"], width=1).grid(row=0, column=0, sticky="nse")
+        self._coluna_entradas(esquerda)
 
-        self._painel_consola(corpo)
+        direita = tk.Frame(grelha, bg=PALETA["cartao"])
+        direita.grid(row=0, column=1, sticky="nsew")
+        self._painel_fluxo(direita)
+        self._painel_consola(direita)
 
+        self._marcar_passos()
         self._escrever(f"{MARCA} · pronto.", "bom")
         self._escrever("Escolhe as entradas à esquerda e corre os passos por ordem.", "apagado")
         self.after(60, self._drenar)
@@ -139,70 +217,97 @@ class Janela(tk.Tk):
             pass
         e.configure("TFrame", background=PALETA["cartao"])
         e.configure("TLabel", background=PALETA["cartao"], foreground=PALETA["texto"])
-        e.configure("Apagado.TLabel", foreground=PALETA["apagado"])
         e.configure("TCheckbutton", background=PALETA["cartao"], foreground=PALETA["texto"])
-        e.configure(
-            "Passo.TButton",
-            background=PALETA["destaque"],
-            foreground="#FFFFFF",
-            padding=(10, 9),
-            borderwidth=0,
-            font=("Segoe UI", 10, "bold"),
-        )
-        e.map("Passo.TButton",
-              background=[("active", PALETA["tinta"]), ("disabled", PALETA["linha"])],
+        e.map("TCheckbutton", background=[("active", PALETA["cartao"])])
+        e.configure("Marca.TButton", background=PALETA["marca"], foreground="#FFFFFF",
+                    padding=(20, 10), borderwidth=0, font=(FONTE, 9, "bold"))
+        e.map("Marca.TButton",
+              background=[("active", PALETA["marca_escura"]), ("disabled", PALETA["linha"])],
               foreground=[("disabled", PALETA["apagado"])])
-        e.configure("Procurar.TButton", padding=(8, 4))
+        e.configure("Contorno.TButton", background=PALETA["cartao"], foreground=PALETA["marca"],
+                    padding=(14, 10), borderwidth=1, font=(FONTE, 9, "bold"))
+        e.map("Contorno.TButton", background=[("active", PALETA["marca_clara"])])
+        e.configure("Procurar.TButton", background=PALETA["cartao"], foreground=PALETA["marca"],
+                    padding=(9, 4), borderwidth=1, font=(FONTE, 8, "bold"))
+        e.map("Procurar.TButton", background=[("active", PALETA["marca_clara"])])
+        e.configure("Marca.Horizontal.TProgressbar", background=PALETA["marca"],
+                    troughcolor=PALETA["fundo"], borderwidth=0, thickness=6)
 
     def _cabecalho(self) -> None:
-        barra = tk.Frame(self, bg=PALETA["tinta"], height=76)
+        barra = tk.Frame(self, bg=PALETA["cartao"], height=68)
         barra.pack(fill="x")
         barra.pack_propagate(False)
 
-        caixa = tk.Frame(barra, bg=PALETA["tinta"])
+        caixa = tk.Frame(barra, bg=PALETA["cartao"])
         caixa.pack(side="left", padx=20)
-
         logo = _recurso("assets/logo.png")
         posto = False
         if logo.exists():
             try:
                 self._logo = tk.PhotoImage(file=str(logo))
-                tk.Label(caixa, image=self._logo, bg=PALETA["tinta"]).pack(side="left")
+                tk.Label(caixa, image=self._logo, bg=PALETA["cartao"]).pack(side="left")
                 posto = True
             except tk.TclError:
                 posto = False
         if not posto:
-            tk.Label(caixa, text=MARCA, bg=PALETA["tinta"], fg="#FFFFFF",
-                     font=("Segoe UI", 19, "bold")).pack(side="left")
+            tk.Label(caixa, text=MARCA, bg=PALETA["cartao"], fg=PALETA["texto"],
+                     font=(FONTE, 17, "bold")).pack(side="left")
 
-        tk.Label(barra, text=SUBTITULO, bg=PALETA["tinta"], fg="#9FB3C4",
-                 font=("Segoe UI", 10)).pack(side="left", padx=(14, 0))
+        tk.Frame(barra, bg=PALETA["linha"], width=1, height=30).pack(side="left", padx=(0, 16))
+        titulos = tk.Frame(barra, bg=PALETA["cartao"])
+        titulos.pack(side="left")
+        tk.Label(titulos, text=TITULO, bg=PALETA["cartao"], fg=PALETA["texto"],
+                 font=(FONTE, 11, "bold")).pack(anchor="w")
+        tk.Label(titulos, text=SUBTITULO, bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 8)).pack(anchor="w")
 
-        self._estado = tk.Label(barra, text="", bg=PALETA["tinta"], fg="#9FB3C4",
-                                font=("Segoe UI", 10))
+        self._estado = tk.Label(barra, text="● Pronto", bg=PALETA["cartao"],
+                                fg=PALETA["bom"], font=(FONTE, 8))
         self._estado.pack(side="right", padx=20)
 
-    def _cartao(self, pai: tk.Widget, titulo: str) -> tk.Frame:
-        fora = tk.Frame(pai, bg=PALETA["linha"])
-        fora.pack(fill="x", pady=(0, 12))
-        dentro = tk.Frame(fora, bg=PALETA["cartao"])
-        dentro.pack(fill="both", padx=1, pady=1)
-        tk.Label(dentro, text=titulo, bg=PALETA["cartao"], fg=PALETA["apagado"],
-                 font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=14, pady=(11, 6))
-        corpo = tk.Frame(dentro, bg=PALETA["cartao"])
-        corpo.pack(fill="both", padx=14, pady=(0, 12))
+        tk.Frame(self, bg=PALETA["marca"], height=3).pack(fill="x")
+
+    def _secao(self, pai: tk.Widget, titulo: str) -> tk.Frame:
+        tk.Label(pai, text=titulo.upper(), bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 8, "bold")).pack(anchor="w", padx=20, pady=(16, 8))
+        corpo = tk.Frame(pai, bg=PALETA["cartao"])
+        corpo.pack(fill="x", padx=20)
         return corpo
 
+    def _regua(self, pai: tk.Widget) -> None:
+        tk.Frame(pai, bg=PALETA["linha"], height=1).pack(fill="x", padx=20, pady=(16, 0))
+
     # -------------------------------------------------------------- entradas
-    def _linha_caminho(self, pai: tk.Widget, chave: str, rotulo: str, escolher) -> None:
-        tk.Label(pai, text=rotulo, bg=PALETA["cartao"], fg=PALETA["texto"],
-                 font=("Segoe UI", 9)).pack(anchor="w")
+    def _linha_caminho(self, pai: tk.Widget, chave: str, rotulo: str, tipo: str, escolher) -> None:
+        cabeca = tk.Frame(pai, bg=PALETA["cartao"])
+        cabeca.pack(fill="x")
+        tk.Label(cabeca, text=rotulo, bg=PALETA["cartao"], fg=PALETA["texto"],
+                 font=(FONTE, 9, "bold")).pack(side="left")
+        tk.Label(cabeca, text=tipo.upper(), bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 7)).pack(side="left", padx=(8, 0))
+
         fila = tk.Frame(pai, bg=PALETA["cartao"])
-        fila.pack(fill="x", pady=(2, 9))
+        fila.pack(fill="x", pady=(3, 11))
         var = tk.StringVar()
         self._campos[chave] = var
-        tk.Entry(fila, textvariable=var, relief="solid", bd=1,
-                 font=("Segoe UI", 9)).pack(side="left", fill="x", expand=True, ipady=3)
+        moldura = tk.Frame(fila, bg=PALETA["linha"])
+        moldura.pack(side="left", fill="x", expand=True)
+        interior = tk.Frame(moldura, bg=PALETA["cartao"])
+        interior.pack(fill="x", padx=1, pady=1)
+        marca = tk.Label(interior, text="!", bg=PALETA["cartao"], fg=PALETA["aviso"],
+                         font=(FONTE, 9, "bold"), width=2)
+        marca.pack(side="left")
+        tk.Entry(interior, textvariable=var, relief="flat", bd=0, bg=PALETA["cartao"],
+                 fg=PALETA["texto"], font=(FONTE, 9)).pack(side="left", fill="x",
+                                                           expand=True, ipady=4)
+
+        def ao_mudar(*_a: object) -> None:
+            cheio = bool(var.get().strip())
+            marca.configure(text="✓" if cheio else "!",
+                            fg=PALETA["bom"] if cheio else PALETA["aviso"])
+            moldura.configure(bg=PALETA["linha"] if cheio else PALETA["aviso"])
+
+        var.trace_add("write", ao_mudar)
         ttk.Button(fila, text="Procurar", style="Procurar.TButton",
                    command=lambda: self._escolher(var, escolher)).pack(side="left", padx=(6, 0))
 
@@ -211,98 +316,165 @@ class Janela(tk.Tk):
         if caminho:
             var.set(caminho)
 
-    def _painel_entradas(self, pai: tk.Widget) -> None:
-        c = self._cartao(pai, "ENTRADAS")
-        self._linha_caminho(c, "pes", "Relatório PES (.docx)",
+    def _linha_texto(self, pai: tk.Widget, chave: str, rotulo: str, dica: str) -> None:
+        tk.Label(pai, text=rotulo, bg=PALETA["cartao"], fg=PALETA["texto"],
+                 font=(FONTE, 9, "bold")).pack(anchor="w")
+        var = tk.StringVar()
+        self._campos[chave] = var
+        tk.Entry(pai, textvariable=var, relief="solid", bd=1, bg=PALETA["cartao"],
+                 fg=PALETA["texto"], font=(FONTE, 9)).pack(fill="x", ipady=4, pady=(3, 2))
+        tk.Label(pai, text=dica, bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 7), wraplength=340, justify="left").pack(anchor="w", pady=(0, 10))
+
+    def _coluna_entradas(self, pai: tk.Widget) -> None:
+        c = self._secao(pai, "Entradas")
+        self._linha_caminho(c, "pes", "Relatório PES", ".docx",
                             lambda: filedialog.askopenfilename(
                                 title="Relatório PES",
                                 filetypes=[("Word", "*.docx"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "recibida", "Pasta dos documentos recebidos",
+        self._linha_caminho(c, "recibida", "Documentos recebidos", "pasta",
                             lambda: filedialog.askdirectory(title="Doc Recibida"))
-        self._linha_caminho(c, "base", "Base de hallazgos (.csv)",
+        self._linha_caminho(c, "base", "Base de hallazgos", ".csv",
                             lambda: filedialog.askopenfilename(
                                 title="Base de hallazgos",
                                 filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "template", "Template LPA (.xlsm)",
+        self._linha_caminho(c, "template", "Template LPA", ".xlsm",
                             lambda: filedialog.askopenfilename(
                                 title="Template LPA",
                                 filetypes=[("Excel com macros", "*.xlsm"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "trabalho", "Pasta onde gravar os resultados",
+        self._linha_caminho(c, "trabalho", "Pasta de trabalho", "pasta",
                             lambda: filedialog.askdirectory(title="Pasta de trabalho"))
 
-    def _linha_texto(self, pai: tk.Widget, chave: str, rotulo: str, dica: str) -> None:
-        tk.Label(pai, text=rotulo, bg=PALETA["cartao"], fg=PALETA["texto"],
-                 font=("Segoe UI", 9)).pack(anchor="w")
-        var = tk.StringVar()
-        self._campos[chave] = var
-        tk.Entry(pai, textvariable=var, relief="solid", bd=1,
-                 font=("Segoe UI", 9)).pack(fill="x", ipady=3, pady=(2, 1))
-        tk.Label(pai, text=dica, bg=PALETA["cartao"], fg=PALETA["apagado"],
-                 font=("Segoe UI", 8)).pack(anchor="w", pady=(0, 8))
-
-    def _painel_opcoes(self, pai: tk.Widget) -> None:
-        c = self._cartao(pai, "OPÇÕES")
+        self._regua(pai)
+        c = self._secao(pai, "Contexto da obra")
         self._linha_texto(c, "solicitante", "Solicitante", "Quem faz os envíos. Ex.: ADIF")
         self._linha_texto(c, "scope", "Âncoras desta obra",
                           "Separadas por vírgula. Ex.: Sant Vicenç de Calders, TRAMO 2")
         self._linha_texto(c, "excluir_obra", "Código desta obra",
                           "Ex.: EXC2026-18042. Evita sugerir a partir da própria resposta.")
 
+        self._regua(pai)
+        c = self._secao(pai, "Exigência das sugestões")
         fila = tk.Frame(c, bg=PALETA["cartao"])
-        fila.pack(fill="x", pady=(2, 6))
-        tk.Label(fila, text="Exigência das sugestões", bg=PALETA["cartao"],
-                 fg=PALETA["texto"], font=("Segoe UI", 9)).pack(side="left")
+        fila.pack(fill="x")
         self._min_score = tk.DoubleVar(value=12.0)
-        tk.Spinbox(fila, from_=0, to=60, increment=2, width=6,
-                   textvariable=self._min_score, relief="solid", bd=1,
-                   font=("Segoe UI", 9)).pack(side="right")
+        valor = tk.Label(fila, text="12", bg=PALETA["cartao"], fg=PALETA["texto"],
+                         font=(FONTE, 10, "bold"), width=4, relief="solid", bd=1)
+        valor.pack(side="right", padx=(10, 0))
+        tk.Scale(fila, from_=0, to=60, resolution=2, orient="horizontal",
+                 variable=self._min_score, showvalue=False, bg=PALETA["cartao"],
+                 troughcolor=PALETA["fundo"], activebackground=PALETA["marca"],
+                 highlightthickness=0, bd=0, sliderrelief="flat",
+                 command=lambda v: valor.configure(text=str(int(float(v))))
+                 ).pack(side="left", fill="x", expand=True)
         tk.Label(c, text="Mais alto = menos sugestões, mas mais parecidas. 12 é um começo razoável.",
-                 bg=PALETA["cartao"], fg=PALETA["apagado"], font=("Segoe UI", 8),
-                 wraplength=380, justify="left").pack(anchor="w", pady=(0, 8))
+                 bg=PALETA["cartao"], fg=PALETA["apagado"], font=(FONTE, 7),
+                 wraplength=340, justify="left").pack(anchor="w", pady=(6, 10))
 
         self._skip_lpa = tk.BooleanVar(value=True)
         ttk.Checkbutton(c, text="Deixar a aba LPA vazia para preencher à mão",
                         variable=self._skip_lpa).pack(anchor="w")
         self._substituir = tk.BooleanVar(value=False)
         ttk.Checkbutton(c, text="Ao sugerir, substituir as sugestões anteriores",
-                        variable=self._substituir).pack(anchor="w", pady=(2, 0))
+                        variable=self._substituir).pack(anchor="w", pady=(3, 16))
 
-    def _painel_passos(self, pai: tk.Widget) -> None:
-        c = self._cartao(pai, "PASSOS")
-        for p in pipeline.PASSOS:
-            b = ttk.Button(c, text=p.titulo, style="Passo.TButton",
-                           command=lambda chave=p.chave: self._correr(chave))
-            b.pack(fill="x", pady=(0, 4))
-            self._botoes.append(b)
-            tk.Label(c, text=p.descricao, bg=PALETA["cartao"], fg=PALETA["apagado"],
-                     font=("Segoe UI", 8), wraplength=380,
-                     justify="left").pack(anchor="w", pady=(0, 9))
+    # ----------------------------------------------------------------- fluxo
+    def _painel_fluxo(self, pai: tk.Widget) -> None:
+        topo = tk.Frame(pai, bg=PALETA["cartao"])
+        topo.pack(fill="x", padx=22, pady=(16, 0))
+        tk.Label(topo, text="FLUXO", bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 8, "bold")).pack(side="left")
+        self._resumo = tk.Label(topo, text="0 de 5 passos concluídos", bg=PALETA["cartao"],
+                                fg=PALETA["apagado"], font=(FONTE, 8))
+        self._resumo.pack(side="left", padx=(12, 0))
+
+        cartoes = tk.Frame(pai, bg=PALETA["cartao"])
+        cartoes.pack(fill="x", padx=22, pady=(10, 0))
+        for i, p in enumerate(pipeline.PASSOS, start=1):
+            cartoes.columnconfigure(i - 1, weight=1, uniform="passo")
+            cartao = _CartaoPasso(cartoes, i, p, self._correr_indice)
+            cartao.grid(row=0, column=i - 1, sticky="nsew", padx=(0 if i == 1 else 5, 0))
+            self._cartoes[i] = cartao
+
+        acoes = tk.Frame(pai, bg=PALETA["cartao"])
+        acoes.pack(fill="x", padx=22, pady=(14, 0))
+        self._botao = ttk.Button(acoes, text="CORRER PASSO 1", style="Marca.TButton",
+                                 command=lambda: self._correr_indice(self._seguinte()))
+        self._botao.pack(side="left")
+        ttk.Button(acoes, text="ABRIR PASTA", style="Contorno.TButton",
+                   command=self._abrir_pasta).pack(side="left", padx=(8, 0))
+
+        tk.Label(acoes, text="PROGRESSO", bg=PALETA["cartao"], fg=PALETA["apagado"],
+                 font=(FONTE, 7, "bold")).pack(side="left", padx=(24, 8))
+        self._progresso = ttk.Progressbar(acoes, style="Marca.Horizontal.TProgressbar",
+                                          length=180, maximum=len(pipeline.PASSOS))
+        self._progresso.pack(side="left")
+        self._percent = tk.Label(acoes, text="0%", bg=PALETA["cartao"], fg=PALETA["texto_2"],
+                                 font=(FONTE, 8, "bold"))
+        self._percent.pack(side="left", padx=(8, 0))
+
+        tk.Frame(pai, bg=PALETA["linha"], height=1).pack(fill="x", pady=(16, 0))
+
+    def _seguinte(self) -> int:
+        return min(self._feitos + 1, len(pipeline.PASSOS))
+
+    def _marcar_passos(self) -> None:
+        seguinte = self._seguinte()
+        for i, cartao in self._cartoes.items():
+            if i <= self._feitos:
+                cartao.estado("feito")
+            elif i == seguinte:
+                cartao.estado("correr" if self._a_correr else "seguinte")
+            else:
+                cartao.estado("espera")
+        total = len(pipeline.PASSOS)
+        self._resumo.configure(text=f"{self._feitos} de {total} passos concluídos")
+        self._progresso.configure(value=self._feitos)
+        self._percent.configure(text=f"{round(self._feitos / total * 100)}%")
+        self._botao.configure(text=f"CORRER PASSO {seguinte}")
+
+    def _abrir_pasta(self) -> None:
+        import subprocess
+
+        pasta = self._campos["trabalho"].get().strip() or self._campos["pes"].get().strip()
+        if not pasta:
+            messagebox.showinfo("Sem pasta", "Escolhe primeiro a pasta de trabalho.")
+            return
+        caminho = Path(pasta)
+        caminho = caminho if caminho.is_dir() else caminho.parent
+        try:
+            if sys.platform.startswith("win"):
+                subprocess.Popen(["explorer", str(caminho)])
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(caminho)])
+            else:
+                subprocess.Popen(["xdg-open", str(caminho)])
+        except OSError as e:
+            messagebox.showwarning("Não deu", str(e))
 
     # -------------------------------------------------------------- consola
     def _painel_consola(self, pai: tk.Widget) -> None:
-        fora = tk.Frame(pai, bg=PALETA["linha"])
-        fora.grid(row=0, column=1, sticky="nsew")
-        dentro = tk.Frame(fora, bg=PALETA["consola_fundo"])
-        dentro.pack(fill="both", expand=True, padx=1, pady=1)
+        fora = tk.Frame(pai, bg=PALETA["consola_fundo"])
+        fora.pack(fill="both", expand=True)
 
-        topo = tk.Frame(dentro, bg=PALETA["consola_fundo"])
-        topo.pack(fill="x", padx=12, pady=(9, 4))
+        topo = tk.Frame(fora, bg=PALETA["consola_fundo"])
+        topo.pack(fill="x", padx=22, pady=(12, 4))
         tk.Label(topo, text="O QUE ESTÁ A ACONTECER", bg=PALETA["consola_fundo"],
-                 fg="#7C8B99", font=("Segoe UI", 9, "bold")).pack(side="left")
+                 fg="#7C8B99", font=(FONTE, 8, "bold")).pack(side="left")
         tk.Button(topo, text="Limpar", command=self._limpar, relief="flat",
-                  bg=PALETA["consola_fundo"], fg="#7C8B99", activebackground=PALETA["consola_fundo"],
-                  activeforeground="#FFFFFF", font=("Segoe UI", 8), bd=0,
-                  cursor="hand2").pack(side="right")
+                  bg=PALETA["consola_fundo"], fg="#7C8B99",
+                  activebackground=PALETA["consola_fundo"], activeforeground=PALETA["marca"],
+                  font=(FONTE, 8), bd=0, cursor="hand2").pack(side="right")
 
-        moldura = tk.Frame(dentro, bg=PALETA["consola_fundo"])
-        moldura.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        moldura = tk.Frame(fora, bg=PALETA["consola_fundo"])
+        moldura.pack(fill="both", expand=True, padx=22, pady=(0, 16))
         barra = tk.Scrollbar(moldura)
         barra.pack(side="right", fill="y")
         self._consola = tk.Text(moldura, wrap="word", relief="flat",
                                 bg=PALETA["consola_fundo"], fg=PALETA["consola_texto"],
                                 insertbackground=PALETA["consola_texto"],
                                 font=("Consolas", 9), yscrollcommand=barra.set,
-                                padx=8, pady=8)
+                                padx=0, pady=4)
         self._consola.pack(fill="both", expand=True)
         barra.config(command=self._consola.yview)
         for etiqueta, cor in (("normal", PALETA["consola_texto"]), ("apagado", "#8A98A5"),
@@ -347,7 +519,10 @@ class Janela(tk.Tk):
             substituir_sugestoes=bool(self._substituir.get()),
         )
 
-    def _correr(self, chave: str) -> None:
+    def _correr_indice(self, indice: int) -> None:
+        self._correr(pipeline.PASSOS[indice - 1].chave, indice)
+
+    def _correr(self, chave: str, indice: int) -> None:
         if self._a_correr:
             return
         passo = pipeline.passo(chave)
@@ -372,6 +547,7 @@ class Janela(tk.Tk):
                 return
 
         cfg.trabalho.mkdir(parents=True, exist_ok=True)
+        self._a_indice = indice
         self._bloquear(True, passo.titulo)
         self._escrever("", "normal")
         self._escrever(f"── {passo.titulo} ──", "titulo")
@@ -418,16 +594,20 @@ class Janela(tk.Tk):
     def _terminou(self, codigo: int) -> None:
         if codigo == 0:
             self._escrever("Concluído.", "bom")
+            self._feitos = max(self._feitos, getattr(self, "_a_indice", 0))
         else:
             self._escrever(f"Terminou com erro (código {codigo}).", "mau")
         self._bloquear(False, "")
 
     def _bloquear(self, ocupado: bool, titulo: str) -> None:
         self._a_correr = ocupado
-        for b in self._botoes:
-            b.state(["disabled"] if ocupado else ["!disabled"])
-        self._estado.config(text=f"A correr: {titulo}…" if ocupado else "")
+        self._botao.state(["disabled"] if ocupado else ["!disabled"])
+        if ocupado:
+            self._estado.configure(text=f"● A correr: {titulo}…", fg=PALETA["marca"])
+        else:
+            self._estado.configure(text="● Pronto", fg=PALETA["bom"])
         self.config(cursor="watch" if ocupado else "")
+        self._marcar_passos()
 
 
 def main() -> int:
