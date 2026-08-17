@@ -129,20 +129,19 @@ Duas coisas, e nada mais no programa depende delas:
 **Cores** — o dicionário `PALETA`, no topo de `lpa_filler/gui.py`. O laranja é a
 única cor de marca; trocar os três tons de `marca` muda a janela toda.
 
-**Logótipo** — largar o símbolo em `assets/simbolo.png` (PNG transparente,
-≥256 px) e correr:
+**Logótipo** — a marca real da Exceltic já está em `assets/` (`logo-lockup.png`
+e `simbolo.png`, ver `assets/LEIA-ME.md`). Trocar por outra versão é largar os
+ficheiros novos nesses nomes e correr:
 
 ```bash
 python assets/gerar_marca.py
 ```
 
-Escreve o `logo.png` da barra (44 px sobre branco) e o `logo.ico` do executável
-(16→256 px), e diz na consola se usou o símbolo verdadeiro ou o provisório —
-para não se entregar um `.exe` com o símbolo de teste sem dar por isso.
-
-> Os `logo.png` e `logo.ico` no repositório são **provisórios**: um quadrado
-> laranja com um E. Não são a marca da Exceltic. Estão lá porque um `.exe` sem
-> ícone é dos primeiros a ser travado pelo antivírus.
+Escreve o `logo.png` da barra (o lockup completo, 44 px sobre branco) e o
+`logo.ico` do executável (só o escudo, 16→256 px — o lockup completo não se lê
+a 16 px). Diz na consola qual dos dois usou de verdade e qual caiu no
+provisório, para nunca se entregar um `.exe` com a marca errada sem dar por
+isso.
 
 Ambos são opcionais: sem eles a janela mostra o nome em texto e o executável
 fica com o ícone genérico. Depois de mudar, voltar a correr `construir.bat`.

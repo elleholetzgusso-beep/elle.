@@ -1,18 +1,18 @@
-"""Gera o `logo.png` da janela e o `logo.ico` do executável, a partir do símbolo.
+"""Gera o `logo.png` da janela e o `logo.ico` do executável, a partir da marca.
 
-Põe o símbolo da Exceltic em `assets/simbolo.png` (PNG com fundo transparente,
-256 px ou mais) e corre:
+Dois ficheiros de origem, cada um para o seu uso — não são o mesmo ficheiro a
+dois tamanhos, porque o lockup completo (escudo + "Exceltic" + "DELIVERING
+EXCELLENCE") deixa de se ler a 16 px, e um ícone só com o escudo perde a marca
+na barra da janela, onde há espaço de sobra.
+
+    assets/logo-lockup.png   escudo + wordmark + tagline → barra da janela
+    assets/simbolo.png       só o escudo, recortado      → ícone do .exe
 
     pip install Pillow
     python assets/gerar_marca.py
 
-Sem esse ficheiro, desenha um símbolo PROVISÓRIO — um quadrado laranja com um E.
-Não é a marca da Exceltic: serve só para o executável não sair com o ícone
-genérico do PyInstaller, que é dos sinais que mais depressa fazem um antivírus
-desconfiar. O aviso aparece na consola sempre que isso acontece.
-
-Na barra de topo entra só o símbolo: a palavra «EXCELTIC» não vai aqui porque já
-lá está «AUTOMATIZAÇÃO DE LPA» em texto, ao lado.
+Falta algum dos dois? Cai no provisório correspondente — um quadrado laranja
+com um E — e diz-se na consola qual ficheiro entrou de verdade e qual não.
 """
 from __future__ import annotations
 
@@ -21,7 +21,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 AQUI = Path(__file__).resolve().parent
-ORIGEM = AQUI / "simbolo.png"
+ORIGEM_LOCKUP = AQUI / "logo-lockup.png"
+ORIGEM_SIMBOLO = AQUI / "simbolo.png"
 
 LARANJA = (241, 87, 34)
 BRANCO = (255, 255, 255)
@@ -59,22 +60,22 @@ def _provisorio(lado: int) -> Image.Image:
     return img
 
 
-def simbolo() -> tuple[Image.Image, bool]:
-    """O símbolo em RGBA, e se é o verdadeiro ou o provisório."""
-    if ORIGEM.exists():
-        img = Image.open(ORIGEM).convert("RGBA")
+def _abrir(origem: Path) -> tuple[Image.Image, bool]:
+    """A imagem em RGBA, e se veio do ficheiro real ou do provisório."""
+    if origem.exists():
+        img = Image.open(origem).convert("RGBA")
         if min(img.size) < 128:
-            print(f"! {ORIGEM.name} tem só {img.size[0]}x{img.size[1]} px — "
-                  "o ícone a 256 px vai sair esborratado. Convém 256 px ou mais.")
+            print(f"! {origem.name} tem só {img.size[0]}x{img.size[1]} px — "
+                  "convém 256 px ou mais para não sair esborratado.")
         return img, True
     return _provisorio(256 * 2), False
 
 
-def gerar_png(marca: Image.Image) -> Path:
-    """Símbolo à altura da barra, achatado sobre branco — a barra é branca."""
-    escala = ALTURA_PNG / marca.height
-    tamanho = (max(1, round(marca.width * escala)), ALTURA_PNG)
-    reduzido = marca.resize(tamanho, Image.LANCZOS)
+def gerar_png(lockup: Image.Image) -> Path:
+    """O lockup completo à altura da barra, sobre branco — a barra é branca."""
+    escala = ALTURA_PNG / lockup.height
+    tamanho = (max(1, round(lockup.width * escala)), ALTURA_PNG)
+    reduzido = lockup.resize(tamanho, Image.LANCZOS)
 
     fundo = Image.new("RGB", tamanho, BRANCO)
     fundo.paste(reduzido, (0, 0), reduzido)
@@ -84,11 +85,11 @@ def gerar_png(marca: Image.Image) -> Path:
     return destino
 
 
-def gerar_ico(marca: Image.Image) -> Path:
-    """Só o símbolo, com transparência. A 16 px uma palavra não se leria."""
-    lado = max(marca.size)
+def gerar_ico(simbolo: Image.Image) -> Path:
+    """Só o escudo, com transparência. A 16 px o lockup completo não se leria."""
+    lado = max(simbolo.size)
     quadrado = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
-    quadrado.paste(marca, ((lado - marca.width) // 2, (lado - marca.height) // 2), marca)
+    quadrado.paste(simbolo, ((lado - simbolo.width) // 2, (lado - simbolo.height) // 2), simbolo)
 
     destino = AQUI / "logo.ico"
     quadrado.resize((256, 256), Image.LANCZOS).save(
@@ -98,15 +99,18 @@ def gerar_ico(marca: Image.Image) -> Path:
 
 
 def main() -> int:
-    marca, verdadeiro = simbolo()
-    for caminho in (gerar_png(marca), gerar_ico(marca)):
+    lockup, lockup_real = _abrir(ORIGEM_LOCKUP)
+    simb, simb_real = _abrir(ORIGEM_SIMBOLO)
+
+    for caminho in (gerar_png(lockup), gerar_ico(simb)):
         print(f"Escrito: {caminho}")
 
-    if verdadeiro:
-        print(f"\nA partir de {ORIGEM.name}.")
-    else:
-        print("\nPROVISÓRIOS — não são a marca da Exceltic.")
-        print(f"Põe o símbolo em {ORIGEM} e volta a correr isto.")
+    print()
+    print(f"logo.png: {'a partir de ' + ORIGEM_LOCKUP.name if lockup_real else 'PROVISÓRIO — não é a marca da Exceltic'}")
+    print(f"logo.ico: {'a partir de ' + ORIGEM_SIMBOLO.name if simb_real else 'PROVISÓRIO — não é a marca da Exceltic'}")
+    if not (lockup_real and simb_real):
+        faltam = [o.name for o, ok in ((ORIGEM_LOCKUP, lockup_real), (ORIGEM_SIMBOLO, simb_real)) if not ok]
+        print(f"\nPõe em assets/: {', '.join(faltam)} — e volta a correr isto.")
     print("Depois: empacotar\\construir.bat")
     return 0
 

@@ -1,37 +1,48 @@
 # Marca
 
-> **O `logo.png` e o `logo.ico` que aqui estão são provisórios** — um quadrado
-> laranja com um E. Não são a marca da Exceltic. Estão cá porque um `.exe` sem
-> ícone é dos sinais que mais depressa fazem um antivírus desconfiar.
+A marca verdadeira da Exceltic já está aqui, em dois ficheiros de origem:
 
-## Pôr a marca verdadeira
-
-Um ficheiro e um comando:
-
-1. Guardar o símbolo em **`assets/simbolo.png`** — PNG com fundo transparente,
-   256 px ou mais.
-2. ```bash
-   pip install Pillow
-   python assets/gerar_marca.py
-   ```
-3. `empacotar\construir.bat`
-
-O gerador escreve o `logo.png` e o `logo.ico` a partir dele, e diz na consola se
-usou o símbolo verdadeiro ou o provisório. Não é preciso mexer no `LPA.spec`:
-já apanha o que estiver em `assets/`.
-
-## Os dois ficheiros gerados
-
-| Ficheiro | Onde aparece | O que é |
+| Ficheiro | O que é | Origem |
 |---|---|---|
-| `logo.png` | Barra de topo da janela | O símbolo a 44 px, achatado sobre branco — a barra é branca. O tkinter não redimensiona, por isso o tamanho tem de vir certo do gerador. |
-| `logo.ico` | Ícone do `.exe` e da barra de tarefas | O símbolo com transparência, em 16/32/48/64/128/256 px. |
+| `logo-lockup.png` | Escudo + wordmark "Exceltic" + "DELIVERING EXCELLENCE" | Extraído do material de formação da Exceltic |
+| `simbolo.png` | Só o escudo, recortado do lockup | Recorte do ficheiro acima |
 
-Na barra vai **só o símbolo**, sem a palavra: já lá está «AUTOMATIZAÇÃO DE LPA»
-em texto, ao lado, e a palavra duas vezes na mesma barra não acrescenta nada.
+`logo.png` e `logo.ico` (os que o programa usa de facto) são **gerados** a
+partir destes dois — não se editam à mão:
 
-Ambos são opcionais. Sem eles a janela mostra `EXCELTIC` em texto e o executável
-fica com o ícone genérico — funciona à mesma.
+```bash
+pip install Pillow
+python assets/gerar_marca.py
+```
+
+seguido de `empacotar\construir.bat` para o executável apanhar o resultado.
+
+## Porque são dois ficheiros de origem, e não um só a dois tamanhos
+
+O lockup completo, com o wordmark em serifa e a legenda por baixo, deixa de se
+ler a 16 px — que é o tamanho mais pequeno do ícone do `.exe`, na barra de
+tarefas. O escudo sozinho, sem letras finas, ainda se reconhece a esse
+tamanho. Por isso:
+
+| Ficheiro gerado | Onde aparece | Vem de |
+|---|---|---|
+| `logo.png` | Barra de topo da janela | `logo-lockup.png`, à altura da barra (44 px), sobre branco |
+| `logo.ico` | Ícone do `.exe` e da barra de tarefas | `simbolo.png`, com transparência, em 16/32/48/64/128/256 px |
+
+Se algum dos dois ficheiros de origem faltar, o gerador cai num provisório —
+um quadrado laranja com um E — e diz isso mesmo na consola, para nunca se
+confundir um com o outro nem entregar um `.exe` com a marca errada sem dar por
+isso.
+
+> `simbolo.png` tem 78×104 px, recortado do lockup original (313×221 px) — não
+> há um ficheiro vetorial ou de maior resolução disponível. O ícone gerado fica
+> ligeiramente suave a 256 px por causa disso. Se a Exceltic tiver o escudo em
+> SVG ou PNG de maior resolução, substituir `simbolo.png` melhora o resultado
+> sem tocar em mais nada.
+
+Ambos os gerados são opcionais: sem eles a janela mostra `EXCELTIC` em texto e
+o executável fica com o ícone genérico do PyInstaller — funciona à mesma, só
+sem identificação.
 
 ## Cores
 
