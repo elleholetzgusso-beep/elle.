@@ -4,7 +4,7 @@ Um registo de compliance auditável tem duas obrigações que estes testes fixam
 
   * a chave é o ID estável, não o nº de apresentação — senão a mesma não
     conformidade muda de identidade entre revisões;
-  * o que não é derivável do diálogo fica ``(a preencher)``, nunca um valor
+  * o que não é derivável do diálogo fica ``(a completar)``, nunca um valor
     plausível inventado.
 """
 import csv

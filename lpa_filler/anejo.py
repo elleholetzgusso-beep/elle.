@@ -7,7 +7,7 @@ O PE/05 exige um registo de não conformidades com estas colunas:
     Responsable | Resultado verificación | Fecha cierre
 
 Este módulo deriva essas colunas dos ``puntos`` já existentes no projeto, sem
-inventar dados: o que não é derivável fica como ``(a preencher)`` (nunca um valor
+inventar dados: o que não é derivável fica como ``(a completar)`` (nunca um valor
 fabricado, porque isto é um registo de compliance auditável). As datas e o
 responsável saem dos ``tipo`` do diálogo, que seguem o padrão real
 "Respuesta <PARTE> (dd/mm/aaaa)".
@@ -34,7 +34,9 @@ CAMPOS = [
     "responsable", "resultado_verificacion", "fecha_cierre",
 ]
 
-A_PREENCHER = "(a preencher)"
+# O Anejo A.2 é um documento em espanhol entregue ao cliente: o marcador do
+# que falta tem de ser lido por quem o recebe.
+A_PREENCHER = "(a completar)"
 
 _RESULTADO = {
     "Cerrado": "Verificada y cerrada",

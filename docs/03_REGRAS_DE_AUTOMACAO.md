@@ -37,7 +37,7 @@ promover um punto está a atravessar esta linha, e a resposta por omissão é n�
 | **ID estável do hallazgo** | PE/03, ISO 17020 | `model.assign_ids` | Cada punto recebe um `id` (`H-001`, …) na primeira escrita do projeto e nunca o perde. É o `id` — não o `n`, que renumera — que liga o mesmo hallazgo entre revisões. IDs não são reutilizados: apagar o H-007 não faz o seguinte passar a H-007. |
 | **Transições de estado** | PE/03 §8.4 | `fill --strict`, `model.lint` | `Resuelto` exige resposta do cliente **e** aceitação da ação pelo avaliador; `Cerrado` exige além disso evidência documental citada. Verifica a **presença** da prova, nunca o mérito. Avisa por omissão; bloqueia com `--strict`. |
 | **Coerência entre entregáveis** | PE/03, PE/05 | `model.preparar_emissao` | O `fill` e o `anejo` passam pelo mesmo funil de descartes e renumeração. Qualquer comando novo que produza um entregável tem de chamar esta função. |
-| **Anejo A.2** | PE/05 | `anejo` | Base de No Conformidades derivada dos puntos, indexada pelo `id`. Campos não deriváveis ficam `(a preencher)`. |
+| **Anejo A.2** | PE/05 | `anejo` | Base de No Conformidades derivada dos puntos, indexada pelo `id`. Campos não deriváveis ficam `(a completar)`. |
 | **Deteção de contaminação de outra obra** | — | `suggest --scope` | Hallazgos que nomeiam outra obra e nenhuma âncora desta ficam `_fora_escopo` e afundados na ordenação. **Não são apagados** — o avaliador confirma ou remove a chave. |
 | **Sugestões numa revisão** | — | `suggest` | Os puntos já no projeto são excluídos da base **antes** do corte aos `-n` melhores, para não gastarem as vagas. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas que menciona. Sem palavra-chave, fica sem etiqueta — não força. |
@@ -77,7 +77,7 @@ esta não existe porque não está.
 
 ### 4. Preencher campos não deriváveis
 
-O Anejo A.2 deixa `(a preencher)` no que não sai do diálogo — a `fecha_deteccion`, por
+O Anejo A.2 deixa `(a completar)` no que não sai do diálogo — a `fecha_deteccion`, por
 exemplo, não existe em lado nenhum e sai sempre por preencher. Um valor plausível seria
 indistinguível de um verdadeiro para quem lesse o registo depois.
 

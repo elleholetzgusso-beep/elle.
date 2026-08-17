@@ -37,7 +37,7 @@ def _dump_yaml(data: Any, out: str | None) -> None:
 
         novos = model.assign_ids(data)
         if novos:
-            print(f"# {len(novos)} ID(s) estáveis atribuídos ({novos[0]}..{novos[-1]}).",
+            print(f"# {len(novos)} ID(s) estables asignados ({novos[0]}..{novos[-1]}).",
                   file=sys.stderr)
     text = yaml.dump(
         data, Dumper=_NoAliasDumper, allow_unicode=True, sort_keys=False, default_flow_style=False
@@ -70,11 +70,11 @@ def _cmd_fill(args) -> int:
     # um 'Cerrado' sem prova de execução falseia o veredito do IES.
     transicoes = model.check_transiciones(data)
     if transicoes and args.strict:
-        print(f"\n== ESTADOS SEM SUPORTE NO DIÁLOGO ({len(transicoes)}) — PE/03 §8.4 ==",
+        print(f"\n== ESTADOS SIN SOPORTE EN EL DIÁLOGO ({len(transicoes)}) — PE/03 §8.4 ==",
               file=sys.stderr)
         for t in transicoes:
             print(f"  ✗ {t}", file=sys.stderr)
-        print("\nFicheiro NÃO gerado (--strict). Corrige os estados acima, ou corre "
+        print("\nFichero NO generado (--strict). Corrige los estados de arriba, o ejecuta "
               "sem --strict para gerar mesmo assim.", file=sys.stderr)
         return 1
     v = model.veredicto(data)
@@ -85,7 +85,7 @@ def _cmd_fill(args) -> int:
         return _erro_bloqueado(args.out)
     print(f"\n== {vtexto} ==")
     if v["criticos_abiertos"]:
-        print("   (um Crítico Abierto impede o informe favorável — PE/03; o ficheiro foi gerado na mesma)")
+        print("   (un Crítico Abierto impide el informe favorable — PE/03; el fichero se generó igualmente)")
     print()
     counts = model.resumen_counts(data)
     total = sum(c["total"] for c in counts.values())
@@ -96,7 +96,7 @@ def _cmd_fill(args) -> int:
             print(f"  {val}: {c['total']}")
     avisos = model.lint(data)
     if avisos:
-        print(f"\nAvisos ({len(avisos)}) — boas práticas do guia LPA:")
+        print(f"\nAvisos ({len(avisos)}) — buenas prácticas de la guía LPA:")
         for a in avisos:
             print(f"  ! {a}")
     return 0
@@ -114,11 +114,11 @@ def _cmd_scan(args) -> int:
     desviados = [d for d in documentos if d.get("_triage") == "desviado"]
     incertos = [d for d in documentos if d.get("_triage") == "incerto"]
     if desviados:
-        print(f"# {len(desviados)} desviados (não avaliativos, PE/01 — sem puntos de LPA):", file=sys.stderr)
+        print(f"# {len(desviados)} desviados (no evaluativos, PE/01 — sin puntos de LPA):", file=sys.stderr)
         for d in desviados:
             print(f"#   - {d['nombre']}: {d['_triage_motivo']}", file=sys.stderr)
     if incertos:
-        print(f"# {len(incertos)} incertos (rever manualmente; seguem no fluxo normal):", file=sys.stderr)
+        print(f"# {len(incertos)} inciertos (revisar a mano; siguen en el flujo normal):", file=sys.stderr)
         for d in incertos:
             print(f"#   ? {d['nombre']}: {d['_triage_motivo']}", file=sys.stderr)
     from . import nomenclatura
@@ -143,8 +143,8 @@ def _erro_bloqueado(path: str) -> int:
     bruto — um traceback de 15 linhas para algo que se resolve fechando a janela.
     """
     print(
-        f"\nNão consigo escrever '{path}': o ficheiro está aberto noutro programa "
-        f"(tipicamente o Excel).\nFecha-o e corre o comando outra vez.",
+        f"\nNo puedo escribir '{path}': el fichero está abierto en otro programa "
+        f"(normalmente Excel).\nCiérralo y ejecuta el comando otra vez.",
         file=sys.stderr,
     )
     return 1
@@ -156,7 +156,7 @@ def _cmd_anejo(args) -> int:
     projeto = _load_yaml(args.projeto)
     puntos = projeto.get("puntos") or []
     if not puntos:
-        print(f"Sem puntos em {args.projeto} — nada a gerar.", file=sys.stderr)
+        print(f"Sin puntos en {args.projeto} — nada que generar.", file=sys.stderr)
         return 1
 
     # O Anejo A.2 é indexado pelo ID estável (§4). Atribuir IDs só em memória
@@ -165,16 +165,16 @@ def _cmd_anejo(args) -> int:
     sem_id = [pt for pt in puntos if not model.normalize_id(pt.get("id") or "")]
     if sem_id and not args.asignar_ids:
         print(
-            f"{len(sem_id)} punto(s) sem 'id' estável em {args.projeto}.\n"
-            f"O Anejo A.2 é indexado por ID — corre de novo com --asignar-ids "
-            f"para os atribuir e gravar no projeto.",
+            f"{len(sem_id)} punto(s) sin 'id' estable en {args.projeto}.\n"
+            f"El Anejo A.2 se indexa por ID — ejecuta de nuevo con --asignar-ids "
+            f"para asignarlos y guardarlos en el proyecto.",
             file=sys.stderr,
         )
         return 1
     if sem_id:
         novos = model.assign_ids(projeto)
         _dump_yaml(projeto, args.projeto)
-        print(f"{len(novos)} ID(s) atribuídos e gravados em {args.projeto}.")
+        print(f"{len(novos)} ID(s) asignados y guardados en {args.projeto}.")
 
     # Mesmo funil do fill: o Anejo A.2 e o LPA são duas vistas do mesmo registo,
     # por isso têm de descrever o mesmo conjunto de hallazgos. Sem isto, o Anejo
@@ -190,7 +190,7 @@ def _cmd_anejo(args) -> int:
     )):
         print(
             f"IDs pedidos mas descartados nesta emissão: {', '.join(pedidos_fora)}. "
-            f"Ver o motivo acima — não entram no LPA, logo não entram no Anejo.",
+            f"Ver el motivo arriba — no entran en el LPA, luego no entran en el Anejo.",
             file=sys.stderr,
         )
         return 1
@@ -206,7 +206,7 @@ def _cmd_anejo(args) -> int:
     except PermissionError:
         return _erro_bloqueado(args.out)
     print(f"Gerado: {out}")
-    print(f"  linhas: {len(linhas)} (de {len(puntos)} puntos no projeto"
+    print(f"  líneas: {len(linhas)} (de {len(puntos)} puntos en el proyecto"
           + (f", {len(descartados)} descartados" if descartados else "") + ")")
     # Contar por campo, não por linha: a 'fecha_deteccion' não é derivável de
     # lado nenhum, por isso sai sempre por preencher e sozinha marcaria 100% das
@@ -214,8 +214,8 @@ def _cmd_anejo(args) -> int:
     for campo in anejo.CAMPOS:
         falta = sum(1 for ln in linhas if str(ln.get(campo)) == anejo.A_PREENCHER)
         if falta:
-            print(f"  ! {campo}: {falta}/{len(linhas)} por preencher")
-    print("  (o que não é derivável do diálogo não é fabricado — completar à mão.)")
+            print(f"  ! {campo}: {falta}/{len(linhas)} por completar")
+    print("  (lo que no se deriva del diálogo no se fabrica — completar a mano.)")
     return 0
 
 
@@ -245,8 +245,8 @@ def _cmd_merge(args) -> int:
         if existente.get("puntos"):
             print(
                 f"Erro: '{args.out}' já tem {len(existente['puntos'])} puntos — o merge "
-                f"apagá-los-ia (cria projeto novo). Para uma revisão, usa 'update' "
-                f"(acrescenta documentos sem tocar nos puntos). Para forçar mesmo "
+                f"los borraría (crea proyecto nuevo). Para una revisión, usa 'update' "
+                f"(añade documentos sin tocar los puntos). Para forzar de todos modos "
                 f"assim, --force.",
                 file=sys.stderr,
             )
@@ -286,8 +286,8 @@ def _cmd_merge(args) -> int:
     }
     _dump_yaml(projeto, args.out)
     print(
-        f"# projeto criado: {len(documentos)} documentos. "
-        f"Edita a secção 'puntos' (hallazgos) e depois corre o comando 'fill'.",
+        f"# proyecto creado: {len(documentos)} documentos. "
+        f"Edita la sección 'puntos' (hallazgos) y después ejecuta el comando 'fill'.",
         file=sys.stderr,
     )
     return 0
@@ -301,8 +301,8 @@ def _cmd_update(args) -> int:
     projeto = _load_yaml(args.projeto)
     if not projeto.get("puntos"):
         print(
-            f"# aviso: '{args.projeto}' não tem puntos. Para um projeto novo, usa 'merge'. "
-            f"O 'update' serve para revisões (projeto já com puntos, vindo do extract).",
+            f"# aviso: '{args.projeto}' no tiene puntos. Para un proyecto nuevo, usa 'merge'. "
+            f"El 'update' sirve para revisiones (proyecto ya con puntos, venido del extract).",
             file=sys.stderr,
         )
     docs = _load_yaml(args.docs)
@@ -310,7 +310,7 @@ def _cmd_update(args) -> int:
     r = updater.merge_documentos(projeto, novos)
     _dump_yaml(projeto, args.out or args.projeto)
     print(
-        f"# projeto atualizado: +{r['novos_documentos']} documentos novos, "
+        f"# proyecto actualizado: +{r['novos_documentos']} documentos nuevos, "
         f"+{r['novos_envios']} envíos novos em documentos existentes. "
         f"{len(projeto.get('puntos', []))} puntos preservados.",
         file=sys.stderr,
@@ -329,7 +329,7 @@ def _cmd_draft(args) -> int:
     projeto = _load_yaml(args.projeto)
 
     def progresso(n, documento):
-        print(f"  a redigir rascunho do punto {n}: {documento[:55]}...", file=sys.stderr, flush=True)
+        print(f"  redactando borrador del punto {n}: {documento[:55]}...", file=sys.stderr, flush=True)
 
     try:
         r = draft.elaborar(projeto, args.recibida, on_punto=progresso)
@@ -349,7 +349,7 @@ def _cmd_draft(args) -> int:
         file=sys.stderr,
     )
     if not lector.PDF_OK:
-        print("# nota: suporte a .pdf desligado (pip install lpa-filler[pdf]).", file=sys.stderr)
+        print("# nota: soporte a .pdf desactivado (pip install lpa-filler[pdf]).", file=sys.stderr)
     return 0
 
 
@@ -376,14 +376,14 @@ def _cmd_harvest(args) -> int:
     if args.recibida:
         paths = harvest.find_lpa_files(args.recibida)
         if not paths:
-            print("Nenhum ficheiro de LPA (.xlsm com 'LPA' no nome) encontrado.", file=sys.stderr)
+            print("Ningún fichero de LPA (.xlsm con 'LPA' en el nombre) encontrado.", file=sys.stderr)
             return 1
     else:
         paths = args.input
     novos, total, saltados = harvest.harvest(paths, args.out, append=not args.overwrite)
-    print(f"Base de hallazgos: {args.out} (+{novos} novos, {total} no total, de {len(paths)} ficheiros)")
+    print(f"Base de hallazgos: {args.out} (+{novos} nuevos, {total} en total, de {len(paths)} ficheros)")
     if saltados:
-        print(f"Saltados {len(saltados)} (não são LPA no formato esperado):", file=sys.stderr)
+        print(f"Saltados {len(saltados)} (no son LPA en el formato esperado):", file=sys.stderr)
         for s in saltados:
             print(f"  - {s}", file=sys.stderr)
     return 0
@@ -409,7 +409,7 @@ def _cmd_suggest(args) -> int:
             # Aqui é que os _fora_escopo são atribuídos; avisar depois (no fill)
             # já é tarde, porque a marcação ficou gravada no YAML.
             print(
-                f"# ATENÇÃO: 'portada.referencia' ({referencia or 'vazia'}) não dá o código "
+                f"# ATENCIÓN: 'portada.referencia' ({referencia or 'vacía'}) no da el código "
                 f"desta obra. Sem ele, um hallazgo que cite o relatório desta obra é marcado "
                 f"_fora_escopo como se fosse de outra. Preenche a referência (ex. "
                 f"EXC2026-16883/002/LPA/03) antes de confiar na marcação.",
@@ -420,7 +420,7 @@ def _cmd_suggest(args) -> int:
             anchors=anchors,
         )
         if args.debug:
-            print("\n# DEBUG: melhor score por documento (mesmo abaixo de --min-score):", file=sys.stderr)
+            print("\n# DEBUG: mejor puntuación por documento (incluso por debajo de --min-score):", file=sys.stderr)
             vistos = set()
             for doc in projeto.get("documentos", []):
                 nombre = doc.get("nombre") or ""
@@ -438,8 +438,8 @@ def _cmd_suggest(args) -> int:
         fora = [pt for pt in sugeridos if pt.get("_fora_escopo")]
         print(
             f"# {len(existentes)} puntos existentes + {len(sugeridos)} sugeridos "
-            f"(rever!) de {len(base)} hallazgos"
-            + (f", {len(skip)} já no projeto (não repetidos)." if skip else "."),
+            f"(¡revisar!) de {len(base)} hallazgos"
+            + (f", {len(skip)} ya en el proyecto (no repetidos)." if skip else "."),
             file=sys.stderr,
         )
         if not sugeridos:
@@ -447,8 +447,8 @@ def _cmd_suggest(args) -> int:
             # decide o que fazer a seguir. Sem isto, um limiar mal calibrado é
             # indistinguível de uma base já toda aproveitada.
             print(
-                f"# Nenhuma sugestão nova. Ou a base já está toda no projeto, ou nada "
-                f"chega ao limiar --min-score {args.min_score:g} — corre com --debug "
+                f"# Ninguna sugerencia nueva. O la base ya está toda en el proyecto, o nada "
+                f"llega al umbral --min-score {args.min_score:g} — ejecuta con --debug "
                 f"para ver o melhor score de cada documento.",
                 file=sys.stderr,
             )
@@ -458,14 +458,14 @@ def _cmd_suggest(args) -> int:
         if scores:
             fracos = [s for s in scores if s < args.min_score * 1.5]
             print(
-                f"# scores das sugestões: min {scores[0]:.1f} / mediana "
+                f"# puntuaciones de las sugerencias: mín {scores[0]:.1f} / mediana "
                 f"{scores[len(scores) // 2]:.1f} / max {scores[-1]:.1f} "
-                f"(limiar atual --min-score {args.min_score:g}).",
+                f"(umbral actual --min-score {args.min_score:g}).",
                 file=sys.stderr,
             )
             if len(fracos) > len(scores) // 3:
                 print(
-                    f"# ATENÇÃO: {len(fracos)} das {len(scores)} sugestões estão perto do "
+                    f"# ATENCIÓN: {len(fracos)} de las {len(scores)} sugerencias están cerca del "
                     f"limiar — matches fracos (uma palavra em comum no nome do documento) "
                     f"entram como hallazgos. Sobe o limiar até só sobrar o que reconheces: "
                     f"--min-score {max(args.min_score * 2, 12):g}",
@@ -473,8 +473,8 @@ def _cmd_suggest(args) -> int:
                 )
         if anchors:
             print(
-                f"# scope={anchors}: {len(fora)} sugestões marcadas _fora_escopo "
-                f"(provável contaminação de outra obra — confirmar/remover).",
+                f"# scope={anchors}: {len(fora)} sugerencias marcadas _fora_escopo "
+                f"(probable contaminación de otra obra — confirmar/eliminar).",
                 file=sys.stderr,
             )
             for pt in fora:
@@ -491,7 +491,7 @@ def _cmd_suggest(args) -> int:
     elif args.query:
         res = suggest.search(base, args.query, n=args.n, valoracion=args.valoracion)
         if not res:
-            print("Sem correspondências.")
+            print("Sin coincidencias.")
         for sc, r in res:
             print(f"[{sc:.0f}] {r.get('valoracion','')}/{r.get('estado','')} | {r.get('documento','')[:35]} | {r.get('punto','')[:25]}")
             print(f"     {(r.get('hallazgo') or '')[:100]}  (de {r.get('fuente','')})")
@@ -507,10 +507,10 @@ def _cmd_rev(args) -> int:
     projeto = _load_yaml(args.projeto)
     entrada = _vers.nueva_revision(projeto, solicitante=args.solicitante)
     if entrada is None:
-        print("Nada a acrescentar: todos os envíos já estão mencionados no Control de Versiones.")
+        print("Nada que añadir: todos los envíos ya están mencionados en el Control de Versiones.")
         return 0
     _dump_yaml(projeto, args.out or args.projeto)
-    print(f"# Revisão {entrada['rev']} acrescentada:", file=sys.stderr)
+    print(f"# Revisión {entrada['rev']} añadida:", file=sys.stderr)
     for linha in str(entrada["descripcion"]).splitlines():
         print(f"#   {linha}", file=sys.stderr)
     return 0
@@ -522,7 +522,7 @@ def _cmd_verify(args) -> int:
     projeto = _load_yaml(args.projeto)
 
     def progresso(n, documento):
-        print(f"  a verificar punto {n}: {documento[:60]}...", file=sys.stderr, flush=True)
+        print(f"  verificando punto {n}: {documento[:60]}...", file=sys.stderr, flush=True)
 
     try:
         registos = verify.verificar(projeto, args.recibida, on_punto=progresso)
@@ -539,8 +539,8 @@ def _cmd_verify(args) -> int:
     localizados = sum(1 for r in registos if r["ficheiro"])
     sem_evidencia = sum(1 for r in registos if r["ficheiro"] and not any(a["trecho"] for a in r["achados"]))
     print(
-        f"\n# {abertos} puntos abertos verificados: {localizados} com ficheiro localizado, "
-        f"{sem_evidencia} sem trecho citado encontrado (rever à mão).",
+        f"\n# {abertos} puntos abiertos verificados: {localizados} con fichero localizado, "
+        f"{sem_evidencia} sin fragmento citado encontrado (revisar a mano).",
         file=sys.stderr,
     )
     from . import lector
@@ -558,7 +558,7 @@ def _cmd_leer(args) -> int:
     from . import leer, lector
 
     def progresso(i, total, path):
-        print(f"  a ler ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
+        print(f"  leyendo ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
 
     try:
         registos = leer.revisar_pasta(args.recibida, on_file=progresso)
@@ -578,7 +578,7 @@ def _cmd_leer(args) -> int:
     )
     if not lector.PDF_OK:
         print(
-            "# nota: suporte a .pdf desligado (instala: pip install lpa-filler[pdf]).",
+            "# nota: soporte a .pdf desactivado (instala: pip install lpa-filler[pdf]).",
             file=sys.stderr,
         )
     return 0
@@ -590,7 +590,7 @@ def _cmd_radar(args) -> int:
     base = radar.load_base(args.base)
 
     def progresso(i, total, path):
-        print(f"  a analisar ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
+        print(f"  analizando ({i}/{total}): {path.name}", file=sys.stderr, flush=True)
 
     try:
         registos = radar.analisar_pasta(
@@ -616,10 +616,10 @@ def _cmd_radar(args) -> int:
         file=sys.stderr,
     )
     if args.excluir_obra:
-        print(f"# obra '{args.excluir_obra}' excluída da base (não cola da própria resposta).",
+        print(f"# obra '{args.excluir_obra}' excluida de la base (no copia de la propia respuesta).",
               file=sys.stderr)
     if not lector.PDF_OK:
-        print("# nota: suporte a .pdf desligado (instala: pip install lpa-filler[pdf]).",
+        print("# nota: soporte a .pdf desactivado (instala: pip install lpa-filler[pdf]).",
               file=sys.stderr)
     return 0
 
@@ -628,7 +628,7 @@ def _cmd_gui(args) -> int:
     try:
         from . import gui
     except ImportError:
-        print("A janela gráfica precisa do tkinter, que falta nesta instalação de Python.\n"
+        print("La ventana gráfica necesita tkinter, que falta en esta instalación de Python.\n"
               "No Windows, reinstala o Python com a opção 'tcl/tk and IDLE' ligada.",
               file=sys.stderr)
         return 1

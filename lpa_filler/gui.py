@@ -42,7 +42,7 @@ PALETA = {
 }
 
 MARCA = "EXCELTIC"
-TITULO = "AUTOMATIZAÇÃO DE LPA"
+TITULO = "AUTOMATIZACIÓN DE LPA"
 SUBTITULO = "Listado de Puntos Abiertos · RAMS & Validación"
 
 FONTE = "Arial"
@@ -78,16 +78,24 @@ class _Escritor:
             self._resto = ""
 
 
+# Âncoras de cor da consola. Aceitam as duas línguas de propósito: as mensagens
+# passaram a espanhol, mas basta um `print` esquecido em português — ou um
+# ficheiro por traduzir — para um aviso deixar de ser âmbar sem ninguém reparar.
+_MAU = ("✗", "Erro", "erro:", "Error", "error:", "Traceback")
+_BOM = ("Escrito:", "Gerado:", "Generado:", "==", "✓")
+_AVISO = ("ATENÇÃO", "ATENCIÓN")
+
+
 def _classificar(linha: str) -> str:
     """Etiqueta de cor a partir do conteúdo — os comandos escrevem nos dois canais."""
     t = linha.strip()
     if not t:
         return "normal"
-    if t.startswith(("✗", "Erro", "erro:", "Traceback")):
+    if t.startswith(_MAU):
         return "mau"
-    if t.startswith(("!", "?")) or "ATENÇÃO" in t or t.startswith("# ATENÇÃO"):
+    if t.startswith(("!", "?")) or any(a in t for a in _AVISO):
         return "aviso"
-    if t.startswith(("Escrito:", "Gerado:", "==", "✓")):
+    if t.startswith(_BOM):
         return "bom"
     if t.startswith("#"):
         return "apagado"
@@ -112,7 +120,7 @@ class _CartaoPasso(tk.Frame):
                              font=(FONTE, 9, "bold"), bg=PALETA["cartao"],
                              fg=PALETA["apagado"], relief="solid", bd=1)
         self._num.pack(side="left")
-        self._etiqueta = tk.Label(topo, text="EM ESPERA", font=(FONTE, 7, "bold"),
+        self._etiqueta = tk.Label(topo, text="EN ESPERA", font=(FONTE, 7, "bold"),
                                   bg=PALETA["cartao"], fg=PALETA["apagado"])
         self._etiqueta.pack(side="right")
 
@@ -146,23 +154,23 @@ class _CartaoPasso(tk.Frame):
         self._estado = estado
         if estado == "feito":
             self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["bom"], "#FFFFFF",
-                         "FEITO", PALETA["bom"], PALETA["texto"], "✓")
+                         "HECHO", PALETA["bom"], PALETA["texto"], "✓")
         elif estado == "correr":
             self._pintar(PALETA["marca_clara"], PALETA["marca"], PALETA["marca"],
-                         "#FFFFFF", "A CORRER", PALETA["marca_escura"], PALETA["texto"],
+                         "#FFFFFF", "CORRIENDO", PALETA["marca_escura"], PALETA["texto"],
                          str(self._indice))
         elif estado == "seguinte":
             self._pintar(PALETA["marca_clara"], PALETA["marca"], PALETA["marca"],
-                         "#FFFFFF", "SEGUINTE", PALETA["marca_escura"], PALETA["texto"],
+                         "#FFFFFF", "SIGUIENTE", PALETA["marca_escura"], PALETA["texto"],
                          str(self._indice))
         elif estado == "dispensavel":
             # Continua clicável: não é proibido, é só desnecessário aqui.
             self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["cartao"],
-                         PALETA["apagado"], "DISPENSÁVEL", PALETA["apagado"],
+                         PALETA["apagado"], "PRESCINDIBLE", PALETA["apagado"],
                          PALETA["apagado"], str(self._indice))
         else:
             self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["cartao"],
-                         PALETA["apagado"], "EM ESPERA", PALETA["apagado"],
+                         PALETA["apagado"], "EN ESPERA", PALETA["apagado"],
                          PALETA["texto_2"], str(self._indice))
 
 
@@ -209,8 +217,8 @@ class Janela(tk.Tk):
         self._painel_consola(direita)
 
         self._marcar_passos()
-        self._escrever(f"{MARCA} · pronto.", "bom")
-        self._escrever("Escolhe as entradas à esquerda e corre os passos por ordem.", "apagado")
+        self._escrever(f"{MARCA} · listo.", "bom")
+        self._escrever("Elige las entradas a la izquierda y ejecuta los pasos en orden.", "apagado")
         self.after(60, self._drenar)
 
     # ---------------------------------------------------------------- aspeto
@@ -266,7 +274,7 @@ class Janela(tk.Tk):
         tk.Label(titulos, text=SUBTITULO, bg=PALETA["cartao"], fg=PALETA["apagado"],
                  font=(FONTE, 8)).pack(anchor="w")
 
-        self._estado = tk.Label(barra, text="● Pronto", bg=PALETA["cartao"],
+        self._estado = tk.Label(barra, text="● Listo", bg=PALETA["cartao"],
                                 fg=PALETA["bom"], font=(FONTE, 8))
         self._estado.pack(side="right", padx=20)
 
@@ -313,7 +321,7 @@ class Janela(tk.Tk):
             moldura.configure(bg=PALETA["linha"] if cheio else PALETA["aviso"])
 
         var.trace_add("write", ao_mudar)
-        ttk.Button(fila, text="Procurar", style="Procurar.TButton",
+        ttk.Button(fila, text="Buscar", style="Procurar.TButton",
                    command=lambda: self._escolher(var, escolher)).pack(side="left", padx=(6, 0))
 
     def _escolher(self, var: tk.StringVar, escolher) -> None:
@@ -332,49 +340,49 @@ class Janela(tk.Tk):
                  font=(FONTE, 7), wraplength=340, justify="left").pack(anchor="w", pady=(0, 10))
 
     def _coluna_entradas(self, pai: tk.Widget) -> None:
-        c = self._secao(pai, "O que vais fazer")
+        c = self._secao(pai, "Qué vas a hacer")
         self._revisao = tk.BooleanVar(value=False)
-        ttk.Checkbutton(c, text="Revisão de um LPA já existente",
+        ttk.Checkbutton(c, text="Revisión de un LPA ya existente",
                         variable=self._revisao,
                         command=self._modo_mudou).pack(anchor="w")
         self._nota_modo = tk.Label(
-            c, text="Desligado: LPA novo, montado a partir do PES.",
+            c, text="Desactivado: LPA nuevo, montado a partir del PES.",
             bg=PALETA["cartao"], fg=PALETA["apagado"], font=(FONTE, 7),
             wraplength=340, justify="left")
         self._nota_modo.pack(anchor="w", pady=(3, 10))
 
         c = self._secao(pai, "Entradas")
-        self._linha_caminho(c, "pes", "Relatório PES", ".docx",
+        self._linha_caminho(c, "pes", "Informe PES", ".docx",
                             lambda: filedialog.askopenfilename(
-                                title="Relatório PES",
+                                title="Informe PES",
                                 filetypes=[("Word", "*.docx"), ("Todos", "*.*")]))
         self._linha_caminho(c, "lpa_existente", "LPA anterior", ".xlsm",
                             lambda: filedialog.askopenfilename(
-                                title="LPA já emitido (para arrancar a revisão)",
-                                filetypes=[("Excel com macros", "*.xlsm"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "recibida", "Documentos recebidos", "pasta",
+                                title="LPA ya emitido (para arrancar la revisión)",
+                                filetypes=[("Excel con macros", "*.xlsm"), ("Todos", "*.*")]))
+        self._linha_caminho(c, "recibida", "Documentos recibidos", "carpeta",
                             lambda: filedialog.askdirectory(title="Doc Recibida"))
         self._linha_caminho(c, "base", "Base de hallazgos", ".csv",
                             lambda: filedialog.askopenfilename(
                                 title="Base de hallazgos",
                                 filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "template", "Template LPA", ".xlsm",
+        self._linha_caminho(c, "template", "Plantilla LPA", ".xlsm",
                             lambda: filedialog.askopenfilename(
-                                title="Template LPA",
-                                filetypes=[("Excel com macros", "*.xlsm"), ("Todos", "*.*")]))
-        self._linha_caminho(c, "trabalho", "Pasta de trabalho", "pasta",
-                            lambda: filedialog.askdirectory(title="Pasta de trabalho"))
+                                title="Plantilla LPA",
+                                filetypes=[("Excel con macros", "*.xlsm"), ("Todos", "*.*")]))
+        self._linha_caminho(c, "trabalho", "Carpeta de trabajo", "carpeta",
+                            lambda: filedialog.askdirectory(title="Carpeta de trabajo"))
 
         self._regua(pai)
-        c = self._secao(pai, "Contexto da obra")
-        self._linha_texto(c, "solicitante", "Solicitante", "Quem faz os envíos. Ex.: ADIF")
-        self._linha_texto(c, "scope", "Âncoras desta obra",
-                          "Separadas por vírgula. Ex.: Sant Vicenç de Calders, TRAMO 2")
-        self._linha_texto(c, "excluir_obra", "Código desta obra",
-                          "Ex.: EXC2026-18042. Evita sugerir a partir da própria resposta.")
+        c = self._secao(pai, "Contexto de la obra")
+        self._linha_texto(c, "solicitante", "Solicitante", "Quién hace los envíos. Ej.: ADIF")
+        self._linha_texto(c, "scope", "Anclas de esta obra",
+                          "Separadas por coma. Ej.: Sant Vicenç de Calders, TRAMO 2")
+        self._linha_texto(c, "excluir_obra", "Código de esta obra",
+                          "Ej.: EXC2026-18042. Evita sugerir a partir de la propia respuesta.")
 
         self._regua(pai)
-        c = self._secao(pai, "Exigência das sugestões")
+        c = self._secao(pai, "Exigencia de las sugerencias")
         fila = tk.Frame(c, bg=PALETA["cartao"])
         fila.pack(fill="x")
         self._min_score = tk.DoubleVar(value=12.0)
@@ -387,25 +395,25 @@ class Janela(tk.Tk):
                  highlightthickness=0, bd=0, sliderrelief="flat",
                  command=lambda v: valor.configure(text=str(int(float(v))))
                  ).pack(side="left", fill="x", expand=True)
-        tk.Label(c, text="Mais alto = menos sugestões, mas mais parecidas. 12 é um começo razoável.",
+        tk.Label(c, text="Más alto = menos sugerencias, pero más parecidas. 12 es un buen punto de partida.",
                  bg=PALETA["cartao"], fg=PALETA["apagado"], font=(FONTE, 7),
                  wraplength=340, justify="left").pack(anchor="w", pady=(6, 10))
 
         self._skip_lpa = tk.BooleanVar(value=True)
-        ttk.Checkbutton(c, text="Deixar a aba LPA vazia para preencher à mão",
+        ttk.Checkbutton(c, text="Dejar la pestaña LPA vacía para completar a mano",
                         variable=self._skip_lpa,
                         command=self._modo_mudou).pack(anchor="w")
         self._substituir = tk.BooleanVar(value=False)
-        ttk.Checkbutton(c, text="Ao sugerir, substituir as sugestões anteriores",
+        ttk.Checkbutton(c, text="Al sugerir, sustituir las sugerencias anteriores",
                         variable=self._substituir).pack(anchor="w", pady=(3, 16))
 
     # ----------------------------------------------------------------- fluxo
     def _painel_fluxo(self, pai: tk.Widget) -> None:
         topo = tk.Frame(pai, bg=PALETA["cartao"])
         topo.pack(fill="x", padx=22, pady=(16, 0))
-        tk.Label(topo, text="FLUXO", bg=PALETA["cartao"], fg=PALETA["apagado"],
+        tk.Label(topo, text="FLUJO", bg=PALETA["cartao"], fg=PALETA["apagado"],
                  font=(FONTE, 8, "bold")).pack(side="left")
-        self._resumo = tk.Label(topo, text="0 de 5 passos concluídos", bg=PALETA["cartao"],
+        self._resumo = tk.Label(topo, text="0 de 5 pasos completados", bg=PALETA["cartao"],
                                 fg=PALETA["apagado"], font=(FONTE, 8))
         self._resumo.pack(side="left", padx=(12, 0))
 
@@ -419,13 +427,13 @@ class Janela(tk.Tk):
 
         acoes = tk.Frame(pai, bg=PALETA["cartao"])
         acoes.pack(fill="x", padx=22, pady=(14, 0))
-        self._botao = ttk.Button(acoes, text="CORRER PASSO 1", style="Marca.TButton",
+        self._botao = ttk.Button(acoes, text="EJECUTAR PASO 1", style="Marca.TButton",
                                  command=lambda: self._correr_indice(self._seguinte()))
         self._botao.pack(side="left")
-        ttk.Button(acoes, text="ABRIR PASTA", style="Contorno.TButton",
+        ttk.Button(acoes, text="ABRIR CARPETA", style="Contorno.TButton",
                    command=self._abrir_pasta).pack(side="left", padx=(8, 0))
 
-        tk.Label(acoes, text="PROGRESSO", bg=PALETA["cartao"], fg=PALETA["apagado"],
+        tk.Label(acoes, text="PROGRESO", bg=PALETA["cartao"], fg=PALETA["apagado"],
                  font=(FONTE, 7, "bold")).pack(side="left", padx=(24, 8))
         self._progresso = ttk.Progressbar(acoes, style="Marca.Horizontal.TProgressbar",
                                           length=180, maximum=len(pipeline.PASSOS))
@@ -464,24 +472,24 @@ class Janela(tk.Tk):
             else:
                 cartao.estado("espera")
         total = len(pipeline.PASSOS)
-        resumo = f"{self._feitos} de {total} passos concluídos"
+        resumo = f"{self._feitos} de {total} pasos completados"
         if dispensaveis:
-            resumo += f" · {dispensaveis} dispensáveis com a aba LPA vazia"
+            resumo += f" · {dispensaveis} prescindibles con la pestaña LPA vacía"
         self._resumo.configure(text=resumo)
         self._progresso.configure(value=self._feitos)
         self._percent.configure(text=f"{round(self._feitos / total * 100)}%")
-        self._botao.configure(text=f"CORRER PASSO {seguinte}")
+        self._botao.configure(text=f"EJECUTAR PASO {seguinte}")
 
     def _modo_mudou(self) -> None:
         """Reage às caixas que mudam o fluxo (revisão, aba LPA vazia)."""
         if self._revisao.get():
             self._nota_modo.configure(
-                text="Acrescenta o envío novo ao projeto desta pasta e regista a "
-                     "revisão, sem tocar nos puntos. Se ainda não houver projeto.yaml "
-                     "aqui, indica o LPA anterior (.xlsm) para arrancar dele.")
+                text="Añade el envío nuevo al proyecto de esta carpeta y registra la "
+                     "revisión, sin tocar los puntos. Si aún no hay projeto.yaml "
+                     "aquí, indica el LPA anterior (.xlsm) para arrancar de él.")
         else:
             self._nota_modo.configure(
-                text="Desligado: LPA novo, montado a partir do PES.")
+                text="Desactivado: LPA nuevo, montado a partir del PES.")
         self._marcar_passos()
 
     def _abrir_pasta(self) -> None:
@@ -489,7 +497,7 @@ class Janela(tk.Tk):
 
         pasta = self._campos["trabalho"].get().strip() or self._campos["pes"].get().strip()
         if not pasta:
-            messagebox.showinfo("Sem pasta", "Escolhe primeiro a pasta de trabalho.")
+            messagebox.showinfo("Sin carpeta", "Elige primero la carpeta de trabajo.")
             return
         caminho = Path(pasta)
         caminho = caminho if caminho.is_dir() else caminho.parent
@@ -501,7 +509,7 @@ class Janela(tk.Tk):
             else:
                 subprocess.Popen(["xdg-open", str(caminho)])
         except OSError as e:
-            messagebox.showwarning("Não deu", str(e))
+            messagebox.showwarning("No se pudo", str(e))
 
     # -------------------------------------------------------------- consola
     def _painel_consola(self, pai: tk.Widget) -> None:
@@ -510,9 +518,9 @@ class Janela(tk.Tk):
 
         topo = tk.Frame(fora, bg=PALETA["consola_fundo"])
         topo.pack(fill="x", padx=22, pady=(12, 4))
-        tk.Label(topo, text="O QUE ESTÁ A ACONTECER", bg=PALETA["consola_fundo"],
+        tk.Label(topo, text="QUÉ ESTÁ PASANDO", bg=PALETA["consola_fundo"],
                  fg="#7C8B99", font=(FONTE, 8, "bold")).pack(side="left")
-        tk.Button(topo, text="Limpar", command=self._limpar, relief="flat",
+        tk.Button(topo, text="Limpiar", command=self._limpar, relief="flat",
                   bg=PALETA["consola_fundo"], fg="#7C8B99",
                   activebackground=PALETA["consola_fundo"], activeforeground=PALETA["marca"],
                   font=(FONTE, 8), bd=0, cursor="hand2").pack(side="right")
@@ -584,8 +592,8 @@ class Janela(tk.Tk):
         falta = passo.em_falta(cfg)
         if falta:
             messagebox.showwarning(
-                "Falta preencher",
-                f"Para correr «{passo.titulo}» falta:\n\n• " + "\n• ".join(falta),
+                "Falta completar",
+                f"Para ejecutar «{passo.titulo}» falta:\n\n• " + "\n• ".join(falta),
             )
             return
 
@@ -593,11 +601,11 @@ class Janela(tk.Tk):
             # Numa revisão o 'update' preserva os puntos; só o 'merge' os apaga.
             n = pipeline.preparar_apaga_puntos(cfg)
             if n and not messagebox.askyesno(
-                "Já existe um projeto",
-                f"O projeto.yaml desta pasta já tem {n} punto(s).\n\n"
-                "Voltar a preparar apaga-os e recomeça do zero.\n\n"
-                "Se querias acrescentar um envío novo a este LPA, cancela e liga "
-                "«Revisão de um LPA já existente».\n\nContinuar?",
+                "Ya existe un proyecto",
+                f"El projeto.yaml de esta carpeta ya tiene {n} punto(s).\n\n"
+                "Volver a preparar los borra y empieza de cero.\n\n"
+                "Si querías añadir un envío nuevo a este LPA, cancela y activa "
+                "«Revisión de un LPA ya existente».\n\n¿Continuar?",
                 icon="warning",
             ):
                 return
@@ -649,19 +657,19 @@ class Janela(tk.Tk):
 
     def _terminou(self, codigo: int) -> None:
         if codigo == 0:
-            self._escrever("Concluído.", "bom")
+            self._escrever("Completado.", "bom")
             self._feitos = max(self._feitos, getattr(self, "_a_indice", 0))
         else:
-            self._escrever(f"Terminou com erro (código {codigo}).", "mau")
+            self._escrever(f"Terminó con error (código {codigo}).", "mau")
         self._bloquear(False, "")
 
     def _bloquear(self, ocupado: bool, titulo: str) -> None:
         self._a_correr = ocupado
         self._botao.state(["disabled"] if ocupado else ["!disabled"])
         if ocupado:
-            self._estado.configure(text=f"● A correr: {titulo}…", fg=PALETA["marca"])
+            self._estado.configure(text=f"● Corriendo: {titulo}…", fg=PALETA["marca"])
         else:
-            self._estado.configure(text="● Pronto", fg=PALETA["bom"])
+            self._estado.configure(text="● Listo", fg=PALETA["bom"])
         self.config(cursor="watch" if ocupado else "")
         self._marcar_passos()
 

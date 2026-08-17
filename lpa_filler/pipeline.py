@@ -128,15 +128,15 @@ def _exige_preparar(cfg: Config) -> list[str]:
     if cfg.revisao:
         falta = []
         if not cfg.recibida:
-            falta.append("Pasta dos documentos recebidos (do novo envío)")
+            falta.append("Carpeta de los documentos recibidos (del nuevo envío)")
         if not cfg.projeto.exists() and not cfg.lpa_existente:
-            falta.append("projeto.yaml desta obra já existente, ou um LPA .xlsm para arrancar (extract)")
+            falta.append("projeto.yaml de esta obra ya existente, o un LPA .xlsm del que arrancar (extract)")
         return falta
     falta = []
     if not cfg.pes:
-        falta.append("Relatório PES (.docx)")
+        falta.append("Informe PES (.docx)")
     if not cfg.recibida:
-        falta.append("Pasta dos documentos recebidos")
+        falta.append("Carpeta de los documentos recibidos")
     return falta
 
 
@@ -157,7 +157,7 @@ def _cmd_analisar(cfg: Config) -> list[list[str]]:
 def _exige_analisar(cfg: Config) -> list[str]:
     falta = []
     if not cfg.recibida:
-        falta.append("Pasta dos documentos recebidos")
+        falta.append("Carpeta de los documentos recibidos")
     if not cfg.base:
         falta.append("Base de hallazgos (.csv)")
     return falta
@@ -187,7 +187,7 @@ def _exige_sugerir(cfg: Config) -> list[str]:
     if not cfg.base:
         falta.append("Base de hallazgos (.csv)")
     if not cfg.projeto.exists():
-        falta.append("projeto.yaml — corre primeiro o passo 1")
+        falta.append("projeto.yaml — ejecuta primero el paso 1")
     return falta
 
 
@@ -205,9 +205,9 @@ def _cmd_gerar_lpa(cfg: Config) -> list[list[str]]:
 def _exige_gerar_lpa(cfg: Config) -> list[str]:
     falta = []
     if not cfg.template:
-        falta.append("Template LPA (.xlsm)")
+        falta.append("Plantilla LPA (.xlsm)")
     if not cfg.projeto.exists():
-        falta.append("projeto.yaml — corre primeiro o passo 1")
+        falta.append("projeto.yaml — ejecuta primero el paso 1")
     return falta
 
 
@@ -220,7 +220,7 @@ def _cmd_anejo(cfg: Config) -> list[list[str]]:
 
 
 def _exige_anejo(cfg: Config) -> list[str]:
-    return [] if cfg.projeto.exists() else ["projeto.yaml — corre primeiro o passo 1"]
+    return [] if cfg.projeto.exists() else ["projeto.yaml — ejecuta primero el paso 1"]
 
 
 # --------------------------------------------------------------------------- #
@@ -228,16 +228,16 @@ def _exige_anejo(cfg: Config) -> list[str]:
 PASSOS: list[Passo] = [
     Passo(
         "preparar",
-        "1 · Preparar o projeto",
-        "Lê o PES, cataloga os documentos recebidos e monta o projeto.yaml.",
+        "1 · Preparar el proyecto",
+        "Lee el PES, cataloga los documentos recibidos y monta el projeto.yaml.",
         _cmd_preparar,
         _exige_preparar,
     ),
     Passo(
         "analisar",
-        "2 · Analisar os documentos",
-        "Checklist estrutural de cada documento e radar de onde procurar erros. "
-        "Opcional se a aba LPA vai ficar vazia para se escrever à mão.",
+        "2 · Analizar los documentos",
+        "Checklist estructural de cada documento y radar de dónde buscar errores. "
+        "Prescindible si la pestaña LPA va a quedar vacía para escribirla a mano.",
         _cmd_analisar,
         _exige_analisar,
         lambda cfg: cfg.skip_lpa,
@@ -245,23 +245,23 @@ PASSOS: list[Passo] = [
     Passo(
         "sugerir",
         "3 · Sugerir hallazgos",
-        "Propõe hallazgos parecidos do histórico. Todos precisam de ser revistos. "
-        "Opcional se a aba LPA vai ficar vazia para se escrever à mão.",
+        "Propone hallazgos parecidos del histórico. Todos necesitan revisión. "
+        "Prescindible si la pestaña LPA va a quedar vacía para escribirla a mano.",
         _cmd_sugerir,
         _exige_sugerir,
         lambda cfg: cfg.skip_lpa,
     ),
     Passo(
         "lpa",
-        "4 · Gerar o LPA",
-        "Escreve o Excel final a partir do projeto.yaml.",
+        "4 · Generar el LPA",
+        "Escribe el Excel final a partir del projeto.yaml.",
         _cmd_gerar_lpa,
         _exige_gerar_lpa,
     ),
     Passo(
         "anejo",
-        "5 · Gerar o Anejo A.2",
-        "Base de No Conformidades em CSV, indexada pelo ID estável.",
+        "5 · Generar el Anejo A.2",
+        "Base de No Conformidades en CSV, indexada por el ID estable.",
         _cmd_anejo,
         _exige_anejo,
     ),

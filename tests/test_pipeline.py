@@ -36,8 +36,8 @@ def _argv_de(chave: str, cfg: Config) -> list[list[str]]:
 def test_passo_diz_o_que_falta_em_vez_de_correr_incompleto():
     vazio = Config()
     falta = pipeline.passo("preparar").em_falta(vazio)
-    assert "Relatório PES (.docx)" in falta
-    assert "Pasta dos documentos recebidos" in falta
+    assert "Informe PES (.docx)" in falta
+    assert "Carpeta de los documentos recibidos" in falta
 
 
 def test_sugerir_exige_o_projeto_ja_criado(cfg: Config):
@@ -239,3 +239,31 @@ def test_a_receita_nao_exige_logotipo_para_construir():
     # A marca chega depois do programa funcionar; até lá o build tem de correr.
     spec = (EMPACOTAR / "LPA.spec").read_text(encoding="utf-8")
     assert "_se_existir" in spec
+
+
+# ------------------------------------------- a consola tem de saber colorir
+
+
+def test_a_consola_reconhece_os_avisos_que_os_comandos_imprimem():
+    """As âncoras de cor do gui vs. o que o cli imprime de facto.
+
+    O gui pinta uma linha de âmbar por conter "ATENÇÃO"/"ATENCIÓN". Traduzir as
+    mensagens sem mexer nas âncoras faz os avisos passarem a texto normal — não
+    rebenta nada, e por isso ninguém dá por ela.
+    """
+    import re
+
+    # Importar o gui exige tkinter, que não existe em todo o lado (nem no CI).
+    fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "gui.py").read_text(
+        encoding="utf-8"
+    )
+    ancoras = set(re.findall(r'"(ATEN\w+)"', fonte.split("_AVISO = (")[1].split(")")[0]))
+
+    cli_fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "cli.py").read_text(
+        encoding="utf-8"
+    )
+    gritos = set(re.findall(r"\b(ATEN\w+)", cli_fonte))
+    assert gritos, "o cli deixou de ter avisos em maiúsculas — actualizar este teste"
+    assert gritos <= ancoras, (
+        f"o cli imprime {gritos - ancoras} e o gui não os pinta de âmbar"
+    )
