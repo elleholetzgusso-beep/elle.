@@ -672,9 +672,13 @@ class App(tk.Tk):
             linea.configure(bg=NARANJA if i < indice else GRIS_LINEA)
 
     def _pintar_pie(self):
+        # Se rehace el pie entero en cada repintado: mientras se trabaja no hay
+        # botones (para no poder pulsar dos veces), y al volver hay que
+        # recolocarlos en orden. Sin este pack() de vuelta, el botón principal
+        # desaparecía para siempre después de la primera operación.
+        self.btn_primario.pack_forget()
+        self.btn_secundario.pack_forget()
         if self.etapa == "trabajando":
-            self.btn_primario.pack_forget()
-            self.btn_secundario.pack_forget()
             return
         if self.operacion == "historial":
             primario, secundario = "Volver a las operaciones", None
@@ -689,11 +693,10 @@ class App(tk.Tk):
         else:
             primario, secundario = "Volver a intentarlo", "Volver al inicio"
         self.btn_primario.configure(text=primario)
+        self.btn_primario.pack(side="right")
         if secundario:
             self.btn_secundario.configure(text=secundario)
             self.btn_secundario.pack(side="right", padx=(0, 12))
-        else:
-            self.btn_secundario.pack_forget()
 
     def _vista_trabajando(self):
         caja = tk.Frame(self.contenido, bg=BLANCO)

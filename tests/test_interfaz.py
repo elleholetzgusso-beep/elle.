@@ -217,6 +217,29 @@ class TestJanela(unittest.TestCase):
         self.assertEqual([n for n, _m in self.app.previa["ignorados"]], ["ya-estaba.pdf"])
         self.assertEqual([n for n, _m in self.app.previa["problemas"]], ["bloqueado.pdf"])
 
+    def test_os_botoes_do_rodape_sobrevivem_ao_ecra_de_trabalho(self):
+        """Enquanto trabalha não há botões (para não se poder aplicar duas
+        vezes), mas têm de voltar depois. Já falhou: o botão principal era
+        empacotado uma só vez e desaparecia para sempre."""
+        self.assertTrue(self.app.btn_primario.winfo_ismapped())
+
+        self.clicar(self.app.btn_primario)   # previsualizar (passa por "trabajando")
+        self.assertEqual(self.app.etapa, "previa")
+        self.assertTrue(self.app.btn_primario.winfo_ismapped(),
+                        "o botão principal não voltou depois de trabalhar")
+        self.assertEqual(self.app.btn_primario.cget("text"), "Aplicar y mover archivos")
+
+        self.clicar(self.app.btn_primario)   # aplicar
+        self.assertEqual(self.app.etapa, "resultado")
+        self.assertTrue(self.app.btn_primario.winfo_ismapped(),
+                        "o botão principal não voltou no ecrã de resultado")
+        self.assertEqual(self.app.btn_primario.cget("text"), "Nueva operación")
+        self.assertTrue(self.app.btn_secundario.winfo_ismapped())
+
+        # E o principal fica sempre à direita do secundário.
+        self.assertGreater(self.app.btn_primario.winfo_rootx(),
+                           self.app.btn_secundario.winfo_rootx())
+
     def test_geometria_cabe_na_pantalla(self):
         self.app.update_idletasks()
         self.assertLessEqual(self.app.winfo_width(), self.app.winfo_screenwidth())
