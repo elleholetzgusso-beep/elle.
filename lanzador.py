@@ -54,7 +54,7 @@ ERRORES_CONOCIDOS = (
 CRITERIOS_MENU = [
     ("tipo", "Tipo de archivo (Documentos, Imágenes, Hojas de cálculo...)"),
     ("documento", "Código de documento (EXC2026-16883-001-PES-01...)"),
-    ("envio", "Envío al que pertenece, por la fecha (Envío 29 20260107...)"),
+    ("envio", "Crear envíos por fecha (una carpeta Envío N AAAAMMDD por fecha)"),
     ("extensao", "Extensión (PDF, XLSX...)"),
     ("data", "Fecha de modificación"),
     ("alfabetico", "Letra inicial del nombre"),

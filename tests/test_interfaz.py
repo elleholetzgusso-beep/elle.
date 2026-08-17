@@ -240,23 +240,22 @@ class TestJanela(unittest.TestCase):
         self.assertGreater(self.app.btn_primario.winfo_rootx(),
                            self.app.btn_secundario.winfo_rootx())
 
-    def test_criterio_envio_distribui_pelas_pastas_existentes(self):
+    def test_criterio_envio_cria_as_pastas_pelas_datas(self):
         """O critério 'envio' aparece como tarjeta, avisa que se escolhe a
-        2_Doc Recebida, e leva cada ficheiro ao envío que estava aberto."""
+        2_Doc Recebida, e cria uma pasta por cada data encontrada."""
         import os as _os
         from datetime import datetime as _dt
 
         recebida = self.base / "2_Doc Recebida"
         recebida.mkdir()
-        for nome in ("Envío 27 20251120", "Envío 29 20260107"):
-            (recebida / nome).mkdir()
-        for nome, quando in (("plano.pdf", "20260107"), ("medicoes.xlsx", "20251201")):
+        for nome, quando in (("plano.pdf", "20260107"), ("detalhe.pdf", "20260107"),
+                             ("medicoes.xlsx", "20251216")):
             arquivo = recebida / nome
             arquivo.write_text("x", encoding="utf-8")
             momento = _dt.strptime(quando, "%Y%m%d").timestamp()
             _os.utime(arquivo, (momento, momento))
 
-        self.clicar(self.por_texto(self.app.contenido, "Envío al que pertenece"))
+        self.clicar(self.por_texto(self.app.contenido, "Crear envíos por fecha"))
         self.assertEqual(self.app.criterio.get(), "envio")
         # O aviso da carpeta correta aparece só neste critério.
         self.por_texto(self.app.contenido, "Elige la carpeta 2_Doc Recebida del proyecto")
@@ -264,24 +263,37 @@ class TestJanela(unittest.TestCase):
         self.app.ruta.set(str(recebida))
         self.clicar(self.app.btn_primario)   # previsualizar
         self.assertEqual(self.app.etapa, "previa")
+        # Ainda não se criou nada: é só simulação.
+        self.assertEqual([p.name for p in recebida.iterdir() if p.is_dir()], [])
         destinos = {origem: destino for origem, destino in self.app.previa["filas"]}
         self.assertEqual(destinos["plano.pdf"],
-                         str(Path("Envío 29 20260107") / "plano.pdf"))
+                         str(Path("Envío 2 20260107") / "plano.pdf"))
         self.assertEqual(destinos["medicoes.xlsx"],
-                         str(Path("Envío 27 20251120") / "medicoes.xlsx"))
+                         str(Path("Envío 1 20251216") / "medicoes.xlsx"))
 
         self.clicar(self.app.btn_primario)   # aplicar
-        self.assertTrue((recebida / "Envío 29 20260107" / "plano.pdf").is_file())
-        self.assertTrue((recebida / "Envío 27 20251120" / "medicoes.xlsx").is_file())
+        self.assertTrue((recebida / "Envío 2 20260107" / "plano.pdf").is_file())
+        self.assertTrue((recebida / "Envío 2 20260107" / "detalhe.pdf").is_file())
+        self.assertTrue((recebida / "Envío 1 20251216" / "medicoes.xlsx").is_file())
 
-    def test_criterio_envio_sem_pastas_de_envio_da_erro_claro(self):
-        self.clicar(self.por_texto(self.app.contenido, "Envío al que pertenece"))
+    def test_criterio_envio_continua_a_numeracao_existente(self):
+        import os as _os
+        from datetime import datetime as _dt
+
+        recebida = self.base / "2_Doc Recebida"
+        recebida.mkdir()
+        (recebida / "Envío 28 20251215 sin revisar").mkdir()
+        arquivo = recebida / "novo.pdf"
+        arquivo.write_text("x", encoding="utf-8")
+        momento = _dt.strptime("20260107", "%Y%m%d").timestamp()
+        _os.utime(arquivo, (momento, momento))
+
+        self.clicar(self.por_texto(self.app.contenido, "Crear envíos por fecha"))
+        self.app.ruta.set(str(recebida))
+        self.clicar(self.app.btn_primario)
         self.clicar(self.app.btn_primario)
 
-        self.assertEqual(self.app.etapa, "error")
-        self.assertEqual(self.app.error["titulo"], "No se ha podido continuar")
-        self.assertIn("no hay ninguna carpeta de envío", self.app.error["texto"])
-        self.assertIsNone(self.app.error["log"])
+        self.assertTrue((recebida / "Envío 29 20260107" / "novo.pdf").is_file())
 
     def test_a_janela_mostra_todos_os_criterios_do_motor(self):
         from organizador.arrumador import CRITERIOS as DO_MOTOR

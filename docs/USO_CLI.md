@@ -57,7 +57,7 @@ Opções de `--por`:
 ```text
 tipo        → Documentos, Imágenes, Hojas de cálculo, etc.
 documento   → 001-PES, 002-LPA, etc.
-envio       → Envío 29 20260107 (pastas de envio que já existem)
+envio       → Envío 1 20251216, Envío 2 20260107 (criadas pelas datas)
 extensao    → PDF, XLSX, etc.
 data        → 2026/07-Julio
 alfabetico  → A, B, C, 0-9
@@ -69,26 +69,36 @@ as extensões de cada uma.
 
 ### `--por envio`
 
-Distribui os ficheiros soltos pelas pastas `Envío N AAAAMMDD` que **já
-existem**, pela data de modificação de cada ficheiro. Corre-se sobre a
-`2_Doc Recebida` do projeto:
+**Cria** as pastas `Envío N AAAAMMDD` a partir das datas dos documentos que
+estão soltos na pasta, uma por cada data distinta, e move cada documento para
+a sua. Corre-se sobre a `2_Doc Recebida` do projeto:
 
 ```cmd
 python -m organizador organizar "...\2026-16883-…\2_Doc Recebida" --por envio --simular
 ```
 
-A regra é uma só: **cada ficheiro vai para o último envio cuja data seja
-igual ou anterior à sua** — o envio que estava aberto quando o ficheiro
-chegou. Um ficheiro de 16/12 entra no `Envío 28 20251215`, não no
-`Envío 29 20260107`.
+Com seis documentos de três dias diferentes:
 
-Ao contrário dos outros critérios, este **não cria pastas**: usa só os envios
-já registados (com `python -m organizador envio`, ou pela janela). Dois casos
-não movem nada e são listados como ignorados:
+```text
+2_Doc Recebida
+├── Envío 1 20251216   medicoes.xlsx, orcamento.xlsx
+├── Envío 2 20260107   plano-geral.pdf, detalhe.pdf
+└── Envío 3 20260109   memoria.docx, acta.pdf
+```
 
-- ficheiros anteriores ao primeiro envio — ficam onde estão;
-- se não houver nenhuma pasta de envio na pasta indicada, o comando falha com
-  uma mensagem a pedir que se registe o envio primeiro.
+Regras da numeração:
+
+- os números seguem **a ordem cronológica** — a data mais antiga fica com o
+  número mais baixo, independentemente da ordem em que os ficheiros aparecem
+  na pasta;
+- continuam a partir do **maior número que já exista** na pasta: se já lá
+  estiver um `Envío 28`, a primeira data nova fica `Envío 29`;
+- se já houver uma pasta com essa data exata, é **reutilizada** em vez de se
+  criar uma repetida — mesmo que o nome tenha observação
+  (`Envío 28 20251215 sin revisar`).
+
+A data usada é a de **modificação** do ficheiro. Ficheiros excluídos por
+`--ignorar` não contam: não criam envio nenhum.
 
 Outras opções:
 

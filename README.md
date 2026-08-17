@@ -114,7 +114,7 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 ## Checklist antes de entregar ao Roberto
 
 - [ ] `python -m unittest discover -s tests -v` — todos os testes a passar
-      (61 testes: 47 do motor `organizador/` e 14 da
+      (62 testes: 48 do motor `organizador/` e 14 da
       janela — estes saltam se o PC não tiver Tkinter ou ecrã, confirma que
       dizem `ok` e não `skipped`).
 - [ ] Correr `interfaz.py` no meu PC: as 4 operações da janela (organizar,
@@ -138,13 +138,13 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
       que a mensagem pede para enviar o ficheiro.
 - [ ] Confirmar que "Organizar" nunca sobrescreve — testar com um ficheiro
       já existente no destino e ver que fica `nome (1)`.
-- [ ] Testar o critério **"Envío al que pertenece"** numa `2_Doc Recebida`
-      real: cada ficheiro deve cair no último envio cuja data é igual ou
-      anterior à sua, e os anteriores ao primeiro envio devem ficar onde
-      estão. **Atenção às datas**: o critério usa a data de modificação. Se a
-      cópia para o `Y:\` as tiver reposto para o dia da cópia, agrupa por
-      essa data e não pela original — vale a pena olhar para a
-      pré-visualização com atenção da primeira vez.
+- [ ] Testar o critério **"Crear envíos por fecha"** numa `2_Doc Recebida`
+      real: deve criar uma pasta `Envío N AAAAMMDD` por cada data distinta,
+      numeradas por ordem cronológica e a continuar da maior já existente.
+      **Atenção às datas**: usa a data de modificação. Se a cópia para o
+      `Y:\` as tiver reposto para o dia da cópia, todos os documentos caem
+      num único envio — a pré-visualização mostra isso antes de aplicar, mas
+      convém olhar com atenção da primeira vez.
 - [ ] Testar "Deshacer" logo a seguir a organizar/criar — confirma que
       volta ao estado anterior.
 - [ ] **Testar numa máquina que não a minha** (idealmente a do Roberto ou
@@ -163,9 +163,9 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 python -m unittest discover -s tests -v
 ```
 
-São 61, em dois ficheiros:
+São 62, em dois ficheiros:
 
-- **`tests/test_organizador.py`** (47) — o motor. Não abre janela nenhuma,
+- **`tests/test_organizador.py`** (48) — o motor. Não abre janela nenhuma,
   corre em qualquer sítio.
 - **`tests/test_interfaz.py`** (14) — a janela, com **cliques reais**. Os
   botões da interface são `tk.Label` com um binding `<Button-1>` próprio (não

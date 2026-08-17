@@ -62,8 +62,7 @@ class ResultadoOrganizacao:
 # ------------------------------------------------------------------------ envios
 def envios_existentes(pasta: str | Path) -> list[tuple[date, str]]:
     """Le as pastas ``Envío N AAAAMMDD`` que ja existem, da mais antiga para a
-    mais recente. Nao cria nenhuma: este criterio so distribui pelos envios
-    que o Roberto ja registou."""
+    mais recente."""
     base = Path(pasta).expanduser()
     if not base.is_dir():
         return []
@@ -84,21 +83,54 @@ def envios_existentes(pasta: str | Path) -> list[tuple[date, str]]:
     return sorted(encontrados)
 
 
-def envio_para(quando: date, envios: list[tuple[date, str]]) -> str | None:
-    """Devolve o envio a que pertence um arquivo com a data ``quando``.
+def maior_numero_envio(pasta: str | Path) -> int:
+    """Maior ``N`` usado nas pastas ``Envío N ...`` que ja existem (0 se nenhuma)."""
+    base = Path(pasta).expanduser()
+    if not base.is_dir():
+        return 0
+    maior = 0
+    for item in base.iterdir():
+        if not item.is_dir():
+            continue
+        achado = PADRAO_PASTA_ENVIO.match(item.name)
+        if achado:
+            maior = max(maior, int(achado.group("numero")))
+    return maior
 
-    A regra e uma so: **o ultimo envio cuja data seja igual ou anterior a do
-    arquivo** — ou seja, o envio que estava aberto quando o arquivo chegou.
-    Um arquivo anterior ao primeiro envio nao tem onde entrar e devolve
-    ``None``, para ser deixado onde esta em vez de adivinhar.
+
+def data_do_arquivo(caminho: Path) -> date:
+    """Data pela qual o arquivo e agrupado: a de modificacao."""
+    return datetime.fromtimestamp(caminho.stat().st_mtime).date()
+
+
+def planear_envios(arquivos: list[Path], base: str | Path) -> dict[date, str]:
+    """Decide que pasta de envio corresponde a cada data encontrada.
+
+    Uma pasta por cada data distinta dos arquivos. Se ja existir um envio
+    com essa data, reutiliza-o em vez de criar um repetido; as datas novas
+    recebem numeros seguidos a partir do maior ja usado, **por ordem
+    cronologica** — o envio mais antigo fica com o numero mais baixo, que e
+    como a numeracao de envios funciona.
     """
-    escolhido = None
-    for data_envio, nome in envios:
-        if data_envio <= quando:
-            escolhido = nome
-        else:
-            break
-    return escolhido
+    caminho_base = Path(base).expanduser()
+    ja_existem = {quando: nome for quando, nome in envios_existentes(caminho_base)}
+    proximo = maior_numero_envio(caminho_base) + 1
+
+    datas = set()
+    for arquivo in arquivos:
+        try:
+            datas.add(data_do_arquivo(arquivo))
+        except OSError:
+            continue  # o motivo fica registado no laco principal
+
+    plano: dict[date, str] = {}
+    for quando in sorted(datas):
+        if quando in ja_existem:
+            plano[quando] = ja_existem[quando]
+            continue
+        plano[quando] = f"Envío {proximo} {quando.strftime('%Y%m%d')}"
+        proximo += 1
+    return plano
 
 
 # --------------------------------------------------------------------- criterios
@@ -115,13 +147,10 @@ def _subpasta(
     criterio: str,
     indice: dict[str, str],
     formato_data: str | None,
-    envios: list[tuple[date, str]] | None = None,
-) -> str | None:
-    """Nome da subpasta de destino, ou ``None`` se o arquivo nao tem destino
-    (so acontece no criterio ``envio``, quando nao ha nenhum envio anterior)."""
+    plano_envios: dict[date, str] | None = None,
+) -> str:
     if criterio == "envio":
-        momento = datetime.fromtimestamp(caminho.stat().st_mtime).date()
-        return envio_para(momento, envios or [])
+        return (plano_envios or {})[data_do_arquivo(caminho)]
 
     if criterio == "tipo":
         return categoria_de(caminho.name, indice)
@@ -212,30 +241,25 @@ def organizar(
     reservados: set[Path] = set()
     pastas_conhecidas: set[Path] = set()
 
-    envios = envios_existentes(base) if criterio == "envio" else []
-    if criterio == "envio" and not envios:
-        raise ErroDeOrganizacao(
-            f"En '{base}' no hay ninguna carpeta de envío (Envío N AAAAMMDD). "
-            "Registra primero el envío y vuelve a organizar."
-        )
+    arquivos = _listar_arquivos(base, recursivo, incluir_ocultos)
+    a_organizar = [
+        arquivo for arquivo in arquivos
+        if not any(fnmatch(arquivo.name, padrao) for padrao in ignorar)
+    ]
+    # O criterio 'envio' precisa de ver todas as datas antes de mover o
+    # primeiro arquivo: os numeros dos envios novos atribuem-se por ordem
+    # cronologica sobre o conjunto todo, nao arquivo a arquivo.
+    plano_envios = planear_envios(a_organizar, base) if criterio == "envio" else {}
 
-    for arquivo in _listar_arquivos(base, recursivo, incluir_ocultos):
+    for arquivo in arquivos:
         if any(fnmatch(arquivo.name, padrao) for padrao in ignorar):
             resultado.ignorados.append((arquivo, "excluido por el patrón indicado"))
             continue
 
         try:
-            nome_subpasta = _subpasta(arquivo, criterio, indice, formato_data, envios)
+            nome_subpasta = _subpasta(arquivo, criterio, indice, formato_data, plano_envios)
         except OSError as erro:
             resultado.ignorados.append((arquivo, f"no se pudo leer: {erro}"))
-            continue
-
-        if nome_subpasta is None:
-            # Solo en el criterio 'envio': el archivo es anterior al primer
-            # envío registrado. No se inventa una carpeta: se deja donde está.
-            resultado.ignorados.append(
-                (arquivo, f"es anterior al primer envío ({envios[0][1]})")
-            )
             continue
 
         destino_pasta = base.joinpath(*nome_subpasta.split("/"))

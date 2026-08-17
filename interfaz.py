@@ -64,8 +64,8 @@ ERRORES_CONOCIDOS = (
 CRITERIOS = [
     ("tipo", "Tipo de archivo", "Documentos, Imágenes, Hojas de cálculo…"),
     ("documento", "Código de documento", "EXC2026-16883-001-PES-01 → 001-PES"),
-    ("envio", "Envío al que pertenece",
-     "Por la fecha del archivo, a la carpeta «Envío 29 20260107» que ya exista"),
+    ("envio", "Crear envíos por fecha",
+     "Una carpeta «Envío N AAAAMMDD» por cada fecha encontrada"),
     ("extensao", "Extensión", "PDF, XLSX, DWG…"),
     ("data", "Fecha de modificación", "2026-05 Mayo, 2026-06 Junio…"),
     ("alfabetico", "Letra inicial", "A, B, E, M, P…"),
@@ -746,7 +746,8 @@ class App(tk.Tk):
 
         if self.criterio.get() == "envio":
             # Este criterio necesita otra carpeta que los demás (2_Doc Recebida,
-            # no 3_Doc Trabajo) y no crea carpetas: conviene decirlo aquí.
+            # no 3_Doc Trabajo) y es el único que crea carpetas con numeración
+            # propia: conviene explicarlo antes de la previsualización.
             nota = tk.Frame(self.contenido, bg=GRIS_FONDO)
             nota.pack(fill="x", pady=(0, 14))
             tk.Frame(nota, bg=NARANJA, width=4).pack(side="left", fill="y")
@@ -754,10 +755,12 @@ class App(tk.Tk):
             textos.pack(side="left", fill="x", expand=True, padx=14, pady=12)
             tk.Label(textos, text="Elige la carpeta 2_Doc Recebida del proyecto",
                      bg=GRIS_FONDO, fg=NEGRO, font=(F, 10, "bold")).pack(anchor="w")
-            tk.Label(textos, text="Cada archivo va al último envío cuya fecha sea igual o "
-                                  "anterior a la suya — el envío que estaba abierto cuando "
-                                  "llegó. No se crea ningún envío nuevo: usa los que ya "
-                                  "existen. Lo anterior al primer envío se queda donde está.",
+            tk.Label(textos, text="Se crea una carpeta «Envío N AAAAMMDD» por cada fecha "
+                                  "distinta que tengan los documentos sueltos, y cada uno "
+                                  "se mueve a la suya. La numeración sigue a partir del "
+                                  "último envío que ya exista, de la fecha más antigua a la "
+                                  "más reciente. Si ya hay un envío con esa fecha, se usa "
+                                  "ese en vez de crear otro.",
                      bg=GRIS_FONDO, fg=GRIS_TEXTO, font=(F, 9), wraplength=640,
                      justify="left").pack(anchor="w", pady=(3, 0))
 

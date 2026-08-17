@@ -191,16 +191,8 @@ class TestArrumador(BaseTemporaria):
 
 
 class TestOrganizarPorEnvio(BaseTemporaria):
-    """Criterio 'envio': distribui os arquivos soltos pelas pastas
-    ``Envío N AAAAMMDD`` que ja existem, pela data de modificacao."""
-
-    ENVIOS = ("Envío 27 20251120", "Envío 28 20251215 sin revisar", "Envío 29 20260107")
-
-    def setUp(self) -> None:
-        super().setUp()
-        for nome in self.ENVIOS:
-            (self.base / nome).mkdir()
-        (self.base / "mails").mkdir()
+    """Criterio 'envio': **cria** as pastas ``Envío N AAAAMMDD`` a partir das
+    datas dos documentos soltos, uma por cada data distinta."""
 
     def arquivo_datado(self, nome: str, data_texto: str) -> Path:
         arquivo = self.criar_arquivo(nome)
@@ -208,55 +200,76 @@ class TestOrganizarPorEnvio(BaseTemporaria):
         os.utime(arquivo, (momento, momento))
         return arquivo
 
-    def test_le_as_pastas_de_envio_por_ordem(self):
-        lidos = arrumador.envios_existentes(self.base)
-        self.assertEqual([nome for _data, nome in lidos], list(self.ENVIOS))
-        self.assertEqual(lidos[0][0], date(2025, 11, 20))
+    def pastas(self) -> list[str]:
+        return sorted(p.name for p in self.base.iterdir() if p.is_dir())
 
-    def test_ignora_pastas_que_nao_sao_envios(self):
-        (self.base / "Envío 30 20261356").mkdir()   # data impossivel
-        (self.base / "Envío sin fecha").mkdir()
-        lidos = arrumador.envios_existentes(self.base)
-        self.assertEqual([nome for _data, nome in lidos], list(self.ENVIOS))
-
-    def test_data_exata_vai_para_o_envio_desse_dia(self):
+    # ------------------------------------------------------------------ criar
+    def test_cria_uma_pasta_por_cada_data(self):
         self.arquivo_datado("plano.pdf", "20260107")
-        arrumador.organizar(self.base, "envio")
-        self.assertTrue((self.base / "Envío 29 20260107" / "plano.pdf").is_file())
-
-    def test_data_intermedia_vai_para_o_envio_que_estava_aberto(self):
-        # 16/12 esta entre o envio 28 (15/12) e o 29 (07/01): pertence ao 28.
+        self.arquivo_datado("detalhe.pdf", "20260107")
         self.arquivo_datado("medicoes.xlsx", "20251216")
+
         arrumador.organizar(self.base, "envio")
-        self.assertTrue(
-            (self.base / "Envío 28 20251215 sin revisar" / "medicoes.xlsx").is_file()
+
+        self.assertEqual(self.pastas(), ["Envío 1 20251216", "Envío 2 20260107"])
+        self.assertTrue((self.base / "Envío 2 20260107" / "plano.pdf").is_file())
+        self.assertTrue((self.base / "Envío 2 20260107" / "detalhe.pdf").is_file())
+        self.assertTrue((self.base / "Envío 1 20251216" / "medicoes.xlsx").is_file())
+
+    def test_numera_por_ordem_cronologica_e_nao_pela_do_sistema(self):
+        # Criados fora de ordem de proposito: o numero segue a data, nao a
+        # ordem em que os arquivos aparecem na pasta.
+        self.arquivo_datado("zzz-ultimo.pdf", "20260320")
+        self.arquivo_datado("aaa-primeiro.pdf", "20251101")
+        self.arquivo_datado("mmm-meio.pdf", "20260115")
+
+        arrumador.organizar(self.base, "envio")
+
+        self.assertEqual(
+            self.pastas(),
+            ["Envío 1 20251101", "Envío 2 20260115", "Envío 3 20260320"],
         )
 
-    def test_data_posterior_ao_ultimo_vai_para_o_ultimo(self):
-        self.arquivo_datado("memoria.docx", "20260320")
-        arrumador.organizar(self.base, "envio")
-        self.assertTrue((self.base / "Envío 29 20260107" / "memoria.docx").is_file())
+    def test_continua_a_numeracao_dos_envios_ja_existentes(self):
+        (self.base / "Envío 27 20251120").mkdir()
+        (self.base / "Envío 28 20251215 sin revisar").mkdir()
+        self.arquivo_datado("novo.pdf", "20260107")
 
-    def test_arquivo_anterior_ao_primeiro_envio_fica_onde_esta(self):
-        antigo = self.arquivo_datado("antigo.pdf", "20250801")
+        arrumador.organizar(self.base, "envio")
+
+        self.assertTrue((self.base / "Envío 29 20260107" / "novo.pdf").is_file())
+
+    def test_reutiliza_a_pasta_se_ja_houver_uma_com_essa_data(self):
+        (self.base / "Envío 28 20251215 sin revisar").mkdir()
+        self.arquivo_datado("tarde.pdf", "20251215")
 
         resultado = arrumador.organizar(self.base, "envio")
 
-        self.assertTrue(antigo.is_file(), "nao pode ser movido")
-        self.assertEqual(resultado.movimentos, [])
-        self.assertEqual(len(resultado.ignorados), 1)
-        self.assertIn("anterior al primer envío", resultado.ignorados[0][1])
+        self.assertTrue(
+            (self.base / "Envío 28 20251215 sin revisar" / "tarde.pdf").is_file()
+        )
+        self.assertEqual(self.pastas(), ["Envío 28 20251215 sin revisar"],
+                         "nao pode criar um envio repetido para a mesma data")
+        self.assertEqual(resultado.pastas_criadas, [])
 
-    def test_sem_nenhuma_pasta_de_envio_da_erro_em_espanhol(self):
-        vazia = self.base / "otra"
-        vazia.mkdir()
-        (vazia / "suelto.pdf").write_text("x", encoding="utf-8")
+    def test_pasta_sem_nenhum_envio_previo_comeca_no_um(self):
+        self.arquivo_datado("primeiro.pdf", "20260107")
+        arrumador.organizar(self.base, "envio")
+        self.assertEqual(self.pastas(), ["Envío 1 20260107"])
 
-        with self.assertRaises(arrumador.ErroDeOrganizacao) as caixa:
-            arrumador.organizar(vazia, "envio")
-        self.assertIn("no hay ninguna carpeta de envío", str(caixa.exception))
+    # ------------------------------------------------------------- seguranca
+    def test_simulacao_nao_cria_nem_move(self):
+        arquivo = self.arquivo_datado("plano.pdf", "20260107")
+
+        resultado = arrumador.organizar(self.base, "envio", simular=True)
+
+        self.assertTrue(arquivo.is_file())
+        self.assertEqual(self.pastas(), [], "a simulacao nao pode criar pastas")
+        self.assertEqual(len(resultado.movimentos), 1)
+        self.assertEqual(resultado.movimentos[0].destino.parent.name, "Envío 1 20260107")
 
     def test_nao_mexe_no_que_ja_esta_dentro_de_um_envio(self):
+        (self.base / "Envío 29 20260107").mkdir()
         ja_dentro = self.base / "Envío 29 20260107" / "colocado.pdf"
         ja_dentro.write_text("x", encoding="utf-8")
         momento = datetime.strptime("20260107", "%Y%m%d").timestamp()
@@ -268,22 +281,46 @@ class TestOrganizarPorEnvio(BaseTemporaria):
         self.assertEqual(resultado.movimentos, [])
         self.assertIn("ya estaba en su carpeta", resultado.ignorados[0][1])
 
-    def test_simulacao_nao_move_nada(self):
-        arquivo = self.arquivo_datado("plano.pdf", "20260107")
-        resultado = arrumador.organizar(self.base, "envio", simular=True)
-        self.assertTrue(arquivo.is_file())
-        self.assertFalse((self.base / "Envío 29 20260107" / "plano.pdf").exists())
-        self.assertEqual(len(resultado.movimentos), 1)
-
-    def test_nao_sobrescreve_no_envio(self):
-        existente = self.base / "Envío 29 20260107" / "plano.pdf"
+    def test_nao_sobrescreve(self):
+        (self.base / "Envío 1 20260107").mkdir()
+        existente = self.base / "Envío 1 20260107" / "plano.pdf"
         existente.write_text("el que ya estaba", encoding="utf-8")
         self.arquivo_datado("plano.pdf", "20260107")
 
         arrumador.organizar(self.base, "envio")
 
         self.assertEqual(existente.read_text(encoding="utf-8"), "el que ya estaba")
-        self.assertTrue((self.base / "Envío 29 20260107" / "plano (1).pdf").is_file())
+        self.assertTrue((self.base / "Envío 1 20260107" / "plano (1).pdf").is_file())
+
+    def test_arquivos_excluidos_nao_geram_pasta_de_envio(self):
+        self.arquivo_datado("bom.pdf", "20260107")
+        self.arquivo_datado("lixo.tmp", "20250101")
+
+        arrumador.organizar(self.base, "envio", ignorar=("*.tmp",))
+
+        self.assertEqual(self.pastas(), ["Envío 1 20260107"],
+                         "um arquivo ignorado nao pode criar um envio")
+
+    # ------------------------------------------------------------- auxiliares
+    def test_le_os_envios_existentes_por_ordem(self):
+        for nome in ("Envío 29 20260107", "Envío 27 20251120"):
+            (self.base / nome).mkdir()
+        lidos = arrumador.envios_existentes(self.base)
+        self.assertEqual([nome for _data, nome in lidos],
+                         ["Envío 27 20251120", "Envío 29 20260107"])
+        self.assertEqual(lidos[0][0], date(2025, 11, 20))
+
+    def test_ignora_pastas_que_nao_sao_envios(self):
+        (self.base / "Envío 27 20251120").mkdir()
+        (self.base / "Envío 30 20261356").mkdir()   # data impossivel
+        (self.base / "Envío sin fecha").mkdir()
+        (self.base / "mails").mkdir()
+
+        lidos = arrumador.envios_existentes(self.base)
+
+        self.assertEqual([nome for _data, nome in lidos], ["Envío 27 20251120"])
+        # Mas o numero 30 conta para nao repetir numeracao.
+        self.assertEqual(arrumador.maior_numero_envio(self.base), 30)
 
 
 class TestCriteriosSincronizados(unittest.TestCase):
