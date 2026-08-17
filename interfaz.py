@@ -11,7 +11,9 @@ Colocar este archivo junto a ``lanzador.py`` (misma carpeta que ``organizador/``
 from __future__ import annotations
 
 import os
+import queue
 import sys
+import threading
 import traceback
 from datetime import datetime, date
 from pathlib import Path
@@ -98,12 +100,15 @@ def validar_carpeta(ruta: Path, *, exigir_archivos: bool = False) -> None:
         )
 
 
-def escribir_log_error(carpeta_destino: Path, contexto: str) -> Path:
+def escribir_log_error(carpeta_destino: Path, contexto: str, *, detalle: str | None = None) -> Path:
     momento = datetime.now().strftime("%Y%m%d-%H%M%S")
     nombre = f"ERROR_organizador_{momento}.txt"
+    # ``detalle`` se usa cuando ya no hay una excepción activa (por ejemplo,
+    # en report_callback_exception): traceback.format_exc() solo funciona
+    # dentro de un bloque except.
     contenido = (
         f"Fecha: {datetime.now().isoformat(timespec='seconds')}\n"
-        f"Operación: {contexto}\n\n" + traceback.format_exc()
+        f"Operación: {contexto}\n\n" + (detalle if detalle is not None else traceback.format_exc())
     )
     try:
         log = carpeta_destino / nombre
@@ -116,6 +121,12 @@ def escribir_log_error(carpeta_destino: Path, contexto: str) -> Path:
         except OSError:
             pass
         return log
+
+
+def _es_problema(motivo: str) -> bool:
+    """Distingue un fallo real (no se pudo mover) de algo esperado (ya estaba
+    en su sitio, excluido por el patrón indicado)."""
+    return motivo.startswith(("no se pudo leer:", "fallo al mover:"))
 
 
 # ------------------------------------------------------------------ componentes
@@ -173,9 +184,20 @@ class App(tk.Tk):
     def __init__(self, carpeta_inicial: str | None = None):
         super().__init__()
         self.title("Organizador de carpetas y proyectos — Exceltic")
-        self.geometry("1180x780")
-        self.minsize(1000, 660)
+
+        ancho_min, alto_min = 1000, 620
+        ancho = min(1180, self.winfo_screenwidth() - 40)
+        # Deja margen para la barra de tareas y el borde de la ventana en
+        # Windows, que no cuentan en winfo_screenheight().
+        alto = min(780, self.winfo_screenheight() - 90)
+        self.geometry(f"{max(ancho, ancho_min)}x{max(alto, alto_min)}")
+        self.minsize(ancho_min, alto_min)
         self.configure(bg=GRIS_FONDO)
+
+        icono = _cargar_logo(_RAIZ / "assets" / "logo-mark.png", 48)
+        if icono:
+            self._icono = icono  # referencia viva: evita que el GC se lo lleve
+            self.iconphoto(True, icono)
 
         self.hist = Historico()
         self.operacion = "organizar"
@@ -192,10 +214,47 @@ class App(tk.Tk):
         self.ultimo_id = None
         self.error = None
         self._logo = None
+        self._trabajando = False
+        self._cola: queue.Queue = queue.Queue()
+
+        self.bind("<Return>", lambda _e: self._avanzar())
+        self.bind("<Escape>", lambda _e: self._retroceder())
 
         self._construir_marca()
         self._construir_cuerpo()
         self._pintar()
+
+    # -------------------------------------------------------- red de seguridad
+    def report_callback_exception(self, exc, val, tb):
+        """Cualquier fallo que escape de un callback de Tk (clic, atajo,
+        repintado...) cae aquí, no solo los de ``_ejecutar``. Sin esto, un
+        fallo fuera de ese único camino no deja rastro: ni mensaje en
+        pantalla ni archivo de log, y en la versión sin consola
+        (``pythonw.exe``) tampoco nada en la terminal."""
+        if issubclass(exc, KeyboardInterrupt):
+            return
+        # Igual que antes: rastro en stderr para quien corra con consola.
+        traceback.print_exception(exc, val, tb)
+        try:
+            self._trabajando = False
+            self.configure(cursor="")
+            self.error = self._error_desde_excepcion(val, None)
+            self.etapa = "error"
+            self._pintar()
+        except Exception:  # noqa: BLE001 - último recurso: no romper el bucle de Tk
+            pass
+
+    def _error_desde_excepcion(self, exc: BaseException, carpeta: Path | None) -> dict:
+        if isinstance(exc, ERRORES_CONOCIDOS):
+            return {"titulo": "No se ha podido continuar", "texto": str(exc), "log": None}
+        detalle = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        log = escribir_log_error(carpeta or Path.home(), contexto=self.operacion, detalle=detalle)
+        return {
+            "titulo": "Ha ocurrido un problema inesperado",
+            "texto": ("La operación no se ha podido completar. No se ha cambiado "
+                      "nada más en la carpeta."),
+            "log": str(log),
+        }
 
     # ------------------------------------------------------------------ marca
     def _construir_marca(self):
@@ -319,6 +378,8 @@ class App(tk.Tk):
 
     # ------------------------------------------------------------ navegación
     def abrir(self, clave):
+        if self._trabajando:
+            return
         self.operacion = clave
         self.etapa = "historial" if clave == "historial" else "form"
         self.previa = None
@@ -326,6 +387,8 @@ class App(tk.Tk):
         self._pintar()
 
     def _avanzar(self):
+        if self._trabajando:
+            return
         if self.operacion == "historial":
             self.abrir("organizar")
             return
@@ -341,6 +404,8 @@ class App(tk.Tk):
             self._ejecutar(simular=False)
 
     def _retroceder(self):
+        if self._trabajando:
+            return
         if self.etapa == "previa":
             self.etapa = "form"
             self._pintar()
@@ -350,44 +415,97 @@ class App(tk.Tk):
             self.abrir("organizar")
 
     def _examinar(self):
-        elegida = filedialog.askdirectory(title="Elige la carpeta")
+        opciones = {"title": "Elige la carpeta"}
+        partida = limpiar_ruta(self.ruta.get())
+        if partida:
+            candidato = Path(partida).expanduser()
+            base = candidato if candidato.is_dir() else candidato.parent
+            if base.is_dir():
+                opciones["initialdir"] = str(base)
+        elegida = filedialog.askdirectory(**opciones)
         if elegida:
             self.ruta.set(str(Path(elegida)))
 
     # -------------------------------------------------------------- ejecución
     def _ejecutar(self, *, simular: bool):
+        if self._trabajando:
+            return
         carpeta = Path(limpiar_ruta(self.ruta.get())).expanduser() if self.ruta.get() else None
+        if self.operacion == "organizar":
+            # Mover archivos puede tardar (unidad de red, muchos archivos):
+            # se hace en un hilo aparte para que la ventana no se quede
+            # "No responde" mientras tanto.
+            self._ejecutar_organizar_async(carpeta, simular)
+            return
         try:
-            if self.operacion == "organizar":
-                self._ejecutar_organizar(carpeta, simular)
-            elif self.operacion == "proyecto":
+            if self.operacion == "proyecto":
                 self._ejecutar_proyecto(carpeta, simular)
             else:
                 self._ejecutar_envio(carpeta, simular)
-        except ERRORES_CONOCIDOS as erro:
-            self.error = {"titulo": "No se ha podido continuar", "texto": str(erro), "log": None}
-            self.etapa = "error"
-        except Exception:
-            log = escribir_log_error(carpeta or Path.home(), contexto=self.operacion)
-            self.error = {
-                "titulo": "Ha ocurrido un problema inesperado",
-                "texto": ("La operación no se ha podido completar. No se ha cambiado "
-                          "nada más en la carpeta."),
-                "log": str(log),
-            }
+        except Exception as erro:  # noqa: BLE001 - se traduce en _error_desde_excepcion
+            self.error = self._error_desde_excepcion(erro, carpeta)
             self.etapa = "error"
         self._pintar()
 
-    def _ejecutar_organizar(self, carpeta, simular):
-        if carpeta is None:
-            raise ErroDeOrganizacao("Indica la carpeta que quieres organizar.")
-        validar_carpeta(carpeta, exigir_archivos=True)
-        resultado = organizar(carpeta, self.criterio.get(),
-                              recursivo=self.recursivo.get(), simular=simular)
+    def _ejecutar_organizar_async(self, carpeta, simular):
+        try:
+            if carpeta is None:
+                raise ErroDeOrganizacao("Indica la carpeta que quieres organizar.")
+            validar_carpeta(carpeta, exigir_archivos=True)
+        except Exception as erro:  # noqa: BLE001 - se traduce en _error_desde_excepcion
+            self.error = self._error_desde_excepcion(erro, carpeta)
+            self.etapa = "error"
+            self._pintar()
+            return
+
+        # Los valores se leen aquí, en el hilo de Tk: el hilo en segundo plano
+        # no debe tocar ninguna Variable ni widget de Tkinter.
+        criterio = self.criterio.get()
+        recursivo = self.recursivo.get()
+
+        self._trabajando = True
+        self.etapa = "trabajando"
+        self.configure(cursor="watch")
+        self._pintar()
+
+        def trabajo():
+            try:
+                resultado = organizar(carpeta, criterio, recursivo=recursivo, simular=simular)
+                self._cola.put(("ok", resultado))
+            except Exception as erro:  # noqa: BLE001 - se traduce en el hilo principal
+                self._cola.put(("error", erro))
+
+        threading.Thread(target=trabajo, daemon=True).start()
+        self._revisar_cola(carpeta, simular)
+
+    def _revisar_cola(self, carpeta, simular):
+        try:
+            tipo, valor = self._cola.get_nowait()
+        except queue.Empty:
+            self.after(80, lambda: self._revisar_cola(carpeta, simular))
+            return
+        self._trabajando = False
+        self.configure(cursor="")
+        if tipo == "error":
+            self.error = self._error_desde_excepcion(valor, carpeta)
+            self.etapa = "error"
+        else:
+            self._completar_organizar(carpeta, valor, simular)
+        self._pintar()
+
+    def _completar_organizar(self, carpeta, resultado, simular):
         filas = [(m.origem.name, str(m.destino.relative_to(carpeta))) for m in resultado.movimentos]
+        # "Ignorados" separa dos cosas muy distintas: lo que ya estaba en su
+        # sitio o se excluyó a propósito (informativo) de lo que falló al
+        # intentar moverlo (un problema real que merece su propio aviso).
+        ignorados_info = [(a.name, motivo) for a, motivo in resultado.ignorados
+                          if not _es_problema(motivo)]
+        problemas = [(a.name, motivo) for a, motivo in resultado.ignorados
+                    if _es_problema(motivo)]
         self.previa = {
             "filas": filas,
-            "ignorados": [(a.name, motivo) for a, motivo in resultado.ignorados],
+            "ignorados": ignorados_info,
+            "problemas": problemas,
             "carpetas": len({d.split(os.sep)[0] for _o, d in filas}),
             "base": carpeta,
             "titulo": f"{len(filas)} archivo(s) movido(s) correctamente",
@@ -521,6 +639,8 @@ class App(tk.Tk):
             self._vista_historial()
         elif self.etapa == "error":
             self._vista_error()
+        elif self.etapa == "trabajando":
+            self._vista_trabajando()
         elif self.etapa == "previa":
             self._vista_lista(simulacion=True)
         elif self.etapa == "resultado":
@@ -539,7 +659,8 @@ class App(tk.Tk):
             self.barra_pasos.pack_forget()
             return
         self.barra_pasos.pack(fill="x", padx=26, pady=(16, 0), before=self.contenido)
-        indice = {"form": 0, "error": 0, "previa": 1, "resultado": 2}[self.etapa]
+        indice = {"form": 0, "error": 0, "trabajando": 1,
+                 "previa": 1, "resultado": 2}.get(self.etapa, 0)
         for i, (punto, etiqueta, linea) in enumerate(self.pasos):
             if i == indice:
                 punto.configure(bg=NARANJA, fg=BLANCO)
@@ -551,6 +672,10 @@ class App(tk.Tk):
             linea.configure(bg=NARANJA if i < indice else GRIS_LINEA)
 
     def _pintar_pie(self):
+        if self.etapa == "trabajando":
+            self.btn_primario.pack_forget()
+            self.btn_secundario.pack_forget()
+            return
         if self.operacion == "historial":
             primario, secundario = "Volver a las operaciones", None
         elif self.etapa == "form":
@@ -569,6 +694,15 @@ class App(tk.Tk):
             self.btn_secundario.pack(side="right", padx=(0, 12))
         else:
             self.btn_secundario.pack_forget()
+
+    def _vista_trabajando(self):
+        caja = tk.Frame(self.contenido, bg=BLANCO)
+        caja.pack(fill="both", expand=True)
+        tk.Label(caja, text="Trabajando…", bg=BLANCO, fg=NEGRO,
+                 font=(F, 15, "bold")).pack(pady=(70, 8))
+        tk.Label(caja, text="Puede tardar unos segundos si la carpeta está en una unidad "
+                            "de red. No cierres la ventana.",
+                 bg=BLANCO, fg=GRIS_SUAVE, font=(F, 10)).pack()
 
     # ------------------------------------------------------------ formularios
     def _form_organizar(self):
@@ -589,11 +723,12 @@ class App(tk.Tk):
         campo.pack(fill="x", pady=(12, 18))
         fila = tk.Frame(campo, bg=BLANCO)
         fila.pack(fill="x")
-        tk.Entry(fila, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
-                 relief="solid", bd=1, insertbackground=NEGRO).pack(
-            side="left", fill="x", expand=True, ipady=6)
+        entrada_ruta = tk.Entry(fila, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
+                                relief="solid", bd=1, insertbackground=NEGRO)
+        entrada_ruta.pack(side="left", fill="x", expand=True, ipady=6)
         BotonPlano(fila, "Examinar…", self._examinar, tipo="neutro",
                    ancho_pad=14).pack(side="left", padx=(6, 0), fill="y")
+        entrada_ruta.focus_set()
 
         tk.Label(self.contenido, text="CRITERIO DE ORGANIZACIÓN", bg=BLANCO,
                  fg=GRIS_TEXTO, font=(F, 9, "bold")).pack(anchor="w")
@@ -655,11 +790,12 @@ class App(tk.Tk):
                  font=(F, 9, "bold")).pack(anchor="w", pady=(0, 5))
         linea = tk.Frame(destino, bg=BLANCO)
         linea.pack(fill="x")
-        tk.Entry(linea, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
-                 relief="solid", bd=1, insertbackground=NEGRO).pack(
-            side="left", fill="x", expand=True, ipady=6)
+        entrada_ruta = tk.Entry(linea, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
+                                relief="solid", bd=1, insertbackground=NEGRO)
+        entrada_ruta.pack(side="left", fill="x", expand=True, ipady=6)
         BotonPlano(linea, "Examinar…", self._examinar, tipo="neutro",
                    ancho_pad=14).pack(side="left", padx=(6, 0), fill="y")
+        entrada_ruta.focus_set()
 
         nota = tk.Frame(self.contenido, bg=GRIS_FONDO)
         nota.pack(fill="x", pady=(18, 0))
@@ -677,11 +813,12 @@ class App(tk.Tk):
                  font=(F, 9, "bold")).pack(anchor="w", pady=(0, 5))
         linea = tk.Frame(destino, bg=BLANCO)
         linea.pack(fill="x")
-        tk.Entry(linea, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
-                 relief="solid", bd=1, insertbackground=NEGRO).pack(
-            side="left", fill="x", expand=True, ipady=6)
+        entrada_ruta = tk.Entry(linea, textvariable=self.ruta, font=(F, 10), bg=BLANCO, fg=NEGRO,
+                                relief="solid", bd=1, insertbackground=NEGRO)
+        entrada_ruta.pack(side="left", fill="x", expand=True, ipady=6)
         BotonPlano(linea, "Examinar…", self._examinar, tipo="neutro",
                    ancho_pad=14).pack(side="left", padx=(6, 0), fill="y")
+        entrada_ruta.focus_set()
         tk.Label(destino, text="También vale la propia carpeta 2_Doc Recebida.",
                  bg=BLANCO, fg=GRIS_SUAVE, font=(F, 8)).pack(anchor="w", pady=(4, 0))
 
@@ -710,6 +847,10 @@ class App(tk.Tk):
             aviso = tk.Frame(self.contenido, bg=VERDE_FONDO)
             aviso.pack(fill="x")
             tk.Frame(aviso, bg=VERDE, width=4).pack(side="left", fill="y")
+            if datos.get("base"):
+                BotonPlano(aviso, "Abrir la carpeta",
+                           lambda b=datos["base"]: _abrir_en_explorador(b),
+                           tipo="neutro", ancho_pad=14).pack(side="right", padx=14, pady=12)
             textos = tk.Frame(aviso, bg=VERDE_FONDO)
             textos.pack(side="left", padx=14, pady=12)
             tk.Label(textos, text=datos["titulo"], bg=VERDE_FONDO, fg=NEGRO,
@@ -724,6 +865,12 @@ class App(tk.Tk):
             tk.Label(textos, text=detalle, bg=VERDE_FONDO, fg=GRIS_TEXTO,
                      font=(F, 9)).pack(anchor="w")
 
+        # "Ignorados" (informativo: ya estaba en su sitio, excluido a
+        # propósito) es un concepto distinto de "problemas" (fallo real al
+        # mover): se cuentan y se listan por separado para no esconder un
+        # fallo real entre archivos que no necesitaban moverse.
+        problemas = datos.get("problemas", [])
+
         contadores = tk.Frame(self.contenido, bg=BLANCO)
         contadores.pack(fill="x", pady=(12, 12))
         if deshecho:
@@ -732,12 +879,16 @@ class App(tk.Tk):
             principal = ("SE MOVERÁN" if simulacion else "MOVIDOS") \
                 if self.operacion == "organizar" else ("SE CREARÁN" if simulacion else "CREADAS")
             rotulos = (principal, "SUBCARPETAS", "IGNORADOS")
-        for i, (valor, rotulo, fuerte) in enumerate((
-            (datos.get("total", len(datos["filas"])), rotulos[0], True),
-            (datos["carpetas"], rotulos[1], False),
-            (len(datos["ignorados"]), rotulos[2], False),
-        )):
-            caja = tk.Frame(contadores, bg=NARANJA if fuerte else PETROLEO)
+        cajas = [
+            (datos.get("total", len(datos["filas"])), rotulos[0], "fuerte"),
+            (datos["carpetas"], rotulos[1], "normal"),
+            (len(datos["ignorados"]), rotulos[2], "normal"),
+        ]
+        if problemas:
+            cajas.append((len(problemas), "NO SE HAN PODIDO MOVER", "grave"))
+        color_caja = {"fuerte": NARANJA, "normal": PETROLEO, "grave": ROJO}
+        for i, (valor, rotulo, tono) in enumerate(cajas):
+            caja = tk.Frame(contadores, bg=color_caja[tono])
             caja.pack(side="left", fill="x", expand=True, padx=(0 if i == 0 else 8, 0))
             tk.Label(caja, text=str(valor), bg=caja["bg"], fg=BLANCO,
                      font=(F, 17, "bold")).pack(anchor="w", padx=16, pady=(12, 0))
@@ -750,7 +901,9 @@ class App(tk.Tk):
             cabeceras = ("ORIGEN", "DESTINO")
         else:
             cabeceras = ("DENTRO DE", "CARPETA QUE SE CREA")
-        tabla = ttk.Treeview(self.contenido, columns=("origen", "destino"),
+        tabla_caja = tk.Frame(self.contenido, bg=BLANCO)
+        tabla_caja.pack(fill="both", expand=True)
+        tabla = ttk.Treeview(tabla_caja, columns=("origen", "destino"),
                              show="headings", height=10)
         tabla.heading("origen", text=cabeceras[0])
         tabla.heading("destino", text=cabeceras[1])
@@ -762,7 +915,25 @@ class App(tk.Tk):
         estilo.configure("Treeview.Heading", font=(F, 8, "bold"), foreground=GRIS_SUAVE)
         for origen, destino in datos["filas"]:
             tabla.insert("", "end", values=(origen, destino))
-        tabla.pack(fill="both", expand=True)
+        barra_v = ttk.Scrollbar(tabla_caja, orient="vertical", command=tabla.yview)
+        tabla.configure(yscrollcommand=barra_v.set)
+        barra_v.pack(side="right", fill="y")
+        tabla.pack(side="left", fill="both", expand=True)
+
+        if len(datos["filas"]) > 10:
+            tk.Label(self.contenido, text=f"{len(datos['filas'])} filas en total. Usa la rueda "
+                                          "del ratón o la barra para ver el resto.",
+                     bg=BLANCO, fg=GRIS_SUAVE, font=(F, 8)).pack(anchor="w", pady=(6, 0))
+
+        if problemas:
+            tk.Label(self.contenido, text="NO SE HAN PODIDO MOVER", bg=BLANCO, fg=ROJO,
+                     font=(F, 8, "bold")).pack(anchor="w", pady=(12, 4))
+            for nombre, motivo in problemas[:10]:
+                tk.Label(self.contenido, text=f"·  {nombre} — {motivo}", bg=BLANCO,
+                         fg=ROJO, font=(F, 9)).pack(anchor="w")
+            if len(problemas) > 10:
+                tk.Label(self.contenido, text=f"… y {len(problemas) - 10} más.",
+                         bg=BLANCO, fg=GRIS_SUAVE, font=(F, 9)).pack(anchor="w")
 
         if datos["ignorados"]:
             tk.Label(self.contenido, text="PROBLEMAS AL DESHACER" if deshecho else "NO SE MOVERÁN",
@@ -772,6 +943,9 @@ class App(tk.Tk):
                 tk.Label(self.contenido, text=f"·  {nombre} — {motivo}", bg=BLANCO,
                          fg=AMBAR if not nombre else GRIS_SUAVE,
                          font=(F, 9)).pack(anchor="w")
+            if len(datos["ignorados"]) > 6:
+                tk.Label(self.contenido, text=f"… y {len(datos['ignorados']) - 6} más.",
+                         bg=BLANCO, fg=GRIS_SUAVE, font=(F, 9)).pack(anchor="w")
 
     def _vista_historial(self):
         tk.Label(self.contenido,
@@ -868,7 +1042,21 @@ def _cargar_logo(ruta: Path, alto: int):
     return imagen.subsample(factor, factor) if factor > 1 else imagen
 
 
+def _declarar_dpi_consciente() -> None:
+    """En Windows con pantallas de alta densidad (125%, 150%...), sin esto
+    el sistema estira la ventana en vez de dibujarla más grande: queda
+    borrosa. No aplica a Linux/macOS."""
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:  # noqa: BLE001 - Windows antiguo sin shcore: se ignora
+        pass
+
+
 def main() -> int:
+    _declarar_dpi_consciente()
     inicial = limpiar_ruta(sys.argv[1]) if len(sys.argv) > 1 else None
     app = App(inicial)
     app.mainloop()

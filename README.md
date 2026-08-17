@@ -114,7 +114,7 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 ## Checklist antes de entregar ao Roberto
 
 - [ ] `python -m unittest discover -s tests -v` — todos os testes a passar
-      (43 testes: 36 do motor `organizador/`, intacto na lógica, e 7 da
+      (46 testes: 36 do motor `organizador/`, intacto na lógica, e 10 da
       janela — estes saltam se o PC não tiver Tkinter ou ecrã, confirma que
       dizem `ok` e não `skipped`).
 - [ ] Correr `interfaz.py` no meu PC: as 4 operações da janela (organizar,
@@ -156,16 +156,19 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 python -m unittest discover -s tests -v
 ```
 
-São 43, em dois ficheiros:
+São 46, em dois ficheiros:
 
 - **`tests/test_organizador.py`** (36) — o motor. Não abre janela nenhuma,
   corre em qualquer sítio.
-- **`tests/test_interfaz.py`** (7) — a janela, com **cliques reais**. Os
+- **`tests/test_interfaz.py`** (10) — a janela, com **cliques reais**. Os
   botões da interface são `tk.Label` com um binding `<Button-1>` próprio (não
   `tk.Button`), por isso os testes entregam um evento de rato de verdade
   (`event_generate`) em vez de chamar os métodos por dentro: assim um binding
   mal ligado é apanhado. Verificam também o disco — aplicar move mesmo os
-  ficheiros, desfazer põe-nos de volta, e a pré-visualização não toca em nada.
+  ficheiros, desfazer põe-nos de volta, e a pré-visualização não toca em nada —
+  e cobrem a rede de segurança global (`report_callback_exception`) e a
+  separação entre ficheiros que falharam ao mover e os que já estavam no
+  sítio.
 
 Os testes da janela **saltam sozinhos** (`skipped`) se faltar Tkinter ou um
 ecrã, em vez de falhar. Se quiseres corrê-los numa máquina sem ecrã (CI,
