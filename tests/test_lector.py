@@ -133,6 +133,48 @@ def test_pdf_rapido_le_normalmente_dentro_do_timeout():
             lector.pypdf = pypdf_orig
 
 
+def test_o_mesmo_ficheiro_nao_e_lido_duas_vezes():
+    # O 'leer' e o 'radar' percorrem a mesma pasta um a seguir ao outro. Sem
+    # cache, cada .pdf lento é pago duas vezes — era o passo 2 a demorar o dobro.
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "doc.txt"
+        p.write_text("3.2 Gestión de la seguridad", encoding="utf-8")
+
+        leituras = []
+        original = lector._extract_text_sem_cache
+
+        def contar(path):
+            leituras.append(str(path))
+            return original(path)
+
+        lector._extract_text_sem_cache = contar
+        lector._CACHE.clear()
+        try:
+            primeira = lector.extract_text(p)
+            segunda = lector.extract_text(p)
+        finally:
+            lector._extract_text_sem_cache = original
+
+        assert primeira == segunda == "3.2 Gestión de la seguridad"
+        assert len(leituras) == 1
+
+
+def test_ficheiro_alterado_e_relido():
+    # A cache é por (mtime, tamanho): se o documento foi substituído por uma
+    # versão nova entre dois comandos, tem de ser lido outra vez.
+    import os
+
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "doc.txt"
+        p.write_text("versão 1", encoding="utf-8")
+        lector._CACHE.clear()
+        assert lector.extract_text(p) == "versão 1"
+
+        p.write_text("versão 2 (revista)", encoding="utf-8")
+        os.utime(p, (0, 0))  # garante mtime diferente mesmo em relógios grosseiros
+        assert lector.extract_text(p) == "versão 2 (revista)"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

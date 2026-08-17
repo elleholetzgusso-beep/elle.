@@ -106,12 +106,89 @@ def test_anejo_grava_os_ids_para_serem_estaveis(cfg: Config):
     assert "--asignar-ids" in _argv_de("anejo", cfg)[0]
 
 
+# ------------------------------------------------------------------ revisão
+
+
+def test_revisao_actualiza_em_vez_de_montar_de_novo(cfg: Config):
+    # Numa revisão o projeto já existe: acrescenta-se o envío novo e regista-se
+    # a versão. Voltar a correr o 'merge' apagaria os puntos todos.
+    cfg.revisao = True
+    cfg.projeto.write_text(yaml.safe_dump({"puntos": [{"id": "H-001"}]}), encoding="utf-8")
+    assert [c[0] for c in _argv_de("preparar", cfg)] == ["scan", "update", "rev"]
+
+
+def test_revisao_sem_projeto_arranca_do_lpa_emitido(cfg: Config):
+    # Primeira revisão feita com esta ferramenta: o projeto.yaml ainda não
+    # existe, mas o LPA anterior sim — o extract reconstrói o ponto de partida.
+    cfg.revisao = True
+    cfg.lpa_existente = cfg.trabalho / "LPA_anterior.xlsm"
+    assert [c[0] for c in _argv_de("preparar", cfg)] == ["extract", "scan", "update", "rev"]
+
+
+def test_revisao_com_projeto_nao_repete_o_extract(cfg: Config):
+    cfg.revisao = True
+    cfg.lpa_existente = cfg.trabalho / "LPA_anterior.xlsm"
+    cfg.projeto.write_text(yaml.safe_dump({"puntos": [{"id": "H-001"}]}), encoding="utf-8")
+    assert "extract" not in [c[0] for c in _argv_de("preparar", cfg)]
+
+
+def test_revisao_exige_de_onde_partir(cfg: Config):
+    cfg.revisao = True
+    falta = pipeline.passo("preparar").em_falta(cfg)
+    assert any("LPA" in m for m in falta)
+    # O PES é do primeiro LPA; numa revisão não se volta a pedir.
+    assert not any("PES" in m for m in falta)
+
+
+def test_revisao_nao_avisa_de_apagar_o_que_preserva(cfg: Config):
+    cfg.projeto.write_text(
+        yaml.safe_dump({"puntos": [{"id": "H-001"}, {"id": "H-002"}]}), encoding="utf-8"
+    )
+    assert pipeline.preparar_apaga_puntos(cfg) == 2      # projeto novo: o merge apaga
+    cfg.revisao = True
+    assert pipeline.preparar_apaga_puntos(cfg) == 0      # revisão: o update preserva
+
+
+# ------------------------------------------------------- passos dispensáveis
+
+
+def test_aba_vazia_dispensa_analisar_e_sugerir(cfg: Config):
+    # Se a aba LPA vai ficar vazia para se escrever à mão, ler os documentos a
+    # fundo e propor hallazgos do histórico não serve para nada — e o passo 2 é
+    # o lento (abre todos os .pdf).
+    cfg.skip_lpa = True
+    assert pipeline.passo("analisar").opcional(cfg)
+    assert pipeline.passo("sugerir").opcional(cfg)
+
+
+def test_com_a_aba_a_preencher_nenhum_passo_e_dispensavel(cfg: Config):
+    cfg.skip_lpa = False
+    for chave in ("preparar", "analisar", "sugerir", "lpa", "anejo"):
+        assert not pipeline.passo(chave).opcional(cfg), chave
+
+
+def test_opcional_nao_e_impedido_de_correr(cfg: Config):
+    # "Dispensável" não é "bloqueado": quem quiser o radar corre-o na mesma.
+    cfg.skip_lpa = True
+    cfg.projeto.write_text("puntos: []\n", encoding="utf-8")
+    assert pipeline.passo("analisar").em_falta(cfg) == []
+
+
 # ----------------------------------------------- os comandos existem mesmo
 
 
 def test_todos_os_comandos_gerados_sao_aceites_pelo_cli(cfg: Config):
     # Impede que a janela ofereça uma opção que o CLI não tem — foi o que
     # aconteceu com o --scope no radar.
+    analisador = cli.build_parser()
+    for passo in pipeline.PASSOS:
+        for argv in passo.comandos(cfg):
+            analisador.parse_args(argv)
+
+
+def test_os_comandos_da_revisao_tambem_existem(cfg: Config):
+    cfg.revisao = True
+    cfg.lpa_existente = cfg.trabalho / "LPA_anterior.xlsm"
     analisador = cli.build_parser()
     for passo in pipeline.PASSOS:
         for argv in passo.comandos(cfg):

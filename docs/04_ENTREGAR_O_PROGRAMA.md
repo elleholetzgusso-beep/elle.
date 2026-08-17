@@ -16,32 +16,59 @@ python -m lpa_filler gui
 que mostra exatamente o que está a acontecer:
 
 ```text
-ENTRADAS               FLUXO   2 de 5 passos concluídos
- ✓ Relatório PES        ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
- ✓ Documentos recebidos │ ✓ FEITO││ ✓ FEITO││3 SEGUIN││4 ESPERA││5 ESPERA│
- ✓ Base de hallazgos    │Preparar││Analisar││Sugerir ││Gerar o ││Gerar o │
- ! Template LPA         │o proje…││os docu…││hallaz… ││LPA     ││Anejo   │
- ✓ Pasta de trabalho    └────────┘└────────┘└────────┘└────────┘└────────┘
-
-CONTEXTO DA OBRA        [ CORRER PASSO 3 ]  [ ABRIR PASTA ]   ▓▓▓▓░░░░ 40%
-  Solicitante
-  Âncoras desta obra    O QUE ESTÁ A ACONTECER
-  Código desta obra       $ lpa_filler scan -r ... -o documentos.yaml
+O QUE VAIS FAZER       FLUXO  1 de 5 concluídos · 2 dispensáveis
+ ☐ Revisão de um LPA    ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
+   já existente         │ ✓ FEITO││2 DISPEN││3 DISPEN││4 SEGUIN││5 ESPERA│
+                        │Preparar││Analisar││Sugerir ││Gerar o ││Gerar o │
+ENTRADAS                │o proje…││os docu…││hallaz… ││LPA     ││Anejo   │
+ ✓ Relatório PES        └────────┘└────────┘└────────┘└────────┘└────────┘
+ ! LPA anterior
+ ✓ Documentos recebidos [ CORRER PASSO 4 ]  [ ABRIR PASTA ]   ▓▓░░░░░░ 20%
+ ✓ Base de hallazgos
+ ! Template LPA         O QUE ESTÁ A ACONTECER
+ ✓ Pasta de trabalho      $ lpa_filler scan -r ... -o documentos.yaml
                           # 72 documentos encontrados
-EXIGÊNCIA               # 1 incertos (rever manualmente)
-  ──────●─────  12       Escrito: documentos.yaml
-                         Concluído.
+CONTEXTO DA OBRA          # 1 incertos (rever manualmente)
+  Solicitante             Escrito: documentos.yaml
+  Âncoras desta obra      Concluído.
+  Código desta obra
 ```
 
 Três coisas que a janela diz sem ser preciso perguntar:
 
 - **O que falta preencher.** Cada entrada tem um `!` âmbar por preencher e um
   `✓` verde quando está — vê-se antes de tentar correr.
-- **Por onde se vai.** Os passos mostram-se `FEITO` / `SEGUINTE` / `EM ESPERA`,
-  e o botão principal aponta sempre ao seguinte. Também se pode clicar num
-  cartão para repetir um passo anterior.
+- **Por onde se vai.** Os passos mostram-se `FEITO` / `SEGUINTE` / `EM ESPERA` /
+  `DISPENSÁVEL`, e o botão principal aponta sempre ao seguinte que interessa.
+  Também se pode clicar num cartão para repetir um passo anterior.
 - **O que correu.** A consola imprime o comando exato antes de cada saída, por
   isso o que se vê na janela é reproduzível no terminal.
+
+### Os dois modos
+
+A caixa **«Revisão de um LPA já existente»**, no topo da coluna esquerda, decide
+o que o passo 1 faz:
+
+| | Desligada — LPA novo | Ligada — revisão |
+|---|---|---|
+| Passo 1 corre | `from-docx` → `scan` → `merge` | `scan` → `update` → `rev` |
+| Os puntos | monta de raiz (**apaga** os que houver) | **preserva**, acrescenta o envío novo e regista a versão |
+| Precisa de | Relatório PES | `projeto.yaml` desta obra — ou, se ainda não existir, o **LPA anterior** (`.xlsm`), de onde arranca com o `extract` |
+
+Numa revisão o PES não é pedido outra vez: é do primeiro LPA. E o aviso de
+"isto apaga os puntos" desaparece, porque nesse modo não apaga nada.
+
+### Passos dispensáveis
+
+Com **«Deixar a aba LPA vazia»** ligada, os passos 2 (analisar) e 3 (sugerir)
+ficam marcados `DISPENSÁVEL` e o botão salta-os. A razão é simples: ambos
+existem para propor conteúdo para a aba LPA, e essa aba vai ficar vazia para se
+escrever à mão. O passo 2 é também o mais lento — abre todos os `.pdf`
+recebidos.
+
+**Dispensável não é bloqueado.** Os cartões continuam clicáveis: o `radar.txt` é
+útil mesmo quando se escreve tudo à mão, só deixa de ser obrigatório passar por
+ele para chegar ao fim.
 
 A janela **não sabe fazer nada** que a linha de comandos não faça: monta os
 mesmos comandos e chama-os. Um teste garante que todos os comandos que a janela
@@ -58,7 +85,20 @@ avaliador.
 | Situação | O que acontece |
 |---|---|
 | Falta uma entrada | Diz o que falta, por nome, e não corre nada. |
-| O passo 1 sobre um projeto que já tem puntos | Pergunta antes, dizendo quantos puntos vai apagar. |
+| O passo 1 sobre um projeto que já tem puntos, **em modo LPA novo** | Pergunta antes, dizendo quantos puntos vai apagar — e lembra que era a caixa «Revisão» que evitava isso. Em modo revisão não pergunta, porque não apaga. |
+
+### Porque é que o passo 2 era lento
+
+O `leer` e o `radar` percorrem a mesma pasta de documentos recebidos, um a
+seguir ao outro. Cada um abria os ficheiros por sua conta, por isso **todos os
+`.pdf` eram lidos duas vezes** — e um `.pdf` mal formado pode ocupar até 25
+segundos (`PDF_TIMEOUT_S`) antes de se desistir dele. Numa pasta com 80
+documentos isso é muito tempo a dobrar.
+
+O `lector` passou a guardar o texto já extraído, por `(caminho, data de
+modificação, tamanho)`. Um documento substituído por uma versão nova entre dois
+comandos é relido; o mesmo ficheiro inalterado não. É uma cache dentro da
+execução, não em disco — não há estado a ficar desatualizado entre sessões.
 
 ---
 

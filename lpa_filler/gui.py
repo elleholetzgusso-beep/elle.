@@ -155,6 +155,11 @@ class _CartaoPasso(tk.Frame):
             self._pintar(PALETA["marca_clara"], PALETA["marca"], PALETA["marca"],
                          "#FFFFFF", "SEGUINTE", PALETA["marca_escura"], PALETA["texto"],
                          str(self._indice))
+        elif estado == "dispensavel":
+            # Continua clicável: não é proibido, é só desnecessário aqui.
+            self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["cartao"],
+                         PALETA["apagado"], "DISPENSÁVEL", PALETA["apagado"],
+                         PALETA["apagado"], str(self._indice))
         else:
             self._pintar(PALETA["cartao"], PALETA["linha"], PALETA["cartao"],
                          PALETA["apagado"], "EM ESPERA", PALETA["apagado"],
@@ -327,11 +332,26 @@ class Janela(tk.Tk):
                  font=(FONTE, 7), wraplength=340, justify="left").pack(anchor="w", pady=(0, 10))
 
     def _coluna_entradas(self, pai: tk.Widget) -> None:
+        c = self._secao(pai, "O que vais fazer")
+        self._revisao = tk.BooleanVar(value=False)
+        ttk.Checkbutton(c, text="Revisão de um LPA já existente",
+                        variable=self._revisao,
+                        command=self._modo_mudou).pack(anchor="w")
+        self._nota_modo = tk.Label(
+            c, text="Desligado: LPA novo, montado a partir do PES.",
+            bg=PALETA["cartao"], fg=PALETA["apagado"], font=(FONTE, 7),
+            wraplength=340, justify="left")
+        self._nota_modo.pack(anchor="w", pady=(3, 10))
+
         c = self._secao(pai, "Entradas")
         self._linha_caminho(c, "pes", "Relatório PES", ".docx",
                             lambda: filedialog.askopenfilename(
                                 title="Relatório PES",
                                 filetypes=[("Word", "*.docx"), ("Todos", "*.*")]))
+        self._linha_caminho(c, "lpa_existente", "LPA anterior", ".xlsm",
+                            lambda: filedialog.askopenfilename(
+                                title="LPA já emitido (para arrancar a revisão)",
+                                filetypes=[("Excel com macros", "*.xlsm"), ("Todos", "*.*")]))
         self._linha_caminho(c, "recibida", "Documentos recebidos", "pasta",
                             lambda: filedialog.askdirectory(title="Doc Recibida"))
         self._linha_caminho(c, "base", "Base de hallazgos", ".csv",
@@ -373,7 +393,8 @@ class Janela(tk.Tk):
 
         self._skip_lpa = tk.BooleanVar(value=True)
         ttk.Checkbutton(c, text="Deixar a aba LPA vazia para preencher à mão",
-                        variable=self._skip_lpa).pack(anchor="w")
+                        variable=self._skip_lpa,
+                        command=self._modo_mudou).pack(anchor="w")
         self._substituir = tk.BooleanVar(value=False)
         ttk.Checkbutton(c, text="Ao sugerir, substituir as sugestões anteriores",
                         variable=self._substituir).pack(anchor="w", pady=(3, 16))
@@ -416,22 +437,52 @@ class Janela(tk.Tk):
         tk.Frame(pai, bg=PALETA["linha"], height=1).pack(fill="x", pady=(16, 0))
 
     def _seguinte(self) -> int:
-        return min(self._feitos + 1, len(pipeline.PASSOS))
+        """O próximo passo a propor, saltando os dispensáveis nesta configuração.
+
+        Saltar é só na proposta: os cartões continuam clicáveis, porque
+        'dispensável' não é 'proibido'."""
+        cfg = self._config()
+        total = len(pipeline.PASSOS)
+        for i in range(self._feitos + 1, total + 1):
+            if not pipeline.PASSOS[i - 1].opcional(cfg):
+                return i
+        return min(self._feitos + 1, total)
 
     def _marcar_passos(self) -> None:
+        cfg = self._config()
         seguinte = self._seguinte()
+        dispensaveis = 0
         for i, cartao in self._cartoes.items():
+            opcional = pipeline.PASSOS[i - 1].opcional(cfg)
             if i <= self._feitos:
                 cartao.estado("feito")
             elif i == seguinte:
                 cartao.estado("correr" if self._a_correr else "seguinte")
+            elif opcional:
+                cartao.estado("dispensavel")
+                dispensaveis += 1
             else:
                 cartao.estado("espera")
         total = len(pipeline.PASSOS)
-        self._resumo.configure(text=f"{self._feitos} de {total} passos concluídos")
+        resumo = f"{self._feitos} de {total} passos concluídos"
+        if dispensaveis:
+            resumo += f" · {dispensaveis} dispensáveis com a aba LPA vazia"
+        self._resumo.configure(text=resumo)
         self._progresso.configure(value=self._feitos)
         self._percent.configure(text=f"{round(self._feitos / total * 100)}%")
         self._botao.configure(text=f"CORRER PASSO {seguinte}")
+
+    def _modo_mudou(self) -> None:
+        """Reage às caixas que mudam o fluxo (revisão, aba LPA vazia)."""
+        if self._revisao.get():
+            self._nota_modo.configure(
+                text="Acrescenta o envío novo ao projeto desta pasta e regista a "
+                     "revisão, sem tocar nos puntos. Se ainda não houver projeto.yaml "
+                     "aqui, indica o LPA anterior (.xlsm) para arrancar dele.")
+        else:
+            self._nota_modo.configure(
+                text="Desligado: LPA novo, montado a partir do PES.")
+        self._marcar_passos()
 
     def _abrir_pasta(self) -> None:
         import subprocess
@@ -517,6 +568,8 @@ class Janela(tk.Tk):
             min_score=float(self._min_score.get()),
             skip_lpa=bool(self._skip_lpa.get()),
             substituir_sugestoes=bool(self._substituir.get()),
+            revisao=bool(self._revisao.get()),
+            lpa_existente=caminho("lpa_existente"),
         )
 
     def _correr_indice(self, indice: int) -> None:
@@ -537,11 +590,14 @@ class Janela(tk.Tk):
             return
 
         if chave == "preparar":
-            n = pipeline.projeto_tem_puntos(cfg)
+            # Numa revisão o 'update' preserva os puntos; só o 'merge' os apaga.
+            n = pipeline.preparar_apaga_puntos(cfg)
             if n and not messagebox.askyesno(
                 "Já existe um projeto",
                 f"O projeto.yaml desta pasta já tem {n} punto(s).\n\n"
-                "Voltar a preparar apaga-os e recomeça do zero.\n\nContinuar?",
+                "Voltar a preparar apaga-os e recomeça do zero.\n\n"
+                "Se querias acrescentar um envío novo a este LPA, cancela e liga "
+                "«Revisão de um LPA já existente».\n\nContinuar?",
                 icon="warning",
             ):
                 return

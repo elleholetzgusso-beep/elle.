@@ -26,6 +26,8 @@ class Config:
     min_score: float = 12.0
     skip_lpa: bool = True
     substituir_sugestoes: bool = False
+    revisao: bool = False
+    lpa_existente: Path | None = None
 
     @property
     def meta(self) -> Path:
@@ -63,6 +65,7 @@ class Passo:
     descricao: str
     _comandos: Callable[[Config], list[list[str]]]
     _exige: Callable[[Config], list[str]]
+    _opcional: Callable[[Config], bool] = lambda cfg: False
 
     def comandos(self, cfg: Config) -> list[list[str]]:
         return self._comandos(cfg)
@@ -71,16 +74,32 @@ class Passo:
         """O que falta preencher para este passo poder correr."""
         return self._exige(cfg)
 
+    def opcional(self, cfg: Config) -> bool:
+        """Se este passo pode ser saltado com a configuração atual.
+
+        Não é "nunca corre" — é "não é preciso para se chegar ao fim": os
+        cartões continuam clicáveis, só deixa de ser o próximo passo por
+        omissão."""
+        return self._opcional(cfg)
+
 
 def _s(p: Path | None) -> str:
     return str(p) if p else ""
 
 
 # --------------------------------------------------------------------------- #
-# 1. Preparar o projeto: PES + documentos recebidos -> projeto.yaml
+# 1. Preparar o projeto
+#
+# Dois modos, conforme cfg.revisao:
+#   - Projeto novo: PES + documentos recebidos -> projeto.yaml (from-docx, scan, merge).
+#   - Revisão: acrescenta o novo envío a um projeto que já tem puntos, e regista
+#     a versão nova (scan, update, rev). Se ainda não houver projeto.yaml nesta
+#     pasta de trabalho, arranca de um LPA .xlsm já emitido (extract).
 
 
 def _cmd_preparar(cfg: Config) -> list[list[str]]:
+    if cfg.revisao:
+        return _cmd_preparar_revisao(cfg)
     cmds = [
         ["from-docx", "-i", _s(cfg.pes), "-o", _s(cfg.meta)],
         ["scan", "-r", _s(cfg.recibida), "-o", _s(cfg.documentos)],
@@ -92,7 +111,27 @@ def _cmd_preparar(cfg: Config) -> list[list[str]]:
     return cmds
 
 
+def _cmd_preparar_revisao(cfg: Config) -> list[list[str]]:
+    cmds: list[list[str]] = []
+    if not cfg.projeto.exists() and cfg.lpa_existente:
+        cmds.append(["extract", "-i", _s(cfg.lpa_existente), "-o", _s(cfg.projeto)])
+    cmds.append(["scan", "-r", _s(cfg.recibida), "-o", _s(cfg.documentos)])
+    cmds.append(["update", "-p", _s(cfg.projeto), "-d", _s(cfg.documentos)])
+    rev = ["rev", "-p", _s(cfg.projeto)]
+    if cfg.solicitante:
+        rev += ["--solicitante", cfg.solicitante]
+    cmds.append(rev)
+    return cmds
+
+
 def _exige_preparar(cfg: Config) -> list[str]:
+    if cfg.revisao:
+        falta = []
+        if not cfg.recibida:
+            falta.append("Pasta dos documentos recebidos (do novo envío)")
+        if not cfg.projeto.exists() and not cfg.lpa_existente:
+            falta.append("projeto.yaml desta obra já existente, ou um LPA .xlsm para arrancar (extract)")
+        return falta
     falta = []
     if not cfg.pes:
         falta.append("Relatório PES (.docx)")
@@ -197,16 +236,20 @@ PASSOS: list[Passo] = [
     Passo(
         "analisar",
         "2 · Analisar os documentos",
-        "Checklist estrutural de cada documento e radar de onde procurar erros.",
+        "Checklist estrutural de cada documento e radar de onde procurar erros. "
+        "Opcional se a aba LPA vai ficar vazia para se escrever à mão.",
         _cmd_analisar,
         _exige_analisar,
+        lambda cfg: cfg.skip_lpa,
     ),
     Passo(
         "sugerir",
         "3 · Sugerir hallazgos",
-        "Propõe hallazgos parecidos do histórico. Todos precisam de ser revistos.",
+        "Propõe hallazgos parecidos do histórico. Todos precisam de ser revistos. "
+        "Opcional se a aba LPA vai ficar vazia para se escrever à mão.",
         _cmd_sugerir,
         _exige_sugerir,
+        lambda cfg: cfg.skip_lpa,
     ),
     Passo(
         "lpa",
@@ -235,7 +278,9 @@ def passo(chave: str) -> Passo:
 def projeto_tem_puntos(cfg: Config) -> int:
     """Quantos puntos já existem no projeto.yaml (0 se não existir).
 
-    O passo 1 apaga-os ao voltar a correr, por isso a interface avisa antes.
+    Só interessa no modo projeto novo: aí o passo 1 apaga-os ao voltar a correr,
+    e a interface avisa antes. Numa revisão o `update` preserva-os, por isso não
+    há nada a avisar — ver ``preparar_apaga_puntos``.
     """
     if not cfg.projeto.exists():
         return 0
@@ -246,3 +291,8 @@ def projeto_tem_puntos(cfg: Config) -> int:
     except (OSError, yaml.YAMLError):
         return 0
     return len(dados.get("puntos") or [])
+
+
+def preparar_apaga_puntos(cfg: Config) -> int:
+    """Quantos puntos o passo 1 apagaria agora (0 se nenhum, ou se for revisão)."""
+    return 0 if cfg.revisao else projeto_tem_puntos(cfg)

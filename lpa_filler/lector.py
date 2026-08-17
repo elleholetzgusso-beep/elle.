@@ -101,12 +101,13 @@ def _txt_text(path: str | Path) -> str:
         return ""
 
 
-def extract_text(path: str | Path) -> str:
-    """Texto do ficheiro conforme a extensão. "" se ilegível ou tipo não suportado.
+# Texto já extraído nesta execução: path -> (mtime, tamanho, texto). O `leer` e o
+# `radar` leem os mesmos ficheiros da mesma pasta recebida, um a seguir ao outro;
+# sem isto, cada .pdf lento (até PDF_TIMEOUT_S) é pago duas vezes.
+_CACHE: dict[str, tuple[float, int, str]] = {}
 
-    Nota: um .pdf só é lido se ``pypdf`` estiver instalado (``PDF_OK``). Sem ele,
-    devolve "" — o chamador deve avisar (ver ``motivo_vazio``).
-    """
+
+def _extract_text_sem_cache(path: str | Path) -> str:
     suf = Path(path).suffix.lower()
     if suf == ".docx":
         return _docx_text(path)
@@ -115,6 +116,33 @@ def extract_text(path: str | Path) -> str:
     if suf in (".txt", ".md"):
         return _txt_text(path)
     return ""
+
+
+def extract_text(path: str | Path) -> str:
+    """Texto do ficheiro conforme a extensão. "" se ilegível ou tipo não suportado.
+
+    Nota: um .pdf só é lido se ``pypdf`` estiver instalado (``PDF_OK``). Sem ele,
+    devolve "" — o chamador deve avisar (ver ``motivo_vazio``).
+
+    Cacheado por (caminho, data de modificação, tamanho): chamar duas vezes sobre
+    o mesmo ficheiro inalterado não volta a abri-lo nem a pagar o timeout do pdf.
+    """
+    chave = str(path)
+    try:
+        st = Path(path).stat()
+        marca = (st.st_mtime, st.st_size)
+    except OSError:
+        marca = None
+
+    if marca is not None:
+        cache = _CACHE.get(chave)
+        if cache is not None and cache[:2] == marca:
+            return cache[2]
+
+    texto = _extract_text_sem_cache(path)
+    if marca is not None:
+        _CACHE[chave] = (marca[0], marca[1], texto)
+    return texto
 
 
 def motivo_vazio(path: str | Path) -> str:
