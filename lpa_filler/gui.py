@@ -445,16 +445,14 @@ class Janela(tk.Tk):
         tk.Frame(pai, bg=PALETA["linha"], height=1).pack(fill="x", pady=(16, 0))
 
     def _seguinte(self) -> int:
-        """O próximo passo a propor, saltando os dispensáveis nesta configuração.
+        """O passo a seguir — sempre o próximo, mesmo que esteja dispensável.
 
-        Saltar é só na proposta: os cartões continuam clicáveis, porque
-        'dispensável' não é 'proibido'."""
-        cfg = self._config()
-        total = len(pipeline.PASSOS)
-        for i in range(self._feitos + 1, total + 1):
-            if not pipeline.PASSOS[i - 1].opcional(cfg):
-                return i
-        return min(self._feitos + 1, total)
+        Já saltou os dispensáveis automaticamente, e o resultado foi um LPA com
+        0 puntos sem um único erro na consola: quem carregava no botão passava
+        de 'analisar' para 'gerar' sem reparar que nunca chegou a sugerir nada.
+        A etiqueta PRESCINDIBLE informa; quem decide saltar é quem carrega no
+        cartão seguinte."""
+        return min(self._feitos + 1, len(pipeline.PASSOS))
 
     def _marcar_passos(self) -> None:
         cfg = self._config()

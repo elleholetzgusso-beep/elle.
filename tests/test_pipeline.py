@@ -267,3 +267,17 @@ def test_a_consola_reconhece_os_avisos_que_os_comandos_imprimem():
     assert gritos <= ancoras, (
         f"o cli imprime {gritos - ancoras} e o gui não os pinta de âmbar"
     )
+
+
+def test_dispensavel_e_uma_etiqueta_nao_um_salto():
+    """O botão principal nunca salta um passo, dispensável ou não.
+
+    Saltar automaticamente produzia um LPA com 0 puntos sem erro nenhum: o
+    passo 3 (sugerir) nunca corria e ninguém reparava. Marcar como dispensável
+    serve para informar; a decisão de saltar é de quem carrega no cartão.
+    """
+    fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "gui.py").read_text(
+        encoding="utf-8"
+    )
+    corpo = fonte.split("def _seguinte(")[1].split("def ")[0]
+    assert ".opcional(" not in corpo, "_seguinte voltou a saltar passos dispensáveis"

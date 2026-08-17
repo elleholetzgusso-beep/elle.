@@ -177,8 +177,8 @@ def drop_placeholders(data: dict[str, Any]) -> list[str]:
         texto = ((pt.get("dialogo") or [{}])[0].get("texto") or "").upper()
         if any(ph in texto for ph in PLACEHOLDERS):
             avisos.append(
-                f"{_etiqueta(pt)} descartado: texto-modelo por preencher "
-                f"(placeholder) — não entra no Excel."
+                f"{_etiqueta(pt)} descartado: texto-modelo por completar "
+                f"(placeholder) — no entra en el Excel."
             )
             continue
         mantidos.append(pt)
@@ -186,7 +186,7 @@ def drop_placeholders(data: dict[str, Any]) -> list[str]:
     for campo in ("titulo", "referencia"):
         valor = str(data.get("portada", {}).get(campo) or "")
         if "PREENCHER" in valor.upper():
-            avisos.append(f"Portada.{campo} ainda com 'PREENCHER' — corrige antes de emitir.")
+            avisos.append(f"Portada.{campo} todavía con 'PREENCHER' — corrige antes de emitir.")
     return avisos
 
 
@@ -208,7 +208,7 @@ def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
             avisos.append(
                 f"{_etiqueta(pt)} descartado: marcado _fora_escopo ({marc}) — "
                 f"provável hallazgo de outra obra. Para manter, apaga a chave "
-                f"'_fora_escopo' deste punto no YAML e corre o fill de novo."
+                f"'_fora_escopo' de este punto en el YAML y ejecuta el fill de nuevo."
             )
             continue
         mantidos.append(pt)
@@ -231,9 +231,9 @@ def drop_fora_de_escopo(data: dict[str, Any]) -> list[str]:
     if codigos and not scope.own_code_anchors(referencia):
         avisos.append(
             f"{len(codigos)} descarte(s) por código de obra ({', '.join(codigos)}) com "
-            f"'portada.referencia' por preencher — sem ela o código desta obra não é "
+            f"'portada.referencia' por completar — sin ella el código de esta obra no se "
             f"reconhecido como próprio, e um punto que cite o relatório desta obra é "
-            f"descartado como sendo de outra. Preenche a referência e corre o suggest "
+            f"descartado como de otra. Completa la referencia y ejecuta el suggest "
             f"de novo para reclassificar."
         )
     return avisos
@@ -275,13 +275,22 @@ def preparar_emissao(data: dict[str, Any]) -> list[str]:
 # responde é o cliente; a réplica da Exceltic é a aceitação do avaliador.
 _RESPUESTA_RE = re.compile(r"^\s*respuesta\b", re.IGNORECASE)
 
+# O 'draft' marcava os rascunhos com "[RASCUNHO" antes de a ferramenta passar a
+# espanhol. Reconhecer os dois evita invalidar projetos a meio de um ciclo.
+_MARCAS_RASCUNHO = ("[BORRADOR", "[RASCUNHO")
+
+
+def _e_rascunho(texto: str) -> bool:
+    """Se este texto de diálogo é o scaffold do 'draft', não um parecer do avaliador."""
+    return any(m in (texto or "") for m in _MARCAS_RASCUNHO)
+
 
 def _linhas_com_texto(dialogo: list[dict], do_avaliador: bool) -> list[dict]:
     saida = []
     for d in dialogo[1:]:
         tipo = str(d.get("tipo") or "")
         texto = (d.get("texto") or "").strip()
-        if not texto or "[RASCUNHO" in texto:
+        if not texto or _e_rascunho(texto):
             continue
         if not _RESPUESTA_RE.match(tipo):
             continue
@@ -319,21 +328,21 @@ def check_transiciones(data: dict[str, Any]) -> list[str]:
 
         if not cliente:
             problemas.append(
-                f"{et}: '{estado}' sem resposta do cliente no diálogo — o PE/03 §8.4 "
+                f"{et}: '{estado}' sin respuesta del cliente en el diálogo — el PE/03 §8.4 "
                 f"só permite sair de 'Abierto' depois de o cliente responder."
             )
         if not avaliador:
             problemas.append(
-                f"{et}: '{estado}' sem aceitação da ação pelo avaliador (linha "
-                f"'Respuesta Exceltic' preenchida) — sem ela o punto continua 'Abierto'."
+                f"{et}: '{estado}' sin aceptación de la acción por el evaluador (línea "
+                f"'Respuesta Exceltic' completada) — sin ella el punto sigue 'Abierto'."
             )
         if estado == "Cerrado" and not any(
             _EVIDENCIA_RE.search((d.get("texto") or "")) for d in cliente + avaliador
         ):
             problemas.append(
-                f"{et}: 'Cerrado' sem evidência documental citada no diálogo "
+                f"{et}: 'Cerrado' sin evidencia documental citada en el diálogo "
                 f"(versão, apartado, anexo ou documento aportado) — o fecho exige "
-                f"prova de execução, não só a aceitação da ação."
+                f"prueba de ejecución, no solo la aceptación de la acción."
             )
     return problemas
 
@@ -344,25 +353,25 @@ def lint(data: dict[str, Any]) -> list[str]:
     for pt in data.get("puntos", []):
         et = _etiqueta(pt)
         if not pt.get("id"):
-            avisos.append(f"{et}: sem 'id' estável — corre o merge/suggest para o atribuir.")
+            avisos.append(f"{et}: sin 'id' estable — ejecuta merge/suggest para asignarlo.")
         if not pt.get("valoracion"):
-            avisos.append(f"{et}: sem 'valoracion' (Crítico/Importante/Informativo/Formal).")
+            avisos.append(f"{et}: sin 'valoracion' (Crítico/Importante/Informativo/Formal).")
         if not pt.get("punto"):
             avisos.append(f"{et}: 'punto' (requisito normativo) vazio — o guia exige referência à norma.")
         if not pt.get("estado"):
-            avisos.append(f"{et}: sem 'estado' (Abierto/Resuelto/Cerrado).")
+            avisos.append(f"{et}: sin 'estado' (Abierto/Resuelto/Cerrado).")
         dialogo = pt.get("dialogo") or []
         if not dialogo or not (dialogo[0].get("texto") or "").strip():
-            avisos.append(f"{et}: sem texto de 'Hallazgo' na primeira linha do diálogo.")
+            avisos.append(f"{et}: sin texto de 'Hallazgo' en la primera línea del diálogo.")
         # Regra de ouro: nenhum Crítico pode ficar Abierto num informe positivo.
         if pt.get("valoracion") == "Crítico" and pt.get("estado") == "Abierto":
             avisos.append(f"{et}: CRÍTICO ainda 'Abierto' — bloqueia um informe positivo (regra de ouro).")
         # Rascunho do 'draft' por rever: a réplica do avaliador ainda é o scaffold
         # automático, não um parecer confirmado (ISO 17020) — não emitir assim.
         if pt.get("_rascunho") or any(
-            "[RASCUNHO" in (d.get("texto") or "") for d in (pt.get("dialogo") or [])
+            _e_rascunho(d.get("texto") or "") for d in (pt.get("dialogo") or [])
         ):
-            avisos.append(f"{et}: réplica ainda em RASCUNHO (do 'draft') — rever e confirmar antes de emitir.")
+            avisos.append(f"{et}: réplica todavía en [BORRADOR] (del 'draft') — revisar y confirmar antes de emitir.")
     avisos.extend(check_transiciones(data))
     return avisos
 

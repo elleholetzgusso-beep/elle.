@@ -60,6 +60,34 @@ def _clean_name_version(stem: str) -> tuple[str, object]:
     return stem[: m.start()].strip(), version
 
 
+def _pastas_de_envio(root: Path, exts: tuple[str, ...]) -> list[Path]:
+    """As pastas a percorrer como envíos.
+
+    O normal é ``Doc Recibida/Envío N .../ficheiros``, e cada subpasta é um
+    envío. Mas apontar diretamente a **uma** pasta de envío é igualmente
+    natural, e aí os ficheiros estão à vista, sem subpasta nenhuma.
+
+    Sem este caso, o ``scan`` devolvia 0 documentos e ninguém percebia porquê:
+    o ``leer`` e o ``radar``, que varrem recursivamente, encontravam os mesmos
+    ficheiros na mesma — e o LPA saía com 0 puntos sem um único erro.
+    """
+    subpastas = sorted(
+        (d for d in root.iterdir() if d.is_dir()),
+        key=lambda d: (_parse_envio(d.name)[0] or 9999, d.name),
+    )
+    # A própria pasta é um envío? ('Envío 44 20260727')
+    if _parse_envio(root.name)[0] is not None:
+        return [root]
+    # Sem subpastas, mas com documentos à vista: trata-se de um envío só.
+    soltos = any(
+        f.is_file() and f.suffix.lower() in exts and not f.name.startswith(("~$", "."))
+        for f in root.iterdir()
+    )
+    if soltos and not subpastas:
+        return [root]
+    return subpastas
+
+
 def scan(
     recibida_dir: str | Path,
     exts: tuple[str, ...] = DEFAULT_EXTS,
@@ -88,10 +116,7 @@ def scan(
     docs: dict[str, dict[str, Any]] = {}
     order: list[str] = []
 
-    envio_dirs = sorted(
-        (d for d in root.iterdir() if d.is_dir()),
-        key=lambda d: (_parse_envio(d.name)[0] or 9999, d.name),
-    )
+    envio_dirs = _pastas_de_envio(root, exts)
     for ed in envio_dirs:
         envio_num, envio_date = _parse_envio(ed.name)
         for f in sorted(ed.rglob("*")):

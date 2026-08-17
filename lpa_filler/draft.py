@@ -20,7 +20,10 @@ from typing import Any
 
 from . import verify
 
-MARCA = "[RASCUNHO — rever e confirmar]"
+# Entra no diálogo, e o diálogo entra no .xlsm entregue ao cliente: tem de ser
+# legível por quem o recebe. O model reconhece também o "[RASCUNHO" antigo,
+# para não invalidar projetos a meio.
+MARCA = "[BORRADOR — revisar y confirmar]"
 
 
 def _texto_scaffold(reg: dict[str, Any]) -> str:

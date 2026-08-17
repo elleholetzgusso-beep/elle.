@@ -77,14 +77,14 @@ def test_abierto_nao_exige_nada_alem_do_hallazgo():
 
 def test_resuelto_sem_resposta_do_cliente_e_sinalizado():
     probs = model.check_transiciones({"puntos": [_punto(estado="Resuelto")]})
-    assert any("sem resposta do cliente" in p for p in probs)
+    assert any("sin respuesta del cliente" in p for p in probs)
 
 
 def test_resuelto_sem_aceitacao_do_avaliador_e_sinalizado():
     pt = _punto(estado="Resuelto", dialogo=_dialogo(cliente="Se corrige en la v0.6."))
     probs = model.check_transiciones({"puntos": [pt]})
-    assert any("sem aceitação da ação" in p for p in probs)
-    assert not any("sem resposta do cliente" in p for p in probs)
+    assert any("sin aceptación de la acción" in p for p in probs)
+    assert not any("sin respuesta del cliente" in p for p in probs)
 
 
 def test_resuelto_com_resposta_e_aceitacao_passa():
@@ -97,7 +97,7 @@ def test_cerrado_exige_evidencia_alem_da_aceitacao():
     """A aceitação da ação basta para 'Resuelto'; o fecho precisa da prova de
     execução — senão o veredito do IES assenta num estado sem suporte."""
     sem_prova = _punto(dialogo=_dialogo(cliente="Se corregirá.", exceltic="Se acepta la acción."))
-    assert any("sem evidência documental" in p
+    assert any("sin evidencia documental" in p
                for p in model.check_transiciones({"puntos": [sem_prova]}))
 
     com_prova = _punto(dialogo=_dialogo(cliente="Corregido en la v0.6, apartado 4.2.",
@@ -109,12 +109,12 @@ def test_rascunho_do_draft_nao_conta_como_aceitacao():
     """A réplica automática do 'draft' é um scaffold, não um parecer confirmado."""
     pt = _punto(estado="Resuelto",
                 dialogo=_dialogo(cliente="Se corregirá.", exceltic="[RASCUNHO] rever isto"))
-    assert any("sem aceitação da ação" in p for p in model.check_transiciones({"puntos": [pt]}))
+    assert any("sin aceptación de la acción" in p for p in model.check_transiciones({"puntos": [pt]}))
 
 
 def test_problemas_de_transicao_aparecem_no_lint():
     avisos = model.lint({"puntos": [_punto(estado="Resuelto", id="H-009")]})
-    assert any("H-009" in a and "sem resposta do cliente" in a for a in avisos)
+    assert any("H-009" in a and "sin respuesta del cliente" in a for a in avisos)
 
 
 # --- falso positivo do _fora_escopo pelo código próprio ---------------------

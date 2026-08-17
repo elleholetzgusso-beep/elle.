@@ -186,3 +186,44 @@ if __name__ == "__main__":
             failed += 1
             print(f"FAIL {fn.__name__}: {e}")
     sys.exit(1 if failed else 0)
+
+
+def test_scan_apontado_a_uma_pasta_de_envio(tmp_path):
+    """Apontar o scan diretamente a 'Envío 44 ...' tem de encontrar os ficheiros.
+
+    O scan tratava as subpastas como envíos, por isso uma pasta de envío (cujos
+    ficheiros estão à vista) dava 0 documentos — enquanto o leer e o radar, que
+    varrem recursivamente, encontravam os mesmos ficheiros. O LPA saía com 0
+    puntos sem um único erro na consola.
+    """
+    envio = tmp_path / "Envío 44 20260727"
+    envio.mkdir()
+    (envio / "PRF_CS-2026-046-A0.pdf").write_bytes(b"%PDF-1.4")
+    (envio / "Informe de pruebas_v10.docx").write_bytes(b"PK")
+
+    docs = scan.scan(envio)
+    assert len(docs) == 2
+    # O número e a data do envío saem do nome da própria pasta.
+    envios = [e for d in docs for e in d["envios"]]
+    assert all(e["envio"] == 44 for e in envios)
+
+
+def test_scan_pasta_sem_subpastas_mas_com_documentos(tmp_path):
+    # Sem 'Envío' no nome e sem subpastas: continua a ser um envío só.
+    solta = tmp_path / "Documentos recibidos"
+    solta.mkdir()
+    (solta / "Anejo 27.pdf").write_bytes(b"%PDF-1.4")
+    assert len(scan.scan(solta)) == 1
+
+
+def test_scan_estrutura_normal_nao_muda(tmp_path):
+    # A estrutura de sempre continua a agrupar por envío, sem contar duas vezes.
+    raiz = tmp_path / "1_Doc Recibida"
+    for n, nome in ((1, "Envío 1 20251126"), (2, "Envío 2 20260216")):
+        d = raiz / nome
+        d.mkdir(parents=True)
+        (d / "Anejo 27.pdf").write_bytes(b"%PDF-1.4")
+
+    docs = scan.scan(raiz)
+    assert len(docs) == 1                      # mesmo nome nos dois envíos
+    assert [e["envio"] for e in docs[0]["envios"]] == [1, 2]

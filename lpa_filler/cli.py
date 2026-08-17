@@ -89,7 +89,7 @@ def _cmd_fill(args) -> int:
     print()
     counts = model.resumen_counts(data)
     total = sum(c["total"] for c in counts.values())
-    print(f"Gerado: {out}")
+    print(f"Generado: {out}")
     print(f"  documentos: {len(data['documentos'])} | puntos: {len(data['puntos'])} (total hallazgos: {total})")
     for val, c in counts.items():
         if c["total"]:
@@ -205,7 +205,7 @@ def _cmd_anejo(args) -> int:
         out = anejo.to_csv(linhas, args.out)
     except PermissionError:
         return _erro_bloqueado(args.out)
-    print(f"Gerado: {out}")
+    print(f"Generado: {out}")
     print(f"  líneas: {len(linhas)} (de {len(puntos)} puntos en el proyecto"
           + (f", {len(descartados)} descartados" if descartados else "") + ")")
     # Contar por campo, não por linha: a 'fecha_deteccion' não é derivável de
@@ -339,7 +339,7 @@ def _cmd_draft(args) -> int:
     _dump_yaml(projeto, args.out or args.projeto)
     print(
         f"\n# {r['rascunhos']} rascunhos de Respuesta Exceltic escritos "
-        f"(marcados '[RASCUNHO]'); {r['sem_resposta']} puntos abertos sem resposta do "
+        f"(marcados '[BORRADOR]'); {r['sem_resposta']} puntos abiertos sin respuesta del "
         f"contratista (nada a redigir).",
         file=sys.stderr,
     )
@@ -573,7 +573,7 @@ def _cmd_leer(args) -> int:
         sys.stdout.write(texto)
     ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
     print(
-        f"\n# {len(registos)} documentos lidos ({ilegiveis} sem texto extraível).",
+        f"\n# {len(registos)} documentos leídos ({ilegiveis} sin texto extraíble).",
         file=sys.stderr,
     )
     if not lector.PDF_OK:
@@ -610,8 +610,8 @@ def _cmd_radar(args) -> int:
     criticas = sum(1 for r in registos for p in r["pistas"] if p.nivel == "Crítico")
     ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
     print(
-        f"\n# {len(registos)} documentos analisados: {n_pistas} pistas "
-        f"({criticas} de nível Crítico), {ilegiveis} sem texto extraível. "
+        f"\n# {len(registos)} documentos analizados: {n_pistas} pistas "
+        f"({criticas} de nivel Crítico), {ilegiveis} sin texto extraíble. "
         f"Base: {len(base)} hallazgos.",
         file=sys.stderr,
     )

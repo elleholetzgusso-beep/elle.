@@ -75,7 +75,7 @@ def test_lint_avisa_enquanto_houver_rascunho():
     proj["puntos"][0]["dialogo"][2]["texto"] = draft.MARCA + " evidencia..."
     proj["puntos"][0]["_rascunho"] = True
     avisos = model.lint(proj)
-    assert any("RASCUNHO" in a for a in avisos)
+    assert any("BORRADOR" in a for a in avisos)
 
 
 if __name__ == "__main__":
