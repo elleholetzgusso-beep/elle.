@@ -64,6 +64,8 @@ ERRORES_CONOCIDOS = (
 CRITERIOS = [
     ("tipo", "Tipo de archivo", "Documentos, Imágenes, Hojas de cálculo…"),
     ("documento", "Código de documento", "EXC2026-16883-001-PES-01 → 001-PES"),
+    ("envio", "Envío al que pertenece",
+     "Por la fecha del archivo, a la carpeta «Envío 29 20260107» que ya exista"),
     ("extensao", "Extensión", "PDF, XLSX, DWG…"),
     ("data", "Fecha de modificación", "2026-05 Mayo, 2026-06 Junio…"),
     ("alfabetico", "Letra inicial", "A, B, E, M, P…"),
@@ -741,6 +743,23 @@ class App(tk.Tk):
         rejilla.columnconfigure(1, weight=1, uniform="c")
         for i, (clave, titulo, ejemplo) in enumerate(CRITERIOS):
             self._tarjeta_criterio(rejilla, clave, titulo, ejemplo, i)
+
+        if self.criterio.get() == "envio":
+            # Este criterio necesita otra carpeta que los demás (2_Doc Recebida,
+            # no 3_Doc Trabajo) y no crea carpetas: conviene decirlo aquí.
+            nota = tk.Frame(self.contenido, bg=GRIS_FONDO)
+            nota.pack(fill="x", pady=(0, 14))
+            tk.Frame(nota, bg=NARANJA, width=4).pack(side="left", fill="y")
+            textos = tk.Frame(nota, bg=GRIS_FONDO)
+            textos.pack(side="left", fill="x", expand=True, padx=14, pady=12)
+            tk.Label(textos, text="Elige la carpeta 2_Doc Recebida del proyecto",
+                     bg=GRIS_FONDO, fg=NEGRO, font=(F, 10, "bold")).pack(anchor="w")
+            tk.Label(textos, text="Cada archivo va al último envío cuya fecha sea igual o "
+                                  "anterior a la suya — el envío que estaba abierto cuando "
+                                  "llegó. No se crea ningún envío nuevo: usa los que ya "
+                                  "existen. Lo anterior al primer envío se queda donde está.",
+                     bg=GRIS_FONDO, fg=GRIS_TEXTO, font=(F, 9), wraplength=640,
+                     justify="left").pack(anchor="w", pady=(3, 0))
 
         casilla = tk.Checkbutton(
             self.contenido, text="Incluir también los archivos de las subcarpetas",

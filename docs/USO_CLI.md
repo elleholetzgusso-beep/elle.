@@ -57,6 +57,7 @@ Opções de `--por`:
 ```text
 tipo        → Documentos, Imágenes, Hojas de cálculo, etc.
 documento   → 001-PES, 002-LPA, etc.
+envio       → Envío 29 20260107 (pastas de envio que já existem)
 extensao    → PDF, XLSX, etc.
 data        → 2026/07-Julio
 alfabetico  → A, B, C, 0-9
@@ -65,6 +66,29 @@ alfabetico  → A, B, C, 0-9
 Os nomes das pastas criadas estão em espanhol (categorias e meses), como no
 resto do programa. `python -m organizador categorias` lista as categorias e
 as extensões de cada uma.
+
+### `--por envio`
+
+Distribui os ficheiros soltos pelas pastas `Envío N AAAAMMDD` que **já
+existem**, pela data de modificação de cada ficheiro. Corre-se sobre a
+`2_Doc Recebida` do projeto:
+
+```cmd
+python -m organizador organizar "...\2026-16883-…\2_Doc Recebida" --por envio --simular
+```
+
+A regra é uma só: **cada ficheiro vai para o último envio cuja data seja
+igual ou anterior à sua** — o envio que estava aberto quando o ficheiro
+chegou. Um ficheiro de 16/12 entra no `Envío 28 20251215`, não no
+`Envío 29 20260107`.
+
+Ao contrário dos outros critérios, este **não cria pastas**: usa só os envios
+já registados (com `python -m organizador envio`, ou pela janela). Dois casos
+não movem nada e são listados como ignorados:
+
+- ficheiros anteriores ao primeiro envio — ficam onde estão;
+- se não houver nenhuma pasta de envio na pasta indicada, o comando falha com
+  uma mensagem a pedir que se registe o envio primeiro.
 
 Outras opções:
 

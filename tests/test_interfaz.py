@@ -240,6 +240,59 @@ class TestJanela(unittest.TestCase):
         self.assertGreater(self.app.btn_primario.winfo_rootx(),
                            self.app.btn_secundario.winfo_rootx())
 
+    def test_criterio_envio_distribui_pelas_pastas_existentes(self):
+        """O critério 'envio' aparece como tarjeta, avisa que se escolhe a
+        2_Doc Recebida, e leva cada ficheiro ao envío que estava aberto."""
+        import os as _os
+        from datetime import datetime as _dt
+
+        recebida = self.base / "2_Doc Recebida"
+        recebida.mkdir()
+        for nome in ("Envío 27 20251120", "Envío 29 20260107"):
+            (recebida / nome).mkdir()
+        for nome, quando in (("plano.pdf", "20260107"), ("medicoes.xlsx", "20251201")):
+            arquivo = recebida / nome
+            arquivo.write_text("x", encoding="utf-8")
+            momento = _dt.strptime(quando, "%Y%m%d").timestamp()
+            _os.utime(arquivo, (momento, momento))
+
+        self.clicar(self.por_texto(self.app.contenido, "Envío al que pertenece"))
+        self.assertEqual(self.app.criterio.get(), "envio")
+        # O aviso da carpeta correta aparece só neste critério.
+        self.por_texto(self.app.contenido, "Elige la carpeta 2_Doc Recebida del proyecto")
+
+        self.app.ruta.set(str(recebida))
+        self.clicar(self.app.btn_primario)   # previsualizar
+        self.assertEqual(self.app.etapa, "previa")
+        destinos = {origem: destino for origem, destino in self.app.previa["filas"]}
+        self.assertEqual(destinos["plano.pdf"],
+                         str(Path("Envío 29 20260107") / "plano.pdf"))
+        self.assertEqual(destinos["medicoes.xlsx"],
+                         str(Path("Envío 27 20251120") / "medicoes.xlsx"))
+
+        self.clicar(self.app.btn_primario)   # aplicar
+        self.assertTrue((recebida / "Envío 29 20260107" / "plano.pdf").is_file())
+        self.assertTrue((recebida / "Envío 27 20251120" / "medicoes.xlsx").is_file())
+
+    def test_criterio_envio_sem_pastas_de_envio_da_erro_claro(self):
+        self.clicar(self.por_texto(self.app.contenido, "Envío al que pertenece"))
+        self.clicar(self.app.btn_primario)
+
+        self.assertEqual(self.app.etapa, "error")
+        self.assertEqual(self.app.error["titulo"], "No se ha podido continuar")
+        self.assertIn("no hay ninguna carpeta de envío", self.app.error["texto"])
+        self.assertIsNone(self.app.error["log"])
+
+    def test_a_janela_mostra_todos_os_criterios_do_motor(self):
+        from organizador.arrumador import CRITERIOS as DO_MOTOR
+
+        na_janela = [chave for chave, _t, _e in self.interfaz.CRITERIOS]
+        self.assertEqual(sorted(na_janela), sorted(DO_MOTOR))
+        # E cada um tem mesmo uma tarjeta clicável no ecrã.
+        for _chave, titulo, _exemplo in self.interfaz.CRITERIOS:
+            with self.subTest(criterio=titulo):
+                self.por_texto(self.app.contenido, titulo)
+
     def test_geometria_cabe_na_pantalla(self):
         self.app.update_idletasks()
         self.assertLessEqual(self.app.winfo_width(), self.app.winfo_screenwidth())

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -17,7 +17,7 @@ from .categorias import (
 )
 
 #: Criterios aceitos pelo comando ``organizar``.
-CRITERIOS = ("tipo", "extensao", "data", "alfabetico", "documento")
+CRITERIOS = ("tipo", "extensao", "data", "alfabetico", "documento", "envio")
 
 #: Nombres de mes visibles al usuario final (se usan como nombre de carpeta real).
 MESES = (
@@ -33,6 +33,10 @@ PADRAO_DOCUMENTO = re.compile(
 )
 
 PASTA_SEM_CODIGO = "Sin código"
+
+#: Pasta de envio ja existente, no padrao ``Envío 29 20260107`` (o resto do
+#: nome, como ``sin revisar``, e ignorado na leitura mas mantido no destino).
+PADRAO_PASTA_ENVIO = re.compile(r"^Env[ií]o\s+(?P<numero>\d+)\s+(?P<data>\d{8})", re.IGNORECASE)
 
 
 class ErroDeOrganizacao(RuntimeError):
@@ -55,6 +59,48 @@ class ResultadoOrganizacao:
     simulacao: bool = False
 
 
+# ------------------------------------------------------------------------ envios
+def envios_existentes(pasta: str | Path) -> list[tuple[date, str]]:
+    """Le as pastas ``Envío N AAAAMMDD`` que ja existem, da mais antiga para a
+    mais recente. Nao cria nenhuma: este criterio so distribui pelos envios
+    que o Roberto ja registou."""
+    base = Path(pasta).expanduser()
+    if not base.is_dir():
+        return []
+    encontrados: list[tuple[date, str]] = []
+    for item in base.iterdir():
+        if not item.is_dir():
+            continue
+        achado = PADRAO_PASTA_ENVIO.match(item.name)
+        if not achado:
+            continue
+        try:
+            quando = datetime.strptime(achado.group("data"), "%Y%m%d").date()
+        except ValueError:
+            continue  # 20261356: nome parecido, data impossivel
+        encontrados.append((quando, item.name))
+    # Pela data e, em caso de empate, pelo nome: assim dois envios no mesmo
+    # dia entram numa ordem estavel em vez de depender do sistema de ficheiros.
+    return sorted(encontrados)
+
+
+def envio_para(quando: date, envios: list[tuple[date, str]]) -> str | None:
+    """Devolve o envio a que pertence um arquivo com a data ``quando``.
+
+    A regra e uma so: **o ultimo envio cuja data seja igual ou anterior a do
+    arquivo** — ou seja, o envio que estava aberto quando o arquivo chegou.
+    Um arquivo anterior ao primeiro envio nao tem onde entrar e devolve
+    ``None``, para ser deixado onde esta em vez de adivinhar.
+    """
+    escolhido = None
+    for data_envio, nome in envios:
+        if data_envio <= quando:
+            escolhido = nome
+        else:
+            break
+    return escolhido
+
+
 # --------------------------------------------------------------------- criterios
 def codigo_documento(nome: str) -> str | None:
     """Extrai o codigo do documento (ex.: ``001-PES``) do nome do arquivo."""
@@ -64,7 +110,19 @@ def codigo_documento(nome: str) -> str | None:
     return f"{encontrado.group('numero')}-{encontrado.group('tipo').upper()}"
 
 
-def _subpasta(caminho: Path, criterio: str, indice: dict[str, str], formato_data: str | None) -> str:
+def _subpasta(
+    caminho: Path,
+    criterio: str,
+    indice: dict[str, str],
+    formato_data: str | None,
+    envios: list[tuple[date, str]] | None = None,
+) -> str | None:
+    """Nome da subpasta de destino, ou ``None`` se o arquivo nao tem destino
+    (so acontece no criterio ``envio``, quando nao ha nenhum envio anterior)."""
+    if criterio == "envio":
+        momento = datetime.fromtimestamp(caminho.stat().st_mtime).date()
+        return envio_para(momento, envios or [])
+
     if criterio == "tipo":
         return categoria_de(caminho.name, indice)
 
@@ -154,15 +212,30 @@ def organizar(
     reservados: set[Path] = set()
     pastas_conhecidas: set[Path] = set()
 
+    envios = envios_existentes(base) if criterio == "envio" else []
+    if criterio == "envio" and not envios:
+        raise ErroDeOrganizacao(
+            f"En '{base}' no hay ninguna carpeta de envío (Envío N AAAAMMDD). "
+            "Registra primero el envío y vuelve a organizar."
+        )
+
     for arquivo in _listar_arquivos(base, recursivo, incluir_ocultos):
         if any(fnmatch(arquivo.name, padrao) for padrao in ignorar):
             resultado.ignorados.append((arquivo, "excluido por el patrón indicado"))
             continue
 
         try:
-            nome_subpasta = _subpasta(arquivo, criterio, indice, formato_data)
+            nome_subpasta = _subpasta(arquivo, criterio, indice, formato_data, envios)
         except OSError as erro:
             resultado.ignorados.append((arquivo, f"no se pudo leer: {erro}"))
+            continue
+
+        if nome_subpasta is None:
+            # Solo en el criterio 'envio': el archivo es anterior al primer
+            # envío registrado. No se inventa una carpeta: se deja donde está.
+            resultado.ignorados.append(
+                (arquivo, f"es anterior al primer envío ({envios[0][1]})")
+            )
             continue
 
         destino_pasta = base.joinpath(*nome_subpasta.split("/"))
