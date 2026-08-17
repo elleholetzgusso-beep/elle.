@@ -399,7 +399,10 @@ class Janela(tk.Tk):
                  bg=PALETA["cartao"], fg=PALETA["apagado"], font=(FONTE, 7),
                  wraplength=340, justify="left").pack(anchor="w", pady=(6, 10))
 
-        self._skip_lpa = tk.BooleanVar(value=True)
+        # Desligada por omissão: o normal é querer os puntos na folha. Ligada por
+        # omissão, cada LPA saía com a aba vazia e só se dava por isso ao abrir o
+        # Excel — as sugestões estavam no projeto e no Anejo, mas não no LPA.
+        self._skip_lpa = tk.BooleanVar(value=False)
         ttk.Checkbutton(c, text="Dejar la pestaña LPA vacía para completar a mano",
                         variable=self._skip_lpa,
                         command=self._modo_mudou).pack(anchor="w")

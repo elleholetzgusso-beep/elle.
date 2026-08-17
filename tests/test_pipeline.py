@@ -281,3 +281,21 @@ def test_dispensavel_e_uma_etiqueta_nao_um_salto():
     )
     corpo = fonte.split("def _seguinte(")[1].split("def ")[0]
     assert ".opcional(" not in corpo, "_seguinte voltou a saltar passos dispensáveis"
+
+
+def test_por_omissao_os_puntos_vao_para_a_folha():
+    """A aba LPA vazia é uma escolha, não o comportamento normal.
+
+    Com o default ligado, um LPA com 8 puntos sugeridos saía com a folha só com
+    o cabeçalho: os puntos estavam no projeto.yaml e no Anejo A.2, mas não no
+    Excel — e só se dava por isso ao abrir o ficheiro.
+    """
+    assert Config().skip_lpa is False
+    assert "--skip-lpa" not in pipeline.passo("lpa").comandos(Config())[0]
+
+    fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "gui.py").read_text(
+        encoding="utf-8"
+    )
+    assert "self._skip_lpa = tk.BooleanVar(value=False)" in fonte, (
+        "a caixa da janela voltou a vir ligada por omissão"
+    )

@@ -24,7 +24,7 @@ class Config:
     scope: str = ""
     excluir_obra: str = ""
     min_score: float = 12.0
-    skip_lpa: bool = True
+    skip_lpa: bool = False        # o normal é querer os puntos na folha
     substituir_sugestoes: bool = False
     revisao: bool = False
     lpa_existente: Path | None = None

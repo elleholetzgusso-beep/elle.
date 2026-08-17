@@ -91,6 +91,11 @@ def _cmd_fill(args) -> int:
     total = sum(c["total"] for c in counts.values())
     print(f"Generado: {out}")
     print(f"  documentos: {len(data['documentos'])} | puntos: {len(data['puntos'])} (total hallazgos: {total})")
+    if args.skip_lpa and data["puntos"]:
+        # Sem isto lê-se "puntos: 8" e supõe-se que foram escritos. Não foram: a
+        # aba saiu vazia de propósito, e só se dá por isso ao abrir o Excel.
+        print(f"  ! pestaña LPA VACÍA (--skip-lpa): los {len(data['puntos'])} puntos NO se "
+              f"han volcado en la hoja. Quita esa opción para escribirlos.")
     for val, c in counts.items():
         if c["total"]:
             print(f"  {val}: {c['total']}")
