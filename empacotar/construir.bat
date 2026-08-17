@@ -18,7 +18,7 @@ if errorlevel 1 (
 
 echo [1/4] A instalar o que e preciso...
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet -e ".[docx,pdf]"
+python -m pip install --quiet -e ".[docx,pdf,dev]"
 python -m pip install --quiet pyinstaller
 if errorlevel 1 (
     echo ERRO: falhou a instalacao das dependencias.
