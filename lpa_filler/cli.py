@@ -75,7 +75,7 @@ def _cmd_fill(args) -> int:
         for t in transicoes:
             print(f"  ✗ {t}", file=sys.stderr)
         print("\nFichero NO generado (--strict). Corrige los estados de arriba, o ejecuta "
-              "sem --strict para gerar mesmo assim.", file=sys.stderr)
+              "sin --strict para generarlo igualmente.", file=sys.stderr)
         return 1
     v = model.veredicto(data)
     vtexto = model.veredicto_texto(v)
@@ -295,6 +295,14 @@ def _cmd_merge(args) -> int:
         f"Edita la sección 'puntos' (hallazgos) y después ejecuta el comando 'fill'.",
         file=sys.stderr,
     )
+    # Se entre os recebidos vem um LPA desta obra mais recente que a portada, isto
+    # é uma revisão disfarçada de projeto novo — e o merge acabou de a montar de
+    # raiz. A trava acima só protege quando o projeto.yaml de saída já existia.
+    from . import nomenclatura
+
+    aviso = nomenclatura.aviso_revisao_anterior(portada["referencia"], documentos)
+    if aviso:
+        print(f"# ATENCIÓN: {aviso}", file=sys.stderr)
     return 0
 
 
@@ -577,10 +585,11 @@ def _cmd_leer(args) -> int:
     else:
         sys.stdout.write(texto)
     ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
-    print(
-        f"\n# {len(registos)} documentos leídos ({ilegiveis} sin texto extraíble).",
-        file=sys.stderr,
-    )
+    curtos = sum(1 for r in registos if r.get("texto_curto"))
+    resumo = f"\n# {len(registos)} documentos leídos ({ilegiveis} sin texto extraíble"
+    if curtos:
+        resumo += f", {curtos} casi sin texto — probable digitalización, revisar a mano"
+    print(resumo + ").", file=sys.stderr)
     if not lector.PDF_OK:
         print(
             "# nota: soporte a .pdf desactivado (instala: pip install lpa-filler[pdf]).",
@@ -614,12 +623,15 @@ def _cmd_radar(args) -> int:
     n_pistas = sum(len(r["pistas"]) for r in registos)
     criticas = sum(1 for r in registos for p in r["pistas"] if p.nivel == "Crítico")
     ilegiveis = sum(1 for r in registos if r["caracteres"] == 0)
-    print(
+    curtos = sum(1 for r in registos if r.get("texto_curto"))
+    resumo = (
         f"\n# {len(registos)} documentos analizados: {n_pistas} pistas "
-        f"({criticas} de nivel Crítico), {ilegiveis} sin texto extraíble. "
-        f"Base: {len(base)} hallazgos.",
-        file=sys.stderr,
+        f"({criticas} de nivel Crítico), {ilegiveis} sin texto extraíble"
     )
+    if curtos:
+        # Sem isto saem como "0 pistas", indistinguíveis de um documento limpo.
+        resumo += f", {curtos} casi sin texto (NO analizados — probable digitalización)"
+    print(resumo + f". Base: {len(base)} hallazgos.", file=sys.stderr)
     if args.excluir_obra:
         print(f"# obra '{args.excluir_obra}' excluida de la base (no copia de la propia respuesta).",
               file=sys.stderr)

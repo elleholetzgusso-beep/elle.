@@ -42,6 +42,8 @@ promover um punto está a atravessar esta linha, e a resposta por omissão é n�
 | **Sugestões numa revisão** | — | `suggest` | Os puntos já no projeto são excluídos da base **antes** do corte aos `-n` melhores, para não gastarem as vagas. |
 | **Classificação temática RAMS** | EN 50126/8/9 | `harvest`, `tema.py` | Etiqueta cada hallazgo com as áreas que menciona. Sem palavra-chave, fica sem etiqueta — não força. |
 | **Leitura estrutural** | PE/02 | `leer` | Verifica se as partes esperadas do tipo estão presentes. Ausência de palavra-chave **nunca** é não conformidade. |
+| **Extração insuficiente** | — | `leer`, `radar` | Documento cujo texto extraído fica abaixo de `lector.MIN_TEXTO_UTIL` é assinalado como provável digitalização a precisar de OCR. Sem isto passava por lido: o checklist dava tudo por ausente (como se faltassem partes ao documento, e não a leitura) e o radar dava-o "sem pistas", igual a um documento limpo. |
+| **Revisão disfarçada de projeto novo** | PE/05 | `merge` | Se entre os documentos recebidos vier um LPA da própria obra com revisão superior à da portada, avisa. É o sinal de que o `merge` está a montar de raiz um projeto que já tem histórico — e os puntos das revisões anteriores desapareceriam sem nada o dizer. |
 | **Radar dirigido** | PE/02–03 | `radar` | Cruza conteúdo real com a base histórica; instrui onde procurar. Só aponta. |
 | **Verificação da resposta** | PE/03 | `verify` | Localiza o apartado citado e mostra o trecho real + diff. Traz a evidência; **nunca fecha**. |
 | **Rascunho da réplica** | PE/03 | `draft` | Scaffold factual, termina em "pendiente de verificación", não altera estado, marca `[RASCUNHO]`. |

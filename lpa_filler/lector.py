@@ -30,6 +30,13 @@ except Exception:  # noqa: BLE001
 
 LEGIVEIS = (".docx", ".pdf", ".txt", ".md")
 
+# Abaixo disto não há conteúdo que se possa analisar. Quase sempre é uma
+# digitalização — imagem sem camada de texto — que o pypdf "leu" com êxito e
+# devolveu com meia dúzia de caracteres. Sem este limiar passava como documento
+# lido: o checklist do `leer` dava tudo por ausente e o `radar` não tinha nada
+# para cruzar, ambos sem um único aviso.
+MIN_TEXTO_UTIL = 200
+
 # Tempo máximo (segundos) para extrair texto de UM .pdf. PDFs com estrutura
 # interna corrompida (comuns em digitalizações) podem deixar o pypdf a tentar
 # recuperar-se por muito tempo. Corre-se a extração numa thread `daemon`: se
@@ -143,6 +150,26 @@ def extract_text(path: str | Path) -> str:
     if marca is not None:
         _CACHE[chave] = (marca[0], marca[1], texto)
     return texto
+
+
+def texto_utilizavel(texto: str) -> bool:
+    """Se há texto que chegue para valer a pena analisar o documento.
+
+    Não é um veredito sobre o documento — é sobre a *extração*. Um "não" quer
+    dizer que nenhuma ferramenta o viu, e portanto que ninguém o analisou.
+    """
+    return len((texto or "").strip()) >= MIN_TEXTO_UTIL
+
+
+def aviso_texto_curto(texto: str) -> str:
+    """A nota a mostrar quando a extração deu quase nada. "" se deu que chegue."""
+    n = len((texto or "").strip())
+    if n == 0 or texto_utilizavel(texto):
+        return ""
+    return (
+        f"solo {n} caracteres extraídos — probable digitalización sin capa de texto "
+        f"(necesita OCR). Nada de este documento ha sido analizado: revisarlo a mano."
+    )
 
 
 def motivo_vazio(path: str | Path) -> str:

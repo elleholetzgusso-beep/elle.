@@ -281,12 +281,20 @@ def analisar_documento(path: str | Path, base: list[dict], excluir_obra: str | N
     raw = lector.extract_text(p)
     tipo = guide.tipo_documento(p.stem)
     reg: dict = {
-        "ficheiro": p.name, "tipo": tipo, "caracteres": len(raw),
+        "ficheiro": p.name, "tipo": tipo, "caracteres": len(raw), "texto_curto": False,
         "frentes": [], "pistas": [], "estrutura": [], "normas": [], "notas": [],
     }
     if not raw:
         reg["notas"].append(f"sem texto — {lector.motivo_vazio(p)}")
         return reg
+
+    # Quase sem texto: as sondas correm à mesma (não se descarta informação),
+    # mas fica assinalado. Sem isto o documento saía "sem pistas", exatamente
+    # como um que foi lido inteiro e está limpo — e a diferença importa.
+    curto = lector.aviso_texto_curto(raw)
+    if curto:
+        reg["texto_curto"] = True
+        reg["notas"].append(curto)
 
     norm = _norm(raw)
     rows_tipo = base_do_tipo(base, tipo, excluir_obra=excluir_obra)

@@ -84,6 +84,7 @@ def revisar_ficheiro(path: str | Path) -> dict[str, Any]:
     reg: dict[str, Any] = {
         "ficheiro": p.name,
         "caracteres": len(texto),
+        "texto_curto": False,  # extração deu quase nada (provável digitalização)
         "checklist": [],       # [(rótulo, presente?)]
         "normas": [],
         "notas": [],
@@ -91,6 +92,13 @@ def revisar_ficheiro(path: str | Path) -> dict[str, Any]:
     if not texto:
         reg["notas"].append(f"sem texto — {lector.motivo_vazio(p)}")
         return reg
+
+    # Quase sem texto: o checklist abaixo daria tudo por ausente, o que se leria
+    # como "faltam estas partes" quando o que falta é a leitura do ficheiro.
+    curto = lector.aviso_texto_curto(texto)
+    if curto:
+        reg["texto_curto"] = True
+        reg["notas"].append(curto)
 
     t = _norm(texto)
     reg["normas"] = [nome for nome, rx in _NORMAS.items() if re.search(rx, t)]

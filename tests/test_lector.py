@@ -175,6 +175,29 @@ def test_ficheiro_alterado_e_relido():
         assert lector.extract_text(p) == "versão 2 (revista)"
 
 
+def test_documento_quase_sem_texto_e_assinalado():
+    """Uma digitalização "lê-se" com êxito e devolve quase nada.
+
+    Sem este aviso, um PDF de 4 caracteres passava por documento lido: o
+    checklist dava tudo por ausente (como se faltassem partes ao documento, e
+    não a leitura) e o radar dava-o "sem pistas", igual a um documento limpo.
+    """
+    assert lector.aviso_texto_curto("x" * 4)
+    assert "OCR" in lector.aviso_texto_curto("x" * 4)
+    assert "4 caracteres" in lector.aviso_texto_curto("x" * 4)
+
+
+def test_documento_com_texto_a_serio_nao_e_assinalado():
+    assert lector.aviso_texto_curto("y" * lector.MIN_TEXTO_UTIL) == ""
+    assert lector.texto_utilizavel("y" * lector.MIN_TEXTO_UTIL)
+
+
+def test_ficheiro_totalmente_vazio_tem_o_outro_aviso():
+    # Zero caracteres já era tratado por motivo_vazio — não se duplica a queixa.
+    assert lector.aviso_texto_curto("") == ""
+    assert lector.aviso_texto_curto("   ") == ""
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

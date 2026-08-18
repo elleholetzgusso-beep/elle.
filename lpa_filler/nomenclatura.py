@@ -53,6 +53,48 @@ def check_referencia(ref: str) -> str | None:
     )
 
 
+# O mesmo código, com "-" (ficheiro) ou "/" (referência): obra, sequencial, tipo
+# e revisão. Serve para reconhecer o LPA da própria obra entre os recebidos.
+_PARTES_RE = re.compile(rf"^({_BASE})[-/](\d{{3}})[-/]([A-Z]{{2,4}})[-/](\d{{2}})$")
+
+
+def partes(texto: str) -> tuple[str, str, str, int] | None:
+    """(obra, sequencial, tipo, revisão) de um código Exceltic. None se não for um."""
+    m = _PARTES_RE.match((texto or "").strip())
+    if not m:
+        return None
+    return m.group(1), m.group(2), m.group(3), int(m.group(4))
+
+
+def aviso_revisao_anterior(referencia: str, documentos: list[dict[str, Any]]) -> str | None:
+    """Se entre os documentos recebidos vem um LPA desta obra mais recente que a portada.
+
+    É o sinal de que isto é uma revisão, e não um projeto novo. Sem o aviso, o
+    'merge' monta o projeto de raiz e os puntos das revisões anteriores
+    desaparecem sem que nada o diga — o LPA sai como se fosse a primeira vez.
+    """
+    minha = partes(referencia)
+    if not minha:
+        return None
+    obra, seq, tipo, rev = minha
+    maior, achado = rev, ""
+    for doc in documentos or []:
+        candidatos = [doc.get("nombre") or ""]
+        candidatos += [str(e.get("referencia") or "") for e in (doc.get("envios") or [])]
+        for c in candidatos:
+            outra = partes(c)
+            if outra and (outra[0], outra[1], outra[2]) == (obra, seq, tipo) and outra[3] > maior:
+                maior, achado = outra[3], c.strip()
+    if not achado:
+        return None
+    return (
+        f"entre los documentos recibidos viene '{achado}', posterior a la referencia de "
+        f"la portada ({referencia}, rev. {rev:02d}). Si esto es una revisión, marca "
+        f"«Revisión de un LPA ya existente»: el 'merge' monta el proyecto de cero y "
+        f"pierde los puntos de las revisiones anteriores."
+    )
+
+
 def avisos_documentos(documentos: list[dict[str, Any]]) -> list[str]:
     """Avisos de nomenclatura para as referências de envíos que parecem Exceltic."""
     avisos: list[str] = []

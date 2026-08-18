@@ -63,3 +63,35 @@ if __name__ == "__main__":
             failed += 1
             print(f"FAIL {fn.__name__}: {e}")
     sys.exit(1 if failed else 0)
+
+
+def test_lpa_mais_recente_entre_os_recebidos_denuncia_uma_revisao():
+    """Portada em LPA/01 com um LPA-18 desta obra nos documentos recebidos.
+
+    É uma revisão disfarçada de projeto novo. O merge monta o projeto de raiz e
+    os puntos das 17 revisões anteriores desaparecem sem que nada o diga.
+    """
+    docs = [
+        {"nombre": "EXC2025-02703-6-002-LPA-18", "envios": [
+            {"referencia": "EXC2025-02703-6-002-LPA-18"}]},
+        {"nombre": "F09A REP", "envios": [{"referencia": "24-30-V-F09A-REP-VLC-SUD-V1.0"}]},
+    ]
+    aviso = nomenclatura.aviso_revisao_anterior("EXC2025-02703-6/002/LPA/01", docs)
+    assert aviso and "LPA-18" in aviso
+    assert "Revisión de un LPA ya existente" in aviso
+
+
+def test_sem_lpa_anterior_nao_ha_aviso():
+    docs = [{"nombre": "F09A REP", "envios": [{"referencia": "24-30-V-F09A-REP-VLC-SUD-V1.0"}]}]
+    assert nomenclatura.aviso_revisao_anterior("EXC2025-02703-6/002/LPA/01", docs) is None
+
+
+def test_o_proprio_lpa_da_mesma_revisao_nao_dispara():
+    # Receber de volta a revisão que se está a emitir não é sinal de nada.
+    docs = [{"nombre": "EXC2025-02703-6-002-LPA-01", "envios": []}]
+    assert nomenclatura.aviso_revisao_anterior("EXC2025-02703-6/002/LPA/01", docs) is None
+
+
+def test_lpa_de_outra_obra_nao_dispara():
+    docs = [{"nombre": "EXC2026-16883-002-LPA-09", "envios": []}]
+    assert nomenclatura.aviso_revisao_anterior("EXC2025-02703-6/002/LPA/01", docs) is None
