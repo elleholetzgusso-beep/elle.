@@ -347,6 +347,35 @@ def configurar_registro(nivel: int = logging.INFO) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _pids_winword() -> set[int]:
+    """Devuelve los PID de todos los procesos WINWORD.EXE en ejecución.
+
+    No depende de win32com ni de ventanas: usa `tasklist`, disponible en
+    cualquier Windows. Se emplea para identificar por diferencia el proceso
+    que arranca esta sesión, ya que con Visible=False el identificador de
+    ventana (Hwnd) no siempre está disponible.
+    """
+    try:
+        resultado = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq WINWORD.EXE", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:  # noqa: BLE001
+        return set()
+
+    pids: set[int] = set()
+    for linea in resultado.stdout.splitlines():
+        campos = linea.strip().strip('"').split('","')
+        if len(campos) >= 2 and campos[0].upper() == "WINWORD.EXE":
+            try:
+                pids.add(int(campos[1]))
+            except ValueError:
+                continue
+    return pids
+
+
 class SesionWord:
     """Gestor de contexto para una instancia dedicada de Microsoft Word.
 
@@ -392,6 +421,7 @@ class SesionWord:
         pythoncom.CoInitialize()
         self._com_iniciado = True
         registro.debug("Arrancando instancia dedicada de Microsoft Word…")
+        pids_previos = _pids_winword()
         self._app = win32com.client.DispatchEx("Word.Application")
         self._app.Visible = self.visible
         # Sin esto, cualquier diálogo modal (archivo bloqueado, conversión de
@@ -407,7 +437,7 @@ class SesionWord:
                 self._app.AutomationSecurity = Wd.msoAutomationSecurityForceDisable
             except Exception:  # noqa: BLE001
                 registro.debug("No se ha podido fijar AutomationSecurity.")
-        self._pid = self._obtener_pid()
+        self._pid = self._obtener_pid(pids_previos)
         registro.info("Word iniciado (versión %s, PID %s).",
                       _atributo_seguro(self._app, "Version", "desconocida"),
                       self._pid if self._pid else "desconocido")
@@ -467,15 +497,33 @@ class SesionWord:
         except Exception as exc:  # noqa: BLE001
             registro.error("No se ha podido forzar el cierre del proceso: %s", exc)
 
-    def _obtener_pid(self) -> int | None:
-        """Obtiene el PID del proceso de Word a partir del identificador de ventana."""
+    def _obtener_pid(self, pids_previos: set[int]) -> int | None:
+        """Obtiene el PID del proceso de Word recién arrancado.
+
+        Se intenta primero a partir del identificador de ventana (Hwnd), pero
+        con Visible=False esa vía falla a menudo porque no llega a crearse una
+        ventana. El método robusto de reserva es comparar los procesos
+        WINWORD.EXE existentes antes y después de arrancar esta instancia: el
+        PID nuevo es el de nuestra sesión.
+        """
         try:
             import win32process
 
             _, pid = win32process.GetWindowThreadProcessId(self._app.Hwnd)
-            return int(pid)
+            if pid:
+                return int(pid)
         except Exception:  # noqa: BLE001
-            return None
+            pass
+
+        pids_nuevos = _pids_winword() - pids_previos
+        if len(pids_nuevos) == 1:
+            return pids_nuevos.pop()
+        if len(pids_nuevos) > 1:
+            registro.debug(
+                "Varios procesos WINWORD.EXE nuevos a la vez (%s); no se puede "
+                "identificar cuál es el de esta sesión.", pids_nuevos,
+            )
+        return None
 
     # -- acceso -----------------------------------------------------------
 
