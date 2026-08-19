@@ -73,6 +73,7 @@ pip install pyinstaller       # só para construir o .exe
 
 ## A estética
 
-A janela tem um visual limpo (tema escuro). Se quiseres refinar cores,
-tipografia e layout, podes desenhá-lo no **Claude Design** e depois ajustar a
-paleta no topo de `app_fsp.py` (secção `COR_*`).
+A janela usa a **identidade Exceltic**: laranja `#F15722` sobre branco, tipo
+Arial, régua laranja sob o cabeçalho e passos numerados. As cores estão em tokens
+`COR_*` no topo de `app_fsp.py` — muda aí para ajustar a paleta. Os logótipos
+estão em `assets/` (o `build_exe.bat` já os embute no `.exe`).

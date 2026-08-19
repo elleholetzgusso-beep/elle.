@@ -20,6 +20,7 @@ echo Construindo GerarFSP.exe ...
 %PY% -m PyInstaller --noconfirm --clean --onefile --windowed ^
     --name "GerarFSP" ^
     --add-data "FSP_template.xlsx;." ^
+    --add-data "assets;assets" ^
     app_fsp.py
 
 echo.
