@@ -842,45 +842,59 @@ def copiar_imagem_template(template_path, output_path):
 
 # ---- main --------------------------------------------------
 
-def main():
-    pasta_projeto = sys.argv[1] if len(sys.argv) > 1 else PASTA_PROJETO
+def resource_path(nome):
+    """Caminho de um recurso, funcionando tanto em script como em .exe (PyInstaller)."""
+    if getattr(sys, "frozen", False):
+        # dentro do .exe: recursos incluidos ficam em sys._MEIPASS;
+        # mas o template tambem pode estar ao lado do .exe (para o utilizador trocar)
+        ao_lado = Path(sys.executable).parent / nome
+        if ao_lado.exists():
+            return ao_lado
+        return Path(getattr(sys, "_MEIPASS", ".")) / nome
+    return Path(__file__).parent / nome
 
+
+def gerar_fsp(pasta_projeto, template_path=None, log=print):
+    """
+    Gera o FSP para uma pasta de projeto. Devolve o Path do ficheiro gerado.
+    `log` e uma funcao chamada com cada linha de progresso (permite ligar a uma GUI).
+    """
     pasta    = encontrar_pasta_docs(pasta_projeto)
-    template = Path(FSP_TEMPLATE)
+    template = Path(template_path) if template_path else resource_path(FSP_TEMPLATE)
     output   = Path(pasta_projeto) / "FSP_GERADO.xlsx"
 
     if not template.exists():
         raise SystemExit(f"ERRO: Template FSP nao encontrado: {template}")
 
-    print("=" * 55)
-    print("GERADOR DE FSP")
-    print("=" * 55)
-    print(f"Projeto: {pasta_projeto}")
-    print(f"Pasta docs: {pasta}")
+    log("=" * 55)
+    log("GERADOR DE FSP")
+    log("=" * 55)
+    log(f"Projeto: {pasta_projeto}")
+    log(f"Pasta docs: {pasta}")
 
     lpa_path = encontrar_ultimo_lpa(pasta)
     dados    = ler_lpa(lpa_path)
-    print(f"Projeto: {str(dados.get('projeto', ''))[:70]}")
-    print(f"Expediente: {dados.get('expediente', '')}")
-    print(f"Avaliadores: {iniciais_avaliadores(dados.get('avaliadores', []))}")
-    print(f"Remitente: {dados.get('remitente', '')}")
-    print(f"Docs avaliados: {len(dados['docs_avaliados'])}")
+    log(f"Projeto: {str(dados.get('projeto', ''))[:70]}")
+    log(f"Expediente: {dados.get('expediente', '')}")
+    log(f"Avaliadores: {iniciais_avaliadores(dados.get('avaliadores', []))}")
+    log(f"Remitente: {dados.get('remitente', '')}")
+    log(f"Docs avaliados: {len(dados['docs_avaliados'])}")
 
     arquivos = escanear_pasta(pasta)
-    print(f"Ficheiros gerados: {len(arquivos)}")
+    log(f"Ficheiros gerados: {len(arquivos)}")
 
     # Escaneia a pasta fisica '1_ Doc Recibida' para obter TODOS os envios do cliente
     pasta_recibida = encontrar_pasta_recibida(pasta_projeto)
     dados["envios_pasta"] = escanear_envios(pasta_recibida)
     if pasta_recibida:
         n_docs = sum(len(e["docs"]) for e in dados["envios_pasta"].values())
-        print(f"Doc Recibida: '{pasta_recibida.name}' "
-              f"({len(dados['envios_pasta'])} envios, {n_docs} docs)")
+        log(f"Doc Recibida: '{pasta_recibida.name}' "
+            f"({len(dados['envios_pasta'])} envios, {n_docs} docs)")
     else:
-        print("Doc Recibida: nao encontrada — usando docs do LPA como fallback")
+        log("Doc Recibida: nao encontrada — usando docs do LPA como fallback")
 
     wb = openpyxl.load_workbook(template)
-    print("\nPopulando sheets:")
+    log("\nPopulando sheets:")
 
     if "Portada" in wb.sheetnames:
         popular_portada(wb["Portada"], dados)
@@ -899,17 +913,23 @@ def main():
                               dados.get("versoes_lpa", []),
                               dados.get("avaliadores", []))
 
-    print("  M.C.S.: mantida do template (preencher manualmente no final)")
+    log("  M.C.S.: mantida do template (preencher manualmente no final)")
 
     wb.save(output)
     copiar_imagem_template(template, output)
 
-    print(f"\nGuardado em: {output.resolve()}")
-    print("=" * 55)
-    print("Proximos passos:")
-    print("  1. Abre FSP_GERADO.xlsx e revisa cada aba")
-    print("  2. Preenche M.C.S. no final do projeto")
-    print("=" * 55)
+    log(f"\nGuardado em: {output.resolve()}")
+    log("=" * 55)
+    log("Proximos passos:")
+    log("  1. Abre FSP_GERADO.xlsx e revisa cada aba")
+    log("  2. Preenche M.C.S. no final do projeto")
+    log("=" * 55)
+    return output
+
+
+def main():
+    pasta_projeto = sys.argv[1] if len(sys.argv) > 1 else PASTA_PROJETO
+    gerar_fsp(pasta_projeto)
 
 
 if __name__ == "__main__":
