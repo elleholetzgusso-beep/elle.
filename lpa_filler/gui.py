@@ -8,6 +8,7 @@ Para mudar o aspeto, ver PALETA e ``assets/logo.png`` — nada mais depende dela
 """
 from __future__ import annotations
 
+import csv
 import queue
 import sys
 import threading
@@ -53,6 +54,21 @@ def _recurso(nome: str) -> Path:
     base = getattr(sys, "_MEIPASS", None)
     raiz = Path(base) if base else Path(__file__).resolve().parent.parent
     return raiz / nome
+
+
+def _pasta_app() -> Path:
+    """Pasta onde vivem os dados do próprio programa (a base de hallazgos).
+
+    Não pode ser ``sys._MEIPASS``: essa é a pasta temporária onde o PyInstaller
+    descomprime o .exe a cada arranque — só de leitura, e apagada ao fechar. A
+    base tem de sobreviver e crescer, por isso fica ao lado do executável (ou,
+    a correr da fonte, na raiz do repositório)."""
+    if getattr(sys, "_MEIPASS", None):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+BASE_PADRAO = "base_hallazgos.csv"
 
 
 # --------------------------------------------------------------------------- #
@@ -217,6 +233,7 @@ class Janela(tk.Tk):
         self._painel_consola(direita)
 
         self._marcar_passos()
+        self._atualizar_contagem_base()
         self._escrever(f"{MARCA} · listo.", "bom")
         self._escrever("Elige las entradas a la izquierda y ejecuta los pasos en orden.", "apagado")
         self.after(60, self._drenar)
@@ -366,6 +383,16 @@ class Janela(tk.Tk):
                             lambda: filedialog.askopenfilename(
                                 title="Base de hallazgos",
                                 filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]))
+        # Vive dentro do aplicativo: não se procura toda vez, só se muda quem
+        # quiser apontar a outra. O botão ao lado é quem a faz crescer.
+        self._campos["base"].set(str(_pasta_app() / BASE_PADRAO))
+        fila_base = tk.Frame(c, bg=PALETA["cartao"])
+        fila_base.pack(fill="x", pady=(0, 11))
+        ttk.Button(fila_base, text="+ Añadir LPA a la base", style="Procurar.TButton",
+                   command=self._adicionar_a_base).pack(side="left")
+        self._contagem_base = tk.Label(fila_base, text="", bg=PALETA["cartao"],
+                                       fg=PALETA["apagado"], font=(FONTE, 7))
+        self._contagem_base.pack(side="left", padx=(10, 0))
         self._linha_caminho(c, "template", "Plantilla LPA", ".xlsm",
                             lambda: filedialog.askopenfilename(
                                 title="Plantilla LPA",
@@ -612,19 +639,39 @@ class Janela(tk.Tk):
                 return
 
         cfg.trabalho.mkdir(parents=True, exist_ok=True)
-        self._a_indice = indice
-        self._bloquear(True, passo.titulo)
-        self._escrever("", "normal")
-        self._escrever(f"── {passo.titulo} ──", "titulo")
-        threading.Thread(target=self._trabalhar, args=(passo, cfg), daemon=True).start()
+        self._lancar(passo.comandos(cfg), passo.titulo, indice)
 
-    def _trabalhar(self, passo: pipeline.Passo, cfg: Config) -> None:
+    def _adicionar_a_base(self) -> None:
+        """Lê um ou mais LPA .xlsm e acrescenta os hallazgos à base — sem passar
+        pelo fluxo dos 5 passos: é manutenção da base, não parte de um projeto."""
+        if self._a_correr:
+            return
+        caminhos = filedialog.askopenfilenames(
+            title="Elegir uno o más LPA (.xlsm) para añadir a la base",
+            filetypes=[("Excel con macros", "*.xlsm"), ("Todos", "*.*")],
+        )
+        if not caminhos:
+            return
+        base = self._campos["base"].get().strip() or str(_pasta_app() / BASE_PADRAO)
+        self._campos["base"].set(base)
+        Path(base).parent.mkdir(parents=True, exist_ok=True)
+        argv = ["harvest", "-i", *caminhos, "-o", base]
+        self._lancar([argv], f"Añadir {len(caminhos)} LPA a la base", None)
+
+    def _lancar(self, comandos: list[list[str]], titulo: str, indice: int | None) -> None:
+        self._a_indice = indice
+        self._bloquear(True, titulo)
+        self._escrever("", "normal")
+        self._escrever(f"── {titulo} ──", "titulo")
+        threading.Thread(target=self._trabalhar, args=(comandos,), daemon=True).start()
+
+    def _trabalhar(self, comandos: list[list[str]]) -> None:
         from . import cli
 
         escritor = _Escritor(self._fila)
         codigo = 0
         try:
-            for argv in passo.comandos(cfg):
+            for argv in comandos:
                 self._fila.put(("linha", f"$ lpa_filler {' '.join(argv)}"))
                 with redirect_stdout(escritor), redirect_stderr(escritor):
                     codigo = cli.main(argv) or 0
@@ -659,10 +706,33 @@ class Janela(tk.Tk):
     def _terminou(self, codigo: int) -> None:
         if codigo == 0:
             self._escrever("Completado.", "bom")
-            self._feitos = max(self._feitos, getattr(self, "_a_indice", 0))
+            indice = getattr(self, "_a_indice", None)
+            if indice:  # None nas ações fora do fluxo (ex. añadir a la base)
+                self._feitos = max(self._feitos, indice)
+            self._atualizar_contagem_base()
         else:
             self._escrever(f"Terminó con error (código {codigo}).", "mau")
         self._bloquear(False, "")
+
+    def _atualizar_contagem_base(self) -> None:
+        caminho = self._campos["base"].get().strip()
+        if not caminho or not Path(caminho).exists():
+            self._contagem_base.configure(text="Base vacía — añade un LPA para empezar.")
+            return
+        try:
+            with open(caminho, encoding="utf-8-sig", newline="") as f:
+                obras = set()
+                n = 0
+                for linha in csv.DictReader(f):
+                    n += 1
+                    if linha.get("obra"):
+                        obras.add(linha["obra"])
+        except OSError:
+            return
+        texto = f"{n} hallazgos en la base"
+        if obras:
+            texto += f", de {len(obras)} obras"
+        self._contagem_base.configure(text=texto + ".")
 
     def _bloquear(self, ocupado: bool, titulo: str) -> None:
         self._a_correr = ocupado

@@ -2,7 +2,21 @@
 
 Até aqui a ferramenta corre na linha de comandos, o que pressupõe Python
 instalado e à-vontade com o terminal. Este documento é sobre a outra via: uma
-janela com botões, embrulhada num `.exe` que se copia e se abre.
+janela com botões.
+
+Há **duas formas** de a abrir, e a diferença entre elas é se a máquina de
+destino tem Python instalado ou não:
+
+| | Precisa de Python instalado? | Como se abre |
+|---|---|---|
+| `Abrir_LPA.bat` (raiz do repositório) | **Sim** — a máquina tem de ter Python, tal como para correr `python -m lpa_filler ...` | Clique duplo. Instala o pacote sozinho na primeira vez; das seguintes abre logo, sem terminal visível. |
+| `dist\LPA-Exceltic.exe` (via `empacotar\construir.bat`) | **Não** — o Python vai lá dentro, empacotado | Clique duplo, copiado para qualquer máquina Windows. |
+
+Para uso próprio (com Python já instalado, como neste computador), `Abrir_LPA.bat`
+é o caminho direto. Correr `Crear_Acceso_Directo.bat` uma vez põe um ícone
+"LPA Exceltic" no Ambiente de Trabalho, para nunca mais ser preciso encontrar
+esta pasta. Para dar a ferramenta a alguém **sem** Python — o Roberto — é o
+`.exe` que serve, mais abaixo neste documento.
 
 ---
 
@@ -11,6 +25,8 @@ janela com botões, embrulhada num `.exe` que se copia e se abre.
 ```bash
 python -m lpa_filler gui
 ```
+
+(ou, mais simples: clique duplo em `Abrir_LPA.bat`.)
 
 À esquerda as entradas, em cima os cinco passos do fluxo, em baixo uma consola
 que mostra exatamente o que está a acontecer:
@@ -99,6 +115,35 @@ O `lector` passou a guardar o texto já extraído, por `(caminho, data de
 modificação, tamanho)`. Um documento substituído por uma versão nova entre dois
 comandos é relido; o mesmo ficheiro inalterado não. É uma cache dentro da
 execução, não em disco — não há estado a ficar desatualizado entre sessões.
+
+### O nome do ficheiro final, sem escrever nada
+
+O passo 4 (Gerar o LPA) e o passo 5 (Anejo A.2) já não saem como `LPA.xlsm` e
+`anejo_a2.csv`. Assim que o `projeto.yaml` tem uma `portada.referencia` válida
+(ex. `EXC2025-16126-1/002/LPA/05`), o nome do ficheiro sai dela — `LPA.xlsm`
+passa a `EXC2025-16126-1-002-LPA-05.xlsm`, seguindo o PE/05. O Anejo fica preso
+ao mesmo nome (`..._Anejo-A2.csv`), para os dois ficheiros de uma revisão se
+reconhecerem como o par que são.
+
+Sem uma referência válida (placeholder por preencher, ou projeto ainda vazio),
+cai no nome genérico — não se inventa um código.
+
+### A base dentro do aplicativo
+
+O campo "Base de hallazgos" já vem preenchido, sempre com o mesmo caminho: ao
+lado do `Abrir_LPA.bat` a correr da fonte, ao lado do `.exe` quando empacotado.
+Não é preciso ir à procura dela a cada obra nova.
+
+Para a fazer crescer há o botão **"+ Añadir LPA a la base"**, ao lado do campo:
+escolhe um ou mais `.xlsm` de LPAs já emitidos e acrescenta os hallazgos —
+mesmo comando `harvest` de sempre, só que sem passar pelo terminal. Por baixo
+do botão vê-se sempre quantos hallazgos e de quantas obras a base já tem.
+
+> Ao empacotar num `.exe`, a base **não** vai lá dentro presa: fica ao lado
+> do executável, na pasta onde ele foi copiado — nunca em `sys._MEIPASS`
+> (a pasta temporária onde o PyInstaller descomprime a cada arranque, só de
+> leitura, apagada ao fechar). Uma base que só existisse lá dentro perdia-se
+> a cada fecho do programa.
 
 ---
 

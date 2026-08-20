@@ -49,12 +49,41 @@ class Config:
     def radar(self) -> Path:
         return self.trabalho / "radar.txt"
 
+    def _referencia_projeto(self) -> str:
+        """A 'portada.referencia' do projeto.yaml atual, ou "" se não houver.
+
+        Lida do disco a cada acesso (não em cache): quando este método corre,
+        o projeto já foi escrito pelo passo 1, com a referência que o avaliador
+        confirmou — é essa, não uma guardada à parte, que tem de nomear o ficheiro.
+        """
+        if not self.projeto.exists():
+            return ""
+        import yaml
+
+        try:
+            dados = yaml.safe_load(self.projeto.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            return ""
+        return (dados.get("portada") or {}).get("referencia") or ""
+
     @property
     def lpa(self) -> Path:
-        return self.trabalho / "LPA.xlsm"
+        from . import nomenclatura
+
+        nome = nomenclatura.nome_ficheiro(self._referencia_projeto(), ".xlsm")
+        return self.trabalho / (nome or "LPA.xlsm")
 
     @property
     def anejo(self) -> Path:
+        from . import nomenclatura
+
+        # O Anejo A.2 não tem sigla própria no PE/05 — fica preso ao nome do LPA
+        # da mesma revisão, para os dois ficheiros se reconhecerem como o par
+        # que são, em vez de "anejo_a2.csv" genérico e sem ligação a nada.
+        p = nomenclatura.partes(self._referencia_projeto())
+        if p:
+            obra, seq, tipo, rev = p
+            return self.trabalho / f"{obra}-{seq}-{tipo}-{rev:02d}_Anejo-A2.csv"
         return self.trabalho / "anejo_a2.csv"
 
 

@@ -95,6 +95,20 @@ def aviso_revisao_anterior(referencia: str, documentos: list[dict[str, Any]]) ->
     )
 
 
+def nome_ficheiro(referencia: str, ext: str) -> str | None:
+    """O nome de ficheiro PE/05 a partir de uma referência válida.
+
+    'EXC2025-16126-1/002/LPA/05' + '.xlsm' -> 'EXC2025-16126-1-002-LPA-05.xlsm'.
+    None se a referência não seguir o padrão — não se inventa um nome; quem
+    chama decide o nome por omissão (ex. 'LPA.xlsm').
+    """
+    p = partes(referencia)
+    if not p:
+        return None
+    obra, seq, tipo, rev = p
+    return f"{obra}-{seq}-{tipo}-{rev:02d}{ext}"
+
+
 def avisos_documentos(documentos: list[dict[str, Any]]) -> list[str]:
     """Avisos de nomenclatura para as referências de envíos que parecem Exceltic."""
     avisos: list[str] = []

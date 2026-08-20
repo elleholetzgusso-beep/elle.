@@ -299,3 +299,57 @@ def test_por_omissao_os_puntos_vao_para_a_folha():
     assert "self._skip_lpa = tk.BooleanVar(value=False)" in fonte, (
         "a caixa da janela voltou a vir ligada por omissão"
     )
+
+
+# ---------------------------------------------------------- nomenclatura PE/05
+
+
+def test_lpa_sai_com_o_nome_pe05_quando_a_referencia_e_valida(cfg: Config):
+    cfg.projeto.write_text(
+        yaml.safe_dump({"portada": {"referencia": "EXC2025-16126-1/002/LPA/05"}}),
+        encoding="utf-8",
+    )
+    assert cfg.lpa.name == "EXC2025-16126-1-002-LPA-05.xlsm"
+    assert cfg.anejo.name == "EXC2025-16126-1-002-LPA-05_Anejo-A2.csv"
+
+
+def test_lpa_cai_no_nome_generico_sem_projeto_ou_com_referencia_placeholder(cfg: Config):
+    assert cfg.lpa.name == "LPA.xlsm"          # projeto ainda não existe
+    assert cfg.anejo.name == "anejo_a2.csv"
+
+    cfg.projeto.write_text(
+        yaml.safe_dump({"portada": {"referencia": "PREENCHER: ex. EXC.../002/LPA/01"}}),
+        encoding="utf-8",
+    )
+    assert cfg.lpa.name == "LPA.xlsm"          # não se inventa um nome a partir de lixo
+
+
+# ----------------------------------------------------------- base embutida
+
+
+def test_pasta_app_nao_usa_a_pasta_temporaria_do_exe():
+    """A base tem de sobreviver e crescer — _MEIPASS é temporária e só de leitura.
+
+    Escrever lá seria perdido no fecho do programa. A base fica ao lado do
+    executável (sys.executable), nunca em sys._MEIPASS.
+    """
+    fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "gui.py").read_text(
+        encoding="utf-8"
+    )
+    corpo = fonte.split("def _pasta_app(")[1].split("\ndef ")[0]
+    assert "_MEIPASS" in corpo, "verifica se está empacotado (correto continuar a fazer)"
+    assert "sys.executable" in corpo, "tem de resolver para a pasta do .exe quando empacotado"
+    assert "return Path(base)" not in corpo, "não pode devolver a pasta temporária do PyInstaller"
+
+
+def test_botao_de_adicionar_a_base_chama_o_harvest_com_multiplos_ficheiros():
+    """--i aceita vários .xlsm de uma vez; é isso que o botão gera."""
+    argv = ["harvest", "-i", "a.xlsm", "b.xlsm", "c.xlsm", "-o", "base.csv"]
+    cli.build_parser().parse_args(argv)  # não rebenta
+
+
+def test_a_base_vem_pre_preenchida_dentro_do_aplicativo():
+    fonte = (Path(__file__).resolve().parent.parent / "lpa_filler" / "gui.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'self._campos["base"].set(str(_pasta_app() / BASE_PADRAO))' in fonte

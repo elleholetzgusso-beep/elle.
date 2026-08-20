@@ -95,3 +95,13 @@ def test_o_proprio_lpa_da_mesma_revisao_nao_dispara():
 def test_lpa_de_outra_obra_nao_dispara():
     docs = [{"nombre": "EXC2026-16883-002-LPA-09", "envios": []}]
     assert nomenclatura.aviso_revisao_anterior("EXC2025-02703-6/002/LPA/01", docs) is None
+
+
+def test_nome_ficheiro_a_partir_da_referencia():
+    assert (nomenclatura.nome_ficheiro("EXC2025-16126-1/002/LPA/05", ".xlsm")
+            == "EXC2025-16126-1-002-LPA-05.xlsm")
+
+
+def test_nome_ficheiro_none_quando_referencia_nao_segue_o_padrao():
+    assert nomenclatura.nome_ficheiro("PREENCHER: ex. EXC.../002/LPA/01", ".xlsm") is None
+    assert nomenclatura.nome_ficheiro("", ".xlsm") is None

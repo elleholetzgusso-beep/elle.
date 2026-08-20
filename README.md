@@ -15,13 +15,21 @@ ferroviárias em Espanha (marco PE/Inspección/01–05, UNE-EN ISO/IEC 17020).
 
 ## Sem terminal
 
+Clique duplo em **`Abrir_LPA.bat`** — precisa de Python instalado (a mesma
+instalação de sempre), mas não pede para escrever nada no terminal.
+`Crear_Acceso_Directo.bat` põe um ícone no Ambiente de Trabalho, uma vez só.
+
 ```bash
 python -m lpa_filler gui
 ```
 
 Janela com as entradas de um lado e os cinco passos do outro. Corre os mesmos
-comandos abaixo — não faz nada que eles não façam. Para entregar a quem não tem
-Python, `empacotar\construir.bat` embrulha isto num `.exe`.
+comandos abaixo — não faz nada que eles não façam. O ficheiro final sai já com
+o nome PE/05 (`EXC.../002/LPA/05.xlsm`), a partir da `portada.referencia`. A
+base de hallazgos vive dentro do aplicativo, com um botão para a fazer crescer.
+
+Para entregar a quem não tem Python nenhum instalado, `empacotar\construir.bat`
+embrulha isto num `.exe` — aí sim, nada a instalar do outro lado.
 
 ## Fluxo
 
