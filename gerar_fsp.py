@@ -490,12 +490,29 @@ def _celula_valor_label(ws, label):
     return None
 
 
+def ref_fsp_de(lpa_ref):
+    """Deriva a referencia do FSP a partir da referencia do LPA.
+    Ex.: EXC2025-04019/002/LPA/03 -> EXC2025-04019-000-FSP-01"""
+    return re.sub(r"/\d+/[A-Z]+/\d+$", "-000-FSP-01", str(lpa_ref or ""))
+
+
+def nome_ficheiro_fsp(dados):
+    """Nome do ficheiro de saida com a referencia/expediente reais do projeto.
+    Cai em 'FSP_GERADO.xlsx' se nao houver dados suficientes."""
+    ref = ref_fsp_de(dados.get("lpa_ref", ""))
+    if ref and ref != dados.get("lpa_ref", ""):
+        base = ref
+    else:
+        base = dados.get("expediente") or ""
+    base = re.sub(r'[\\/:*?"<>|]', "-", base).strip(" -")
+    return f"FSP_{base}.xlsx" if base else "FSP_GERADO.xlsx"
+
+
 def popular_portada(ws, dados):
     from openpyxl.cell.cell import MergedCell
 
     lpa_ref = str(dados.get("lpa_ref", ""))
-    # Referencia FSP: EXC2025-04019/002/LPA/03 -> EXC2025-04019-000-FSP-01
-    ref_fsp = re.sub(r"/\d+/[A-Z]+/\d+$", "-000-FSP-01", lpa_ref)
+    ref_fsp = ref_fsp_de(lpa_ref)
 
     # --- Nome do projeto: so celulas cujo texto começa com "PROYECTO DE" ---
     projeto = dados.get("projeto", "")
@@ -861,7 +878,6 @@ def gerar_fsp(pasta_projeto, template_path=None, log=print):
     """
     pasta    = encontrar_pasta_docs(pasta_projeto)
     template = Path(template_path) if template_path else resource_path(FSP_TEMPLATE)
-    output   = Path(pasta_projeto) / "FSP_GERADO.xlsx"
 
     if not template.exists():
         raise SystemExit(f"ERRO: Template FSP nao encontrado: {template}")
@@ -874,6 +890,7 @@ def gerar_fsp(pasta_projeto, template_path=None, log=print):
 
     lpa_path = encontrar_ultimo_lpa(pasta)
     dados    = ler_lpa(lpa_path)
+    output   = Path(pasta_projeto) / nome_ficheiro_fsp(dados)
     log(f"Projeto: {str(dados.get('projeto', ''))[:70]}")
     log(f"Expediente: {dados.get('expediente', '')}")
     log(f"Avaliadores: {iniciais_avaliadores(dados.get('avaliadores', []))}")
@@ -921,7 +938,7 @@ def gerar_fsp(pasta_projeto, template_path=None, log=print):
     log(f"\nGuardado em: {output.resolve()}")
     log("=" * 55)
     log("Proximos passos:")
-    log("  1. Abre FSP_GERADO.xlsx e revisa cada aba")
+    log(f"  1. Abre {output.name} e revisa cada aba")
     log("  2. Preenche M.C.S. no final do projeto")
     log("=" * 55)
     return output

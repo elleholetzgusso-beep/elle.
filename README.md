@@ -14,7 +14,8 @@ linha de comandos.
 2. Clica em **Escolher pasta…** e seleciona a pasta do projeto.
 3. Clica em **⚙ Gerar FSP**.
 4. Quando aparecer *"✔ FSP gerado com sucesso"*, clica em **Abrir ficheiro
-   gerado**. O ficheiro fica em `FSP_GERADO.xlsx` dentro da pasta do projeto.
+   gerado**. O ficheiro fica dentro da pasta do projeto, com o nome baseado na
+   referência do projeto (ex.: `FSP_EXC2025-04019-000-FSP-01.xlsx`).
 
 ---
 

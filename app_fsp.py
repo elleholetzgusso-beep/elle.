@@ -237,7 +237,7 @@ class AppFSP(tk.Tk):
         # ---- Rodape ----
         rod = tk.Frame(self, bg=COR_FUNDO)
         rod.pack(fill="x", padx=PADX, pady=(10, 16))
-        tk.Label(rod, text="O ficheiro é escrito em FSP_GERADO.xlsx dentro da pasta do projeto.",
+        tk.Label(rod, text="O ficheiro é escrito com o nome do projeto (ex.: FSP_EXC2025-...xlsx) dentro da pasta do projeto.",
                  bg=COR_FUNDO, fg=COR_SUAVE, font=(FONTE, 8)).pack(side="left")
         tk.Label(rod, text="DELIVERING EXCELLENCE", bg=COR_FUNDO, fg=COR_LARANJA,
                  font=(FONTE, 8, "bold")).pack(side="right")
@@ -311,7 +311,7 @@ class AppFSP(tk.Tk):
                     self.output_path = payload
                     self._a_correr = False
                     self._parar_barra()
-                    self._escrever("FSP_GERADO.xlsx escrito com sucesso.", tag="ok")
+                    self._escrever(f"{Path(payload).name} escrito com sucesso.", tag="ok")
                     self._estado("FSP gerado com sucesso", COR_OK)
                     self.btn_gerar.set_base(COR_LARANJA, COR_LARANJA_D)
                     self.btn_gerar.config(state="normal")
