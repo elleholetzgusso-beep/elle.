@@ -148,7 +148,7 @@ class AppFSP(tk.Tk):
                  font=(FONTE, 8, "bold")).pack(side="right", pady=(8, 0))
 
         tk.Label(cab, text="Gera a Ficha de Seguimiento del Proyecto a partir do último LPA e das "
-                           "pastas 1_ Doc Recibida e 3_ Doc Generada.",
+                           "pastas 1_ Doc Recibida e 4_ Doc Generada.",
                  bg=COR_FUNDO, fg=COR_TEXTO_2, font=(FONTE, 9), justify="left",
                  anchor="w").pack(fill="x", pady=(6, 0))
 

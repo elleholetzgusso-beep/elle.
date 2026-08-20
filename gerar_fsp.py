@@ -705,7 +705,7 @@ def encontrar_pasta_docs(pasta_projeto):
             gerada = sub
             break
     if gerada is None:
-        raise SystemExit(f"ERRO: Nao encontrei '3_Doc Generada' dentro de '{raiz}'")
+        raise SystemExit(f"ERRO: Nao encontrei '4_Doc Generada' dentro de '{raiz}'")
     doc = gerada / "Doc"
     return doc if doc.is_dir() else gerada
 

@@ -1,7 +1,7 @@
 # Gerador de FSP — Exceltic
 
 Gera automaticamente a **Ficha de Seguimiento del Proyecto (FSP)** a partir do
-último LPA e das pastas do projeto (`1_ Doc Recibida`, `3_ Doc Generada`).
+último LPA e das pastas do projeto (`1_ Doc Recibida`, `4_ Doc Generada`).
 
 Agora tem **interface gráfica** (uma janela com botões) — já não é preciso a
 linha de comandos.
