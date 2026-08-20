@@ -353,3 +353,19 @@ def test_a_base_vem_pre_preenchida_dentro_do_aplicativo():
         encoding="utf-8"
     )
     assert 'self._campos["base"].set(str(_pasta_app() / BASE_PADRAO))' in fonte
+
+
+# --------------------------------------------------- azul do conteúdo novo
+
+
+def test_revisao_com_lpa_anterior_passa_o_anterior_ao_fill(cfg: Config):
+    cfg.revisao = True
+    cfg.lpa_existente = cfg.trabalho / "LPA_anterior.xlsm"
+    cmd = _argv_de("lpa", cfg)[0]
+    assert cmd[cmd.index("--anterior") + 1] == str(cfg.lpa_existente)
+
+
+def test_sem_lpa_anterior_nao_ha_comparacao(cfg: Config):
+    assert "--anterior" not in _argv_de("lpa", cfg)[0]           # projeto novo
+    cfg.revisao = True
+    assert "--anterior" not in _argv_de("lpa", cfg)[0]           # revisão sem apontar o anterior

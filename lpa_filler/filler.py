@@ -15,12 +15,18 @@ import openpyxl
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 from openpyxl.utils import column_index_from_string as col_idx
 
-from . import extensions, model, styles
+from openpyxl.styles import Font
+
+from . import extensions, model, novidade, styles
 
 # ----- Mapa de colunas por aba (índice 1-based) -----
 CV = {"rev": col_idx("A"), "fecha": col_idx("B"), "descripcion": col_idx("C")}
 DE = {c: col_idx(c) for c in "ABCDEFGHIJ"}
 LPA = {c: col_idx(c) for c in "ABCDEFGHIJK"}
+
+# Azul da Exceltic para conteúdo novo desde o LPA anterior (pedido do avaliador,
+# não do PE/05 — é convenção da casa, não normativa). ARGB com alpha opaco.
+COR_NOVO = "FF0070C0"
 
 # Linhas a partir das quais começam os dados (a seguir aos cabeçalhos).
 CV_FIRST, DE_FIRST, LPA_FIRST = 4, 3, 2
@@ -42,14 +48,22 @@ def fill(
     veredicto_text: str | None = None,
     veredicto_cell: str | None = None,
     skip_lpa: bool = False,
+    anterior: dict[str, Any] | None = None,
 ) -> Path:
     """Gera o .xlsm. ``veredicto_text`` fica registado nas propriedades do
     ficheiro (Ficheiro > Informações no Excel) e, se ``veredicto_cell`` for
     indicado ("Aba!Célula", ex. "Portada!B30"), também nessa célula — a célula
     não tem default porque a posição livre depende do template de cada obra.
-    Se ``skip_lpa`` for True, deixa a aba LPA vazia para editar manualmente."""
+    Se ``skip_lpa`` for True, deixa a aba LPA vazia para editar manualmente.
+
+    ``anterior`` (o LPA já emitido, na mesma forma de ``data`` — ver
+    ``extract.extract``) faz o que for novo desde ele sair a azul (#0070C0):
+    puntos inteiros, diálogo acrescentado a puntos que já existiam, documentos/
+    envíos novos, a revisão nova. Sem ``anterior`` (primeira vez), nada se
+    destaca — não há com que comparar."""
     template, output = Path(template), Path(output)
     wb = openpyxl.load_workbook(template, keep_vba=True)
+    nov = novidade.calcular(data, anterior)
 
     # Capturar estilos das linhas-modelo ANTES de limpar as regiões.
     cv_style = styles.snapshot_row_styles(wb["Control de versiones"], CV_FIRST, 3)
@@ -59,14 +73,17 @@ def fill(
     lpa_resp = styles.snapshot_row_styles(wb["LPA"], LPA_FIRST + 1, 11)
 
     _fill_portada(wb["Portada"], data.get("portada", {}))
-    _fill_versiones(wb["Control de versiones"], data.get("versiones", []), cv_style)
-    de_last = _fill_documentos(wb["Doc Evaluados"], data.get("documentos", []), de_first, de_sub)
+    _fill_versiones(wb["Control de versiones"], data.get("versiones", []), cv_style,
+                     nov["versiones_novas"])
+    de_last = _fill_documentos(wb["Doc Evaluados"], data.get("documentos", []), de_first, de_sub,
+                                nov["documentos_novos"], nov["envios_novos"])
     if skip_lpa:
         # Limpar a aba LPA deixando espaço vazio para editar manualmente
         styles.clear_region(wb["LPA"], LPA_FIRST, max(wb["LPA"].max_row, LPA_FIRST), 11)
         lpa_last = LPA_FIRST - 1
     else:
-        lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp, de_last)
+        lpa_last = _fill_lpa(wb["LPA"], data.get("puntos", []), lpa_first, lpa_resp, de_last,
+                              nov["puntos_novos"], nov["dialogos_novos"])
 
     if veredicto_text:
         wb.properties.description = veredicto_text
@@ -101,6 +118,20 @@ def _set(ws, row, col, value):
     ws.cell(row=r, column=c).value = value
 
 
+def _marcar_novo(ws, row, col) -> None:
+    """Pinta o texto desta célula a azul (COR_NOVO) — conteúdo novo desde o LPA
+    anterior. Só troca a cor da fonte; tamanho, negrito e tipo de letra do
+    template mantêm-se, porque se clona o Font existente e só se muda ``color``."""
+    r, c = _anchor(ws, row, col)
+    cel = ws.cell(row=r, column=c)
+    f = cel.font
+    cel.font = Font(
+        name=f.name, size=f.size, bold=f.bold, italic=f.italic,
+        underline=f.underline, strike=f.strike, vertAlign=f.vertAlign,
+        color=COR_NOVO,
+    )
+
+
 def _fill_portada(ws, p: dict[str, Any]) -> None:
     _set(ws, 12, col_idx("B"), p.get("titulo"))
     _set(ws, 14, col_idx("B"), p.get("subtitulo"))
@@ -113,7 +144,7 @@ def _fill_portada(ws, p: dict[str, Any]) -> None:
         _set(ws, 27, cols[i], ev.get("rol"))
 
 
-def _fill_versiones(ws, versiones: list[dict], style: dict) -> None:
+def _fill_versiones(ws, versiones: list[dict], style: dict, versiones_novas: set) -> None:
     styles.clear_region(ws, CV_FIRST, max(ws.max_row, CV_FIRST), 3)
     for i, v in enumerate(versiones):
         r = CV_FIRST + i
@@ -121,9 +152,13 @@ def _fill_versiones(ws, versiones: list[dict], style: dict) -> None:
         _set(ws, r, CV["rev"], v.get("rev", i + 1))
         _set(ws, r, CV["fecha"], v.get("fecha"))
         _set(ws, r, CV["descripcion"], v.get("descripcion"))
+        if v.get("rev") in versiones_novas:
+            for col in CV.values():
+                _marcar_novo(ws, r, col)
 
 
-def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: dict) -> int:
+def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: dict,
+                      documentos_novos: set, envios_novos: dict[str, set]) -> int:
     styles.clear_region(ws, DE_FIRST, max(ws.max_row, DE_FIRST), 10)
     r = DE_FIRST
     spans: list[tuple] = []  # (categoria, start, end)
@@ -131,6 +166,9 @@ def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: d
     for doc in documentos:
         cat = doc.get("categoria")
         envios = doc.get("envios") or [{}]
+        nome = doc.get("nombre")
+        doc_novo = nome in documentos_novos
+        idx_novos = set() if doc_novo else envios_novos.get(nome, set())
         start = r
         for k, env in enumerate(envios):
             row = r + k
@@ -143,6 +181,12 @@ def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: d
             _set(ws, row, DE["G"], env.get("fecha_envio"))
             if not cat:
                 _set(ws, row, DE["B"], env.get("referencia"))
+            if k in idx_novos:
+                # Só este envío é novo: o documento já existia, não se pinta
+                # a coluna B/H/I/J, que descrevem o documento inteiro.
+                cols = ("C", "D", "E", "F", "G") if cat else ("B", "C", "D", "E", "F", "G")
+                for c in cols:
+                    _marcar_novo(ws, row, DE[c])
         end = r + len(envios) - 1
 
         if cat:
@@ -165,6 +209,12 @@ def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: d
         for c in ("H", "I", "J"):
             styles.merge(ws, DE[c], start, end)
 
+        if doc_novo:
+            # Documento inteiro novo: todas as linhas, todas as colunas.
+            for row in range(start, end + 1):
+                for c in DE.values():
+                    _marcar_novo(ws, row, c)
+
         spans.append((cat, start, end))
         r = end + 1
 
@@ -184,10 +234,13 @@ def _fill_documentos(ws, documentos: list[dict], first_style: dict, sub_style: d
     return r - 1
 
 
-def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict, de_last: int) -> int:
+def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict, de_last: int,
+              puntos_novos: set, dialogos_novos: dict[str, set]) -> int:
     styles.clear_region(ws, LPA_FIRST, max(ws.max_row, LPA_FIRST), 11)
     r = LPA_FIRST
     for pt in puntos:
+        punto_novo = pt.get("id") in puntos_novos
+        idx_novos = set() if punto_novo else dialogos_novos.get(pt.get("id"), set())
         dialogo = pt.get("dialogo") or [{}]
         start = r
         for k, d in enumerate(dialogo):
@@ -199,6 +252,11 @@ def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict, de_la
             ws.cell(row=row, column=LPA["J"]).value = (
                 LPA_J_FIRST.format(r=row) if k == 0 else LPA_J_NEXT.format(r=row, p=row - 1)
             )
+            if punto_novo or k in idx_novos:
+                # Só tipo+texto: a coluna J é fórmula (arrasta o estado para baixo),
+                # não conteúdo escrito por alguém — não faz sentido pintá-la.
+                _marcar_novo(ws, row, LPA["G"])
+                _marcar_novo(ws, row, LPA["I"])
         end = r + len(dialogo) - 1
 
         _set(ws, start, LPA["A"], pt.get("n"))
@@ -214,5 +272,7 @@ def _fill_lpa(ws, puntos: list[dict], first_style: dict, resp_style: dict, de_la
         _set(ws, start, LPA["K"], pt.get("estado"))
         for c in ("A", "B", "C", "D", "E", "F", "K"):
             styles.merge(ws, LPA[c], start, end)
+            if punto_novo:
+                _marcar_novo(ws, start, LPA[c])
         r = end + 1
     return r - 1

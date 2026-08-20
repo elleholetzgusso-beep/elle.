@@ -74,6 +74,14 @@ o que o passo 1 faz:
 Numa revisão o PES não é pedido outra vez: é do primeiro LPA. E o aviso de
 "isto apaga os puntos" desaparece, porque nesse modo não apaga nada.
 
+Em modo revisão, se o campo **«LPA anterior»** estiver preenchido, o passo 4
+compara-se contra esse ficheiro e pinta a azul (`#0070C0`) o que for novo desde
+ele — puntos inteiros, diálogo acrescentado a puntos que já existiam,
+documentos e envíos novos, a linha da versão nova. Sem esse campo preenchido,
+nada se destaca (o `extract` já corre à mesma se o `projeto.yaml` não existir;
+o campo serve aqui só para a comparação, mesmo quando não é preciso para
+arrancar).
+
 ### Passos dispensáveis
 
 Com **«Deixar a aba LPA vazia»** ligada, os passos 2 (analisar) e 3 (sugerir)

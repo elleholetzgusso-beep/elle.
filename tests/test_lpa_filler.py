@@ -175,6 +175,58 @@ def test_fill_roundtrip_if_template_present():
         assert len(back["puntos"][0]["dialogo"]) == 2
 
 
+def test_novidade_sai_azul_no_xlsm_de_verdade():
+    """Ponta a ponta: uma resposta nova (num punto que já existia) e um punto
+    inteiramente novo, contra o template real — não a mock nenhum de openpyxl."""
+    if not TEMPLATE.exists():
+        print("SKIP: template não presente (examples/template_exemplo.xlsm)")
+        return
+    from lpa_filler import filler
+
+    anterior = {
+        "portada": {"referencia": "REF"},
+        "versiones": [{"rev": 1, "fecha": dt.date(2026, 1, 1), "descripcion": "v1"}],
+        "documentos": [{"nombre": "Doc A", "envios": [{"referencia": "Doc A", "version": 1, "envio": 1}]}],
+        "puntos": [{
+            "id": "H-001", "n": 1, "eval": "SM", "documento": "Doc A", "ref_documento": "auto",
+            "valoracion": "Crítico", "estado": "Abierto",
+            "dialogo": [{"tipo": "Hallazgo", "texto": "achado original"}],
+        }],
+    }
+    atual = {
+        "portada": anterior["portada"],
+        "versiones": anterior["versiones"],
+        "documentos": anterior["documentos"],
+        "puntos": [
+            dict(anterior["puntos"][0], estado="Resuelto", dialogo=[
+                {"tipo": "Hallazgo", "texto": "achado original"},
+                {"tipo": "Respuesta ADIF", "texto": "corregido"},   # nova
+            ]),
+            {
+                "id": "H-002", "n": 2, "eval": "SM", "documento": "Doc A", "ref_documento": "auto",
+                "valoracion": "Formal", "estado": "Abierto",
+                "dialogo": [{"tipo": "Hallazgo", "texto": "achado novo"}],   # punto inteiro novo
+            },
+        ],
+    }
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "out.xlsm"
+        filler.fill(TEMPLATE, atual, out, anterior=anterior)
+
+        import openpyxl
+        ws = openpyxl.load_workbook(out)["LPA"]
+
+        def cor(ref: str) -> str | None:
+            c = ws[ref].font.color
+            return c.rgb if c and getattr(c, "type", None) == "rgb" else None
+
+        assert cor("I2") is None                     # hallazgo original: sem cor
+        assert cor("I3") == filler.COR_NOVO           # resposta nova
+        assert cor("A2") is None                      # metadados do punto velho: sem cor
+        assert cor("I4") == filler.COR_NOVO            # punto H-002 inteiro é novo
+        assert cor("A4") == filler.COR_NOVO
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

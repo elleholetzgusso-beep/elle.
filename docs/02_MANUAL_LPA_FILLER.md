@@ -231,6 +231,13 @@ regista o veredicto esperado do IES.
 `--strict` recusa gerar se algum punto estiver `Resuelto`/`Cerrado` sem o suporte que
 o PE/03 §8.4 exige no diálogo. Sem a flag, os mesmos casos saem como avisos.
 
+`--anterior LPA_anterior.xlsm` faz sair a azul (`#0070C0`) o que for novo desde esse
+ficheiro: puntos inteiros, diálogo acrescentado a puntos que já existiam, documentos e
+envíos novos, a revisão nova no Control de versiones. Comparação real contra um
+ficheiro concreto — sem `--anterior` (ou no LPA-01, primeira vez), nada se destaca.
+Não confundir com "tudo o que não é do template": conteúdo trazido do LPA anterior via
+`extract` fica preto na mesma, porque já lá estava.
+
 ### `anejo` — a Base de No Conformidades (Anejo A.2)
 
 ```bash

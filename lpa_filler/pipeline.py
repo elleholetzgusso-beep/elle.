@@ -228,6 +228,10 @@ def _cmd_gerar_lpa(cfg: Config) -> list[list[str]]:
     cmd = ["fill", "-t", _s(cfg.template), "-d", _s(cfg.projeto), "-o", _s(cfg.lpa)]
     if cfg.skip_lpa:
         cmd.append("--skip-lpa")
+    if cfg.revisao and cfg.lpa_existente:
+        # É o que faz o novo desde a última vez sair a azul no Excel. Vale
+        # mesmo sem ter corrido o extract nesta sessão (projeto já existente).
+        cmd += ["--anterior", _s(cfg.lpa_existente)]
     return [cmd]
 
 

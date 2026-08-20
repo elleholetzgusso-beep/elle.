@@ -77,10 +77,25 @@ def _cmd_fill(args) -> int:
         print("\nFichero NO generado (--strict). Corrige los estados de arriba, o ejecuta "
               "sin --strict para generarlo igualmente.", file=sys.stderr)
         return 1
+    # Numa revisão, o que for novo desde este ficheiro sai a azul (#0070C0) no
+    # Excel — comparação real contra o LPA anterior, nunca "tudo o que não é do
+    # template": isso pintaria de novo conteúdo que só veio de lá (extract).
+    anterior = None
+    if args.anterior:
+        from . import extract as _extract
+
+        try:
+            anterior = _extract.extract(args.anterior)
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! no pude leer '{args.anterior}' para comparar: {e}. "
+                  f"Nada se resaltará en azul.", file=sys.stderr)
+
     v = model.veredicto(data)
     vtexto = model.veredicto_texto(v)
     try:
-        out = filler.fill(args.template, data, args.out, veredicto_text=vtexto, veredicto_cell=args.veredicto_cell, skip_lpa=args.skip_lpa)
+        out = filler.fill(args.template, data, args.out, veredicto_text=vtexto,
+                           veredicto_cell=args.veredicto_cell, skip_lpa=args.skip_lpa,
+                           anterior=anterior)
     except PermissionError:
         return _erro_bloqueado(args.out)
     print(f"\n== {vtexto} ==")
@@ -677,6 +692,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--veredicto-cell",
         help='Célula onde escrever o veredicto esperado do IES, ex. "Portada!B30". '
         "Sem isto, o veredicto vai só para a consola e para as propriedades do ficheiro.",
+    )
+    f.add_argument(
+        "--anterior",
+        help="LPA já emitido (.xlsm), para comparar. O que for novo desde ele — "
+             "puntos, diálogo, documentos, envíos, a revisão — sai a azul (#0070C0). "
+             "Sem isto, nada se destaca.",
     )
     f.set_defaults(func=_cmd_fill)
 
