@@ -107,6 +107,22 @@ class AppFSP(tk.Tk):
                      bordercolor=COR_SUNKEN, lightcolor=COR_LARANJA,
                      darkcolor=COR_LARANJA, thickness=4)
 
+    # ---------------- logo ----------------
+    def _carregar_logo(self, nome, altura_alvo=34):
+        """Carrega assets/<nome> como PhotoImage, reduzido para ~altura_alvo px.
+        Devolve None se o ficheiro nao existir ou o Tk nao suportar o PNG."""
+        try:
+            caminho = gerar_fsp.resource_path(str(Path("assets") / nome))
+            if not Path(caminho).exists():
+                return None
+            img = tk.PhotoImage(file=str(caminho))
+            fator = max(1, round(img.height() / altura_alvo))
+            if fator > 1:
+                img = img.subsample(fator, fator)
+            return img
+        except Exception:
+            return None
+
     # ---------------- UI ----------------
     def _construir_ui(self):
         PADX = 30
@@ -117,10 +133,17 @@ class AppFSP(tk.Tk):
 
         linha_tit = tk.Frame(cab, bg=COR_FUNDO)
         linha_tit.pack(fill="x")
-        tk.Label(linha_tit, text="FSP.", bg=COR_FUNDO, fg=COR_LARANJA,
-                 font=(FONTE, 20, "bold")).pack(side="left")
-        tk.Label(linha_tit, text="  Gerador de Ficha de Seguimiento", bg=COR_FUNDO,
-                 fg=COR_TEXTO, font=(FONTE, 20, "bold")).pack(side="left")
+        # Logo real (assets/logo-lockup.png); se nao carregar, cai para o texto "FSP."
+        self._logo = self._carregar_logo("logo-lockup.png", altura_alvo=34)
+        if self._logo is not None:
+            tk.Label(linha_tit, image=self._logo, bg=COR_FUNDO).pack(side="left")
+            tk.Label(linha_tit, text="  Gerador de Ficha de Seguimiento", bg=COR_FUNDO,
+                     fg=COR_TEXTO, font=(FONTE, 20, "bold")).pack(side="left")
+        else:
+            tk.Label(linha_tit, text="FSP.", bg=COR_FUNDO, fg=COR_LARANJA,
+                     font=(FONTE, 20, "bold")).pack(side="left")
+            tk.Label(linha_tit, text="  Gerador de Ficha de Seguimiento", bg=COR_FUNDO,
+                     fg=COR_TEXTO, font=(FONTE, 20, "bold")).pack(side="left")
         tk.Label(linha_tit, text="VERSÃO 1.0", bg=COR_FUNDO, fg=COR_SUAVE,
                  font=(FONTE, 8, "bold")).pack(side="right", pady=(8, 0))
 
