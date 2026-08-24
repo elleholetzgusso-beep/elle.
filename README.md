@@ -17,13 +17,24 @@ python app.py
 No Windows, depois de instalar as bibliotecas basta dar duplo clique em
 **`abrir app.bat`**.
 
-A janela tem duas abas e faz o caminho inteiro de uma vez:
+A janela tem duas abas, e cada uma funciona sozinha:
 
 - **1. Juntar arquivos** — escolha a pasta de origem e a de destino, marque copiar ou
   mover e clique em *Juntar arquivos*. O botao *Simular* mostra o que vai acontecer sem
   mexer em nada. Com a opcao "Ao terminar, gerar a planilha" marcada (padrao), ele ja
   emenda na aba 2 sozinho.
-- **2. Planilha de documentos** — escolha a pasta e onde salvar o `.xlsx`.
+- **2. Planilha de documentos** — **so a planilha, sem organizar nada**: aponte para
+  qualquer pasta (com ou sem subpastas) e ela e lida onde esta, sem mover nem copiar
+  arquivo nenhum. Quem quiser pular direto para ca tem o botao
+  *"So quero a planilha, sem organizar"* na aba 1.
+
+Antes de gerar, a aba 2 pergunta o que voce quer na planilha:
+
+- **Lista completa** — abre cada documento e traz titulo, versao, paginas, contagem de
+  palavras e o conteudo do texto.
+- **So nomes e caminhos** — nao abre os arquivos: traz nome, caminho completo, tipo,
+  tamanho, data e a versao (que sai do proprio nome do arquivo). Termina em segundos,
+  mesmo com muitos documentos, e a planilha vem sem as colunas de conteudo.
 
 Embaixo ficam a barra de andamento, o registro do que esta sendo feito e o botao
 *Abrir resultado*, que abre a pasta ou a planilha pronta. As pastas usadas ficam
@@ -82,22 +93,29 @@ python extrair_arquivos.py "Tarragona A" "Tarragona A-extract"
 
 ## listar_documentos.py
 
-Monta um Excel com a lista dos documentos: nome, titulo, versao, conteudo e mais.
-Serve como passo seguinte do `extrair_arquivos.py`.
+Monta um Excel com a lista dos documentos: nome, caminho, titulo, versao, conteudo e mais.
+Nao mexe em nada — le a pasta onde ela esta, com todas as subpastas. Pode ser usado
+depois do `extrair_arquivos.py` ou sozinho, em qualquer pasta.
 
 ```bash
 pip install openpyxl pypdf python-docx
 
-python listar_documentos.py "Tarragona A-extract"
-python listar_documentos.py "Tarragona A-extract" lista.xlsx --limite-conteudo 5000
-python listar_documentos.py pasta/ lista.xlsx --ext .pdf --sem-conteudo
+# lista completa (le o conteudo dos documentos)
+python listar_documentos.py "Tarragona A"
+
+# so nomes e caminhos, sem abrir os arquivos
+python listar_documentos.py "Tarragona A" lista.xlsx --so-nomes
+
+python listar_documentos.py pasta/ lista.xlsx --limite-conteudo 5000 --ext .pdf
 ```
 
 A planilha sai com duas abas:
 
 - **Documentos** — uma linha por arquivo, com filtro automatico e link para abrir o arquivo:
   `#`, `Arquivo`, `Titulo`, `Versao`, `Versoes`, `Mais recente`, `Documento base`, `Tipo`,
-  `Tamanho (KB)`, `Paginas`, `Palavras`, `Modificado em`, `Pasta`, `Conteudo`.
+  `Tamanho (KB)`, `Paginas`, `Palavras`, `Modificado em`, `Pasta`, `Caminho completo`,
+  `Conteudo`. Com `--so-nomes` saem as quatro colunas que dependem de abrir o arquivo
+  (`Titulo`, `Paginas`, `Palavras` e `Conteudo`) e ficam as outras onze.
 - **Resumo** — quantidade por tipo, total, quantos documentos distintos existem e
   a lista dos que tem mais de uma versao.
 
@@ -118,7 +136,9 @@ Opcoes:
 
 | Opcao | O que faz |
 | --- | --- |
+| `--so-nomes` | so nomes, caminhos e dados dos arquivos, bem mais rapido (tambem aceita `--sem-conteudo`) |
 | `--ext .pdf .docx` | filtra por extensao |
 | `--limite-conteudo N` | caracteres de conteudo por linha (padrao: 2000) |
-| `--sem-conteudo` | so os dados dos arquivos, bem mais rapido |
 | `--incluir-ocultos` | tambem lista arquivos e pastas com ponto |
+
+A deteccao de versao funciona nos dois modos, porque sai do nome do arquivo.

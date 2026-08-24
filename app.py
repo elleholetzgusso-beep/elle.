@@ -157,8 +157,12 @@ class App(tk.Tk):
                                                             sticky="w")
 
         self.gerar_depois = tk.BooleanVar(value=True)
-        ttk.Checkbutton(aba, text="Ao terminar, gerar a planilha da pasta de destino",
-                        variable=self.gerar_depois).grid(row=4, column=0, columnspan=3, sticky="w")
+        extras = ttk.Frame(aba)
+        extras.grid(row=4, column=0, columnspan=3, sticky="ew")
+        ttk.Checkbutton(extras, text="Ao terminar, gerar a planilha da pasta de destino",
+                        variable=self.gerar_depois).pack(side="left")
+        ttk.Button(extras, text="So quero a planilha, sem organizar  >",
+                   command=lambda: self.abas.select(1)).pack(side="right")
 
         botoes = ttk.Frame(aba)
         botoes.grid(row=5, column=0, columnspan=3, sticky="e", pady=(12, 0))
@@ -174,20 +178,49 @@ class App(tk.Tk):
     def _aba_planilha(self) -> ttk.Frame:
         aba = ttk.Frame(self, padding=14)
 
-        ttk.Label(aba, text="Monta um Excel com nome, titulo, versao e conteudo de cada documento.",
+        ttk.Label(aba, text="Monta um Excel com a lista dos documentos.",
                   style="Titulo.TLabel").grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(aba, foreground="#505050",
+                  text="Pode usar sozinho, sem passar pela aba 1: nada e movido nem copiado, "
+                       "so a planilha e criada.").grid(row=1, column=0, columnspan=3,
+                                                       sticky="w", pady=(2, 6))
 
         self.pasta_docs = tk.StringVar()
         self.arquivo_saida = tk.StringVar()
-        self._linha_pasta(aba, 1, "Pasta dos documentos:", self.pasta_docs,
+        self._linha_pasta(aba, 2, "Pasta dos documentos:", self.pasta_docs,
                           self._escolher_pasta_docs)
 
-        ttk.Label(aba, text="Salvar planilha em:").grid(row=2, column=0, sticky="w", pady=6)
-        ttk.Entry(aba, textvariable=self.arquivo_saida).grid(row=2, column=1, sticky="ew", padx=6)
-        ttk.Button(aba, text="Procurar...", command=self._escolher_saida).grid(row=2, column=2)
+        ttk.Label(aba, text="Salvar planilha em:").grid(row=3, column=0, sticky="w", pady=6)
+        ttk.Entry(aba, textvariable=self.arquivo_saida).grid(row=3, column=1, sticky="ew", padx=6)
+        ttk.Button(aba, text="Procurar...", command=self._escolher_saida).grid(row=3, column=2)
 
-        opcoes = ttk.LabelFrame(aba, text="Opcoes", padding=10)
-        opcoes.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(12, 8))
+        conteudo = ttk.LabelFrame(aba, text="O que a planilha vai trazer", padding=10)
+        conteudo.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(12, 8))
+
+        self.modo_lista = tk.StringVar(value="completo")
+        ttk.Radiobutton(conteudo, text="Lista completa  -  titulo, versao, paginas e o conteudo "
+                                       "de cada documento",
+                        variable=self.modo_lista, value="completo",
+                        command=self._atualizar_modo_lista).grid(row=0, column=0, columnspan=4,
+                                                                 sticky="w")
+        ttk.Radiobutton(conteudo, text="So nomes e caminhos  -  nao abre os arquivos, "
+                                       "termina em segundos",
+                        variable=self.modo_lista, value="nomes",
+                        command=self._atualizar_modo_lista).grid(row=1, column=0, columnspan=4,
+                                                                 sticky="w", pady=(4, 0))
+
+        self.rotulo_limite = ttk.Label(conteudo, text="Conteudo por linha:")
+        self.rotulo_limite.grid(row=2, column=0, sticky="w", padx=(22, 0), pady=(8, 0))
+        self.limite = tk.IntVar(value=2000)
+        self.campo_limite = ttk.Spinbox(conteudo, from_=0, to=32000, increment=500, width=10,
+                                        textvariable=self.limite)
+        self.campo_limite.grid(row=2, column=1, sticky="w", pady=(8, 0))
+        self.rotulo_caracteres = ttk.Label(conteudo, text="caracteres")
+        self.rotulo_caracteres.grid(row=2, column=2, sticky="w", pady=(8, 0))
+        conteudo.columnconfigure(3, weight=1)
+
+        opcoes = ttk.LabelFrame(aba, text="Quais arquivos entram", padding=10)
+        opcoes.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         opcoes.columnconfigure(3, weight=1)
 
         ttk.Label(opcoes, text="So estas extensoes:").grid(row=0, column=0, sticky="w")
@@ -197,35 +230,33 @@ class App(tk.Tk):
         ttk.Label(opcoes, text="ex: pdf, docx   (vazio = tudo)").grid(
             row=0, column=3, sticky="w", padx=8)
 
-        ttk.Label(opcoes, text="Conteudo por linha:").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        self.limite = tk.IntVar(value=2000)
-        ttk.Spinbox(opcoes, from_=0, to=32000, increment=500, width=10,
-                    textvariable=self.limite).grid(row=1, column=1, sticky="w", pady=(8, 0))
-        ttk.Label(opcoes, text="caracteres").grid(row=1, column=2, sticky="w", pady=(8, 0))
-
-        self.sem_conteudo = tk.BooleanVar()
         self.ocultos_planilha = tk.BooleanVar()
-        ttk.Checkbutton(opcoes, text="Nao ler o conteudo (bem mais rapido)",
-                        variable=self.sem_conteudo).grid(row=2, column=0, columnspan=3,
-                                                         sticky="w", pady=(10, 0))
         ttk.Checkbutton(opcoes, text="Incluir arquivos ocultos",
-                        variable=self.ocultos_planilha).grid(row=3, column=0, columnspan=3,
-                                                             sticky="w")
+                        variable=self.ocultos_planilha).grid(row=1, column=0, columnspan=3,
+                                                             sticky="w", pady=(8, 0))
 
         if listador.openpyxl is None:
             ttk.Label(aba, foreground="#b03030",
                       text="Falta a biblioteca openpyxl. No Prompt de Comando rode:\n"
                            "    pip install openpyxl pypdf python-docx").grid(
-                row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
+                row=6, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
         botoes = ttk.Frame(aba)
-        botoes.grid(row=5, column=0, columnspan=3, sticky="e", pady=(12, 0))
+        botoes.grid(row=7, column=0, columnspan=3, sticky="e", pady=(12, 0))
         self.botao_planilha = ttk.Button(botoes, text="Gerar planilha", style="Acao.TButton",
                                          command=self._gerar_planilha)
         self.botao_planilha.pack(side="left")
 
         aba.columnconfigure(1, weight=1)
         return aba
+
+    def _atualizar_modo_lista(self) -> None:
+        """O limite de caracteres so vale quando o conteudo e lido."""
+        estado = "disabled" if self.modo_lista.get() == "nomes" else "normal"
+        self.campo_limite.configure(state=estado)
+        cor = "#909090" if estado == "disabled" else ""
+        for rotulo in (self.rotulo_limite, self.rotulo_caracteres):
+            rotulo.configure(foreground=cor)
 
     def _linha_pasta(self, aba, linha, rotulo, variavel, comando) -> None:
         ttk.Label(aba, text=rotulo).grid(row=linha, column=0, sticky="w", pady=6)
@@ -335,7 +366,7 @@ class App(tk.Tk):
             saida=saida.expanduser().resolve(),
             extensoes=separar_extensoes(self.ext_planilha.get()),
             limite_conteudo=limite,
-            sem_conteudo=self.sem_conteudo.get(),
+            sem_conteudo=self.modo_lista.get() == "nomes",
             incluir_ocultos=self.ocultos_planilha.get(),
         )
         self._iniciar(
@@ -419,17 +450,21 @@ class App(tk.Tk):
     # ------------------------------------------------------------------ config
 
     def _carregar_config(self) -> None:
+        """Recupera as escolhas da ultima vez; qualquer defeito no arquivo e ignorado."""
         try:
             dados = json.loads(CONFIG.read_text(encoding="utf-8"))
+            self.origem.set(dados.get("origem", ""))
+            self.destino.set(dados.get("destino", ""))
+            self.pasta_docs.set(dados.get("pasta_docs", ""))
+            self.arquivo_saida.set(dados.get("saida", ""))
+            self.ext_extrair.set(dados.get("ext_extrair", ""))
+            self.ext_planilha.set(dados.get("ext_planilha", ""))
+            self.limite.set(int(dados.get("limite", 2000)))
+            if dados.get("modo_lista") in {"completo", "nomes"}:
+                self.modo_lista.set(dados["modo_lista"])
         except Exception:
-            return
-        self.origem.set(dados.get("origem", ""))
-        self.destino.set(dados.get("destino", ""))
-        self.pasta_docs.set(dados.get("pasta_docs", ""))
-        self.arquivo_saida.set(dados.get("saida", ""))
-        self.ext_extrair.set(dados.get("ext_extrair", ""))
-        self.ext_planilha.set(dados.get("ext_planilha", ""))
-        self.limite.set(dados.get("limite", 2000))
+            pass
+        self._atualizar_modo_lista()
 
     def _ao_fechar(self) -> None:
         if self.ocupado and not messagebox.askyesno(
@@ -444,6 +479,7 @@ class App(tk.Tk):
                 "ext_extrair": self.ext_extrair.get(),
                 "ext_planilha": self.ext_planilha.get(),
                 "limite": int(self.limite.get() or 2000),
+                "modo_lista": self.modo_lista.get(),
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass

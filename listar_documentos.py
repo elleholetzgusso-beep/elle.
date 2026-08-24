@@ -4,6 +4,12 @@
 Complementa o extrair_arquivos.py: depois de juntar tudo em uma pasta so,
 este script le cada documento e gera um .xlsx com uma linha por arquivo.
 
+Nao mexe em nada: so le a pasta (com todas as subpastas) e escreve o .xlsx.
+
+Dois modos:
+    lista completa  - le titulo, versao, paginas e conteudo de cada documento
+    --so-nomes      - so nomes, caminhos e dados dos arquivos, bem mais rapido
+
 Formatos com leitura de texto: .pdf, .docx, .txt, .md, .csv, .xlsx
 Os demais entram na lista apenas com os dados do arquivo.
 
@@ -11,9 +17,9 @@ Instalacao das bibliotecas:
     pip install openpyxl pypdf python-docx
 
 Exemplos:
-    python listar_documentos.py "Tarragona A-extract"
+    python listar_documentos.py "Tarragona A"
     python listar_documentos.py pasta/ lista.xlsx --limite-conteudo 5000
-    python listar_documentos.py pasta/ lista.xlsx --ext .pdf --sem-conteudo
+    python listar_documentos.py pasta/ lista.xlsx --so-nomes
 """
 
 from __future__ import annotations
@@ -57,21 +63,26 @@ PADROES_VERSAO = [
 ]
 
 COLUNAS = [
-    ("#", 5),
-    ("Arquivo", 40),
-    ("Titulo", 40),
-    ("Versao", 9),
-    ("Versoes", 9),
-    ("Mais recente", 13),
-    ("Documento base", 34),
-    ("Tipo", 8),
-    ("Tamanho (KB)", 13),
-    ("Paginas", 9),
-    ("Palavras", 10),
-    ("Modificado em", 18),
-    ("Pasta", 24),
-    ("Conteudo", 90),
+    # (cabecalho, largura, chave do registro)
+    ("#", 5, "indice"),
+    ("Arquivo", 38, "arquivo"),
+    ("Titulo", 38, "titulo"),
+    ("Versao", 9, "versao"),
+    ("Versoes", 9, "versoes"),
+    ("Mais recente", 13, "recente"),
+    ("Documento base", 32, "base_exibida"),
+    ("Tipo", 8, "tipo"),
+    ("Tamanho (KB)", 13, "tamanho"),
+    ("Paginas", 9, "paginas"),
+    ("Palavras", 10, "palavras"),
+    ("Modificado em", 18, "modificado"),
+    ("Pasta", 22, "pasta"),
+    ("Caminho completo", 52, "caminho_completo"),
+    ("Conteudo", 90, "conteudo"),
 ]
+
+# Colunas que so fazem sentido quando o conteudo dos arquivos e lido.
+COLUNAS_DE_CONTEUDO = {"titulo", "paginas", "palavras", "conteudo"}
 
 
 def limpar(texto: str) -> str:
@@ -268,6 +279,9 @@ def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
         log("Nenhum arquivo encontrado com esses filtros.")
         return 0
 
+    log("Modo: so nomes e caminhos (sem ler o conteudo)." if sem_conteudo
+        else "Modo: lista completa (lendo o conteudo dos documentos).")
+
     registros = []
     for indice, caminho in enumerate(arquivos, start=1):
         log(f"  [{indice}/{len(arquivos)}] {caminho.name}")
@@ -286,6 +300,9 @@ def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
 
         registros.append({
             "caminho": caminho,
+            "indice": indice,
+            "arquivo": caminho.name,
+            "caminho_completo": str(caminho),
             "titulo": limpar(titulo) or caminho.stem,
             "versao": versao,
             "base": documento_base(caminho.stem).lower(),
@@ -315,10 +332,13 @@ def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
     aba = livro.active
     aba.title = "Documentos"
 
+    # No modo "so nomes e caminhos" as colunas de conteudo nem aparecem.
+    colunas = [c for c in COLUNAS if not (sem_conteudo and c[2] in COLUNAS_DE_CONTEUDO)]
+
     cabecalho_fonte = Font(bold=True, color="FFFFFF")
     cabecalho_fundo = PatternFill("solid", fgColor="305496")
     destaque = PatternFill("solid", fgColor="FFF2CC")
-    for coluna, (nome, largura) in enumerate(COLUNAS, start=1):
+    for coluna, (nome, largura, _chave) in enumerate(colunas, start=1):
         celula = aba.cell(row=1, column=coluna, value=nome)
         celula.font = cabecalho_fonte
         celula.fill = cabecalho_fundo
@@ -328,44 +348,39 @@ def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
     limite = min(limite_conteudo, LIMITE_CELULA - 20)
     avisos = 0
     contagem_tipos: dict[str, int] = {}
+    colunas_versao = {"versao", "versoes", "recente", "base_exibida"}
 
     for indice, registro in enumerate(registros, start=1):
         if registro["aviso"]:
             avisos += 1
         contagem_tipos[registro["tipo"]] = contagem_tipos.get(registro["tipo"], 0) + 1
 
-        texto_celula = registro["conteudo"] or registro["aviso"]
-        if len(texto_celula) > limite:
-            texto_celula = texto_celula[:limite] + "... (truncado)"
-
         linha = indice + 1
-        caminho = registro["caminho"]
-        aba.cell(row=linha, column=1, value=indice)
-        celula_arquivo = aba.cell(row=linha, column=2, value=caminho.name)
-        celula_arquivo.hyperlink = caminho.resolve().as_uri()
-        celula_arquivo.font = Font(color="0563C1", underline="single")
-        aba.cell(row=linha, column=3, value=registro["titulo"])
-        aba.cell(row=linha, column=4, value=registro["versao"])
-        celula_versoes = aba.cell(row=linha, column=5, value=registro["versoes"])
-        aba.cell(row=linha, column=6, value=registro["recente"])
-        aba.cell(row=linha, column=7, value=registro["base_exibida"])
-        if registro["versoes"] > 1:
+        for coluna, (_nome, _largura, chave) in enumerate(colunas, start=1):
+            valor = registro.get(chave)
+            if chave == "tipo":
+                valor = str(valor).upper()
+            elif chave == "conteudo":
+                valor = valor or registro["aviso"]
+                if len(valor) > limite:
+                    valor = valor[:limite] + "... (truncado)"
+            celula = aba.cell(row=linha, column=coluna, value=valor)
+
+            if chave == "arquivo":
+                celula.hyperlink = registro["caminho"].resolve().as_uri()
+                celula.font = Font(color="0563C1", underline="single")
+            elif chave == "modificado":
+                celula.number_format = "dd/mm/yyyy hh:mm"
+            elif chave == "versoes":
+                celula.alignment = Alignment(horizontal="center")
+            elif chave == "conteudo":
+                celula.alignment = Alignment(wrap_text=True, vertical="top")
             # Amarelo nas linhas que tem mais de uma versao do mesmo documento.
-            for coluna in range(4, 8):
-                aba.cell(row=linha, column=coluna).fill = destaque
-        celula_versoes.alignment = Alignment(horizontal="center")
-        aba.cell(row=linha, column=8, value=registro["tipo"].upper())
-        aba.cell(row=linha, column=9, value=registro["tamanho"])
-        aba.cell(row=linha, column=10, value=registro["paginas"])
-        aba.cell(row=linha, column=11, value=registro["palavras"])
-        celula_data = aba.cell(row=linha, column=12, value=registro["modificado"])
-        celula_data.number_format = "dd/mm/yyyy hh:mm"
-        aba.cell(row=linha, column=13, value=registro["pasta"])
-        aba.cell(row=linha, column=14, value=texto_celula).alignment = Alignment(
-            wrap_text=True, vertical="top")
+            if chave in colunas_versao and registro["versoes"] > 1:
+                celula.fill = destaque
 
     aba.freeze_panes = "C2"
-    aba.auto_filter.ref = f"A1:{get_column_letter(len(COLUNAS))}{len(registros) + 1}"
+    aba.auto_filter.ref = f"A1:{get_column_letter(len(colunas))}{len(registros) + 1}"
 
     escrever_resumo(livro, contagem_tipos, registros, grupos,
                     cabecalho_fonte, cabecalho_fundo)
@@ -450,8 +465,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="extensoes a incluir, ex: --ext .pdf .docx")
     parser.add_argument("--limite-conteudo", type=int, default=2000,
                         help="maximo de caracteres do conteudo por linha (padrao: 2000)")
-    parser.add_argument("--sem-conteudo", action="store_true",
-                        help="lista so os dados dos arquivos, sem abrir o conteudo")
+    parser.add_argument("--so-nomes", "--sem-conteudo", dest="sem_conteudo",
+                        action="store_true",
+                        help="lista so nomes, caminhos e dados dos arquivos, "
+                             "sem abrir o conteudo (bem mais rapido)")
     parser.add_argument("--incluir-ocultos", action="store_true",
                         help="tambem lista arquivos e pastas que comecam com ponto")
     args = parser.parse_args(argv)
