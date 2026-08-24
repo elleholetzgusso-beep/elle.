@@ -26,9 +26,13 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import logging
 import re
 import sys
 from pathlib import Path
+
+# O pypdf reclama alto de PDFs meio quebrados; os erros ja sao tratados aqui.
+logging.getLogger("pypdf").setLevel(logging.ERROR)
 
 AVISO_INSTALACAO = ("falta a biblioteca openpyxl. Instale com:\n"
                     "    pip install openpyxl pypdf python-docx")

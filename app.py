@@ -27,6 +27,7 @@ import listar_documentos as listador
 
 CONFIG = Path.home() / ".extrator_documentos.json"
 TITULO = "Extrator de Documentos"
+EXTENSOES_DOCUMENTOS = "pdf, doc, docx, xls, xlsx, ppt, pptx, txt, csv, rtf, odt"
 
 
 def abrir_no_sistema(caminho: Path) -> None:
@@ -114,15 +115,19 @@ class App(tk.Tk):
 
         ttk.Label(aba, text="Junta os arquivos de todas as subpastas em uma pasta so.",
                   style="Titulo.TLabel").grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(aba, foreground="#505050",
+                  text="Nao importa quantos niveis de subpasta existam: tudo termina "
+                       "solto em uma pasta unica.").grid(row=1, column=0, columnspan=3,
+                                                         sticky="w", pady=(2, 6))
 
         self.origem = tk.StringVar()
         self.destino = tk.StringVar()
-        self._linha_pasta(aba, 1, "Pasta de origem:", self.origem, self._escolher_origem)
-        self._linha_pasta(aba, 2, "Pasta de destino:", self.destino,
+        self._linha_pasta(aba, 2, "Pasta de origem:", self.origem, self._escolher_origem)
+        self._linha_pasta(aba, 3, "Pasta de destino:", self.destino,
                           lambda: self._escolher_pasta(self.destino))
 
         opcoes = ttk.LabelFrame(aba, text="Opcoes", padding=10)
-        opcoes.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(12, 8))
+        opcoes.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(12, 8))
         opcoes.columnconfigure(3, weight=1)
 
         self.modo = tk.StringVar(value="copiar")
@@ -141,8 +146,12 @@ class App(tk.Tk):
         self.ext_extrair = tk.StringVar()
         ttk.Entry(opcoes, textvariable=self.ext_extrair, width=28).grid(
             row=2, column=1, columnspan=2, sticky="w", pady=(8, 0))
-        ttk.Label(opcoes, text="ex: pdf, docx   (vazio = tudo)").grid(
-            row=2, column=3, sticky="w", padx=8, pady=(8, 0))
+        atalhos = ttk.Frame(opcoes)
+        atalhos.grid(row=2, column=3, sticky="w", padx=8, pady=(8, 0))
+        ttk.Button(atalhos, text="so documentos", width=15,
+                   command=lambda: self.ext_extrair.set(EXTENSOES_DOCUMENTOS)).pack(side="left")
+        ttk.Button(atalhos, text="tudo", width=7,
+                   command=lambda: self.ext_extrair.set("")).pack(side="left", padx=4)
 
         self.prefixo = tk.BooleanVar()
         self.limpar_vazias = tk.BooleanVar()
@@ -156,16 +165,23 @@ class App(tk.Tk):
                         variable=self.ocultos_extrair).grid(row=5, column=0, columnspan=3,
                                                             sticky="w")
 
-        self.gerar_depois = tk.BooleanVar(value=True)
+        depois = ttk.LabelFrame(aba, text="Quando terminar de juntar", padding=10)
+        depois.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 8))
+        self.depois = tk.StringVar(value="parar")
+        ttk.Radiobutton(depois, text="Parar por aqui  -  so juntar os arquivos, "
+                                     "sem listar nem analisar nada",
+                        variable=self.depois, value="parar").grid(row=0, column=0, sticky="w")
+        ttk.Radiobutton(depois, text="Gerar tambem a planilha da pasta de destino",
+                        variable=self.depois, value="listar").grid(row=1, column=0,
+                                                                   sticky="w", pady=(4, 0))
+
         extras = ttk.Frame(aba)
-        extras.grid(row=4, column=0, columnspan=3, sticky="ew")
-        ttk.Checkbutton(extras, text="Ao terminar, gerar a planilha da pasta de destino",
-                        variable=self.gerar_depois).pack(side="left")
+        extras.grid(row=6, column=0, columnspan=3, sticky="ew")
         ttk.Button(extras, text="So quero a planilha, sem organizar  >",
                    command=lambda: self.abas.select(1)).pack(side="right")
 
         botoes = ttk.Frame(aba)
-        botoes.grid(row=5, column=0, columnspan=3, sticky="e", pady=(12, 0))
+        botoes.grid(row=7, column=0, columnspan=3, sticky="e", pady=(12, 0))
         self.botao_simular = ttk.Button(botoes, text="Simular", command=lambda: self._extrair(True))
         self.botao_simular.pack(side="left", padx=(0, 8))
         self.botao_extrair = ttk.Button(botoes, text="Juntar arquivos", style="Acao.TButton",
@@ -314,7 +330,7 @@ class App(tk.Tk):
                     TITULO, "Mover tira os arquivos das pastas originais.\n\nContinuar?"):
                 return
 
-        self.encadear = self.gerar_depois.get() and not simular
+        self.encadear = self.depois.get() == "listar" and not simular
         alvo = Path(destino)
         self.ultima_saida = alvo
         if self.encadear:
@@ -462,6 +478,8 @@ class App(tk.Tk):
             self.limite.set(int(dados.get("limite", 2000)))
             if dados.get("modo_lista") in {"completo", "nomes"}:
                 self.modo_lista.set(dados["modo_lista"])
+            if dados.get("depois") in {"parar", "listar"}:
+                self.depois.set(dados["depois"])
         except Exception:
             pass
         self._atualizar_modo_lista()
@@ -480,6 +498,7 @@ class App(tk.Tk):
                 "ext_planilha": self.ext_planilha.get(),
                 "limite": int(self.limite.get() or 2000),
                 "modo_lista": self.modo_lista.get(),
+                "depois": self.depois.get(),
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass

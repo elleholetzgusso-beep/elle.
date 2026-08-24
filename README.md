@@ -19,10 +19,14 @@ No Windows, depois de instalar as bibliotecas basta dar duplo clique em
 
 A janela tem duas abas, e cada uma funciona sozinha:
 
-- **1. Juntar arquivos** — escolha a pasta de origem e a de destino, marque copiar ou
-  mover e clique em *Juntar arquivos*. O botao *Simular* mostra o que vai acontecer sem
-  mexer em nada. Com a opcao "Ao terminar, gerar a planilha" marcada (padrao), ele ja
-  emenda na aba 2 sozinho.
+- **1. Juntar arquivos** — **so extrair, sem listar nem analisar nada**: escolha a pasta
+  de origem e a de destino, marque copiar ou mover e clique em *Juntar arquivos*. Nao
+  importa quantos niveis de subpasta existam, tudo termina solto em uma pasta unica.
+  O botao *Simular* mostra o que vai acontecer sem mexer em nada.
+  Em *Quando terminar de juntar* da para escolher entre parar por aqui (padrao) ou
+  emendar direto na planilha da pasta de destino.
+  Os botoes *so documentos* / *tudo*, ao lado do filtro de extensoes, servem para pegar
+  so os arquivos de documento (pdf, doc, docx, xls, ppt, txt...) ou tudo o que houver.
 - **2. Planilha de documentos** — **so a planilha, sem organizar nada**: aponte para
   qualquer pasta (com ou sem subpastas) e ela e lida onde esta, sem mover nem copiar
   arquivo nenhum. Quem quiser pular direto para ca tem o botao
