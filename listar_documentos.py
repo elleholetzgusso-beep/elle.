@@ -24,14 +24,14 @@ import re
 import sys
 from pathlib import Path
 
+AVISO_INSTALACAO = ("falta a biblioteca openpyxl. Instale com:\n"
+                    "    pip install openpyxl pypdf python-docx")
 try:
     import openpyxl
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
-except ImportError:
-    print("erro: falta a biblioteca openpyxl. Instale com:\n"
-          "    pip install openpyxl pypdf python-docx", file=sys.stderr)
-    raise SystemExit(1)
+except ImportError:  # o app avisa na tela em vez de quebrar na abertura
+    openpyxl = None
 
 # Excel nao aceita celulas maiores que isso nem caracteres de controle.
 LIMITE_CELULA = 32_767
@@ -254,19 +254,25 @@ def listar_arquivos(pasta: Path, saida: Path, extensoes: set[str] | None,
 
 def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
                     limite_conteudo: int, sem_conteudo: bool,
-                    incluir_ocultos: bool) -> int:
+                    incluir_ocultos: bool, log=print, progresso=None) -> int:
+    """Gera a planilha. `log` recebe as mensagens e `progresso` recebe (feitos, total)."""
+    if openpyxl is None:
+        log(f"erro: {AVISO_INSTALACAO}")
+        return 1
     if not pasta.is_dir():
-        print(f"erro: pasta nao encontrada: {pasta}", file=sys.stderr)
+        log(f"erro: pasta nao encontrada: {pasta}")
         return 1
 
     arquivos = listar_arquivos(pasta, saida, extensoes, incluir_ocultos)
     if not arquivos:
-        print("Nenhum arquivo encontrado com esses filtros.")
+        log("Nenhum arquivo encontrado com esses filtros.")
         return 0
 
     registros = []
     for indice, caminho in enumerate(arquivos, start=1):
-        print(f"  [{indice}/{len(arquivos)}] {caminho.name}")
+        log(f"  [{indice}/{len(arquivos)}] {caminho.name}")
+        if progresso:
+            progresso(indice, len(arquivos))
 
         if sem_conteudo:
             titulo, conteudo, paginas, aviso = "", "", None, ""
@@ -368,19 +374,19 @@ def montar_planilha(pasta: Path, saida: Path, extensoes: set[str] | None,
     try:
         livro.save(saida)
     except PermissionError:
-        print(f"erro: nao foi possivel salvar {saida.name}. "
-              "Feche o arquivo no Excel e rode de novo.", file=sys.stderr)
+        log(f"erro: nao foi possivel salvar {saida.name}. "
+            "Feche o arquivo no Excel e rode de novo.")
         return 1
 
     com_varias = sum(1 for itens in grupos.values() if len(itens) > 1)
-    print()
-    print(f"Planilha criada: {saida}")
-    print(f"Documentos listados: {len(registros)}")
-    print(f"Documentos distintos: {len(grupos)}")
+    log("")
+    log(f"Planilha criada: {saida}")
+    log(f"Documentos listados: {len(registros)}")
+    log(f"Documentos distintos: {len(grupos)}")
     if com_varias:
-        print(f"Documentos com mais de uma versao: {com_varias}")
+        log(f"Documentos com mais de uma versao: {com_varias}")
     if avisos:
-        print(f"Arquivos sem leitura de conteudo: {avisos}")
+        log(f"Arquivos sem leitura de conteudo: {avisos}")
     return 0
 
 
@@ -449,6 +455,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--incluir-ocultos", action="store_true",
                         help="tambem lista arquivos e pastas que comecam com ponto")
     args = parser.parse_args(argv)
+
+    if openpyxl is None:
+        print(f"erro: {AVISO_INSTALACAO}", file=sys.stderr)
+        return 1
 
     extensoes = None
     if args.ext:

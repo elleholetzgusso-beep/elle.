@@ -56,14 +56,15 @@ def nome_livre(destino: Path, nome: str, reservados: set[str]) -> Path:
 def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
             extensoes: set[str] | None, incluir_ocultos: bool,
             usar_prefixo: bool, separador: str, simular: bool,
-            limpar_vazias: bool) -> int:
+            limpar_vazias: bool, log=print, progresso=None) -> int:
+    """Executa a extracao. `log` recebe as mensagens e `progresso` recebe (feitos, total)."""
     if not origem.is_dir():
-        print(f"erro: pasta de origem nao encontrada: {origem}", file=sys.stderr)
+        log(f"erro: pasta de origem nao encontrada: {origem}")
         return 1
 
     arquivos = coletar_arquivos(origem, destino, extensoes, incluir_ocultos)
     if not arquivos:
-        print("Nenhum arquivo encontrado com esses filtros.")
+        log("Nenhum arquivo encontrado com esses filtros.")
         return 0
 
     if not simular:
@@ -72,7 +73,7 @@ def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
     reservados: set[str] = set()
     copiados = pulados = sobrescritos = 0
 
-    for arquivo in arquivos:
+    for feitos, arquivo in enumerate(arquivos, start=1):
         nome = nome_com_prefixo(arquivo, origem, separador) if usar_prefixo else arquivo.name
 
         if conflito == "renomear":
@@ -81,15 +82,17 @@ def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
             alvo = destino / nome
             existe = alvo.exists() or nome.lower() in reservados
             if existe and conflito == "pular":
-                print(f"  pulado (ja existe): {nome}")
+                log(f"  pulado (ja existe): {nome}")
                 pulados += 1
+                if progresso:
+                    progresso(feitos, len(arquivos))
                 continue
             if existe:
                 sobrescritos += 1
             reservados.add(nome.lower())
 
         acao = "mover" if mover else "copiar"
-        print(f"  {acao}: {arquivo.relative_to(origem)} -> {alvo.name}")
+        log(f"  {acao}: {arquivo.relative_to(origem)} -> {alvo.name}")
 
         if not simular:
             if mover:
@@ -97,29 +100,31 @@ def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
             else:
                 shutil.copy2(arquivo, alvo)
         copiados += 1
+        if progresso:
+            progresso(feitos, len(arquivos))
 
     if mover and limpar_vazias and not simular:
-        remover_pastas_vazias(origem, destino)
+        remover_pastas_vazias(origem, destino, log)
 
-    print()
-    print(f"Arquivos processados: {copiados}")
+    log("")
+    log(f"Arquivos processados: {copiados}")
     if pulados:
-        print(f"Pulados: {pulados}")
+        log(f"Pulados: {pulados}")
     if sobrescritos:
-        print(f"Sobrescritos: {sobrescritos}")
+        log(f"Sobrescritos: {sobrescritos}")
     if simular:
-        print("(simulacao: nada foi alterado no disco)")
+        log("(simulacao: nada foi alterado no disco)")
     return 0
 
 
-def remover_pastas_vazias(origem: Path, destino: Path) -> None:
+def remover_pastas_vazias(origem: Path, destino: Path, log=print) -> None:
     """Apaga as subpastas que ficaram vazias depois de mover os arquivos."""
     for pasta in sorted(origem.rglob("*"), key=lambda p: len(p.parts), reverse=True):
         if not pasta.is_dir() or pasta == destino or destino in pasta.parents:
             continue
         try:
             pasta.rmdir()
-            print(f"  pasta vazia removida: {pasta.relative_to(origem)}")
+            log(f"  pasta vazia removida: {pasta.relative_to(origem)}")
         except OSError:
             pass
 

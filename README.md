@@ -1,5 +1,43 @@
 ddd
 
+# Extrator de Documentos
+
+Junta os arquivos espalhados em varias subpastas em uma pasta so e monta um Excel
+com a lista dos documentos (nome, titulo, versao e conteudo).
+
+Da para usar de duas formas: pelo **app de janela** ou pela **linha de comando**.
+
+## App (recomendado)
+
+```cmd
+pip install openpyxl pypdf python-docx
+python app.py
+```
+
+No Windows, depois de instalar as bibliotecas basta dar duplo clique em
+**`abrir app.bat`**.
+
+A janela tem duas abas e faz o caminho inteiro de uma vez:
+
+- **1. Juntar arquivos** — escolha a pasta de origem e a de destino, marque copiar ou
+  mover e clique em *Juntar arquivos*. O botao *Simular* mostra o que vai acontecer sem
+  mexer em nada. Com a opcao "Ao terminar, gerar a planilha" marcada (padrao), ele ja
+  emenda na aba 2 sozinho.
+- **2. Planilha de documentos** — escolha a pasta e onde salvar o `.xlsx`.
+
+Embaixo ficam a barra de andamento, o registro do que esta sendo feito e o botao
+*Abrir resultado*, que abre a pasta ou a planilha pronta. As pastas usadas ficam
+guardadas para a proxima vez.
+
+### Gerar o .exe (opcional)
+
+Para rodar em um computador sem Python instalado, de duplo clique em
+**`criar_exe.bat`**. Ele instala o PyInstaller e cria
+`dist\Extrator de Documentos.exe`, um arquivo unico que pode ser copiado para
+outra maquina.
+
+## Linha de comando
+
 ## extrair_arquivos.py
 
 Junta todos os arquivos que estao espalhados em subpastas dentro de uma unica pasta.
