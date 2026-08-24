@@ -23,8 +23,10 @@ def coletar_arquivos(origem: Path, destino: Path, extensoes: set[str] | None,
     for caminho in sorted(origem.rglob("*")):
         if not caminho.is_file():
             continue
-        # Nao reprocessa o que ja foi colocado na pasta de destino.
-        if destino == caminho.parent or destino in caminho.parents:
+        # O que ja esta solto na pasta de destino nao precisa ser mexido.
+        # (Comparar so o pai: se o destino for a propria origem, ou uma pasta
+        # acima dela, os arquivos das subpastas continuam entrando na lista.)
+        if caminho.parent == destino:
             continue
         partes = caminho.relative_to(origem).parts
         if not incluir_ocultos and any(p.startswith(".") for p in partes):
@@ -61,6 +63,10 @@ def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
     if not origem.is_dir():
         log(f"erro: pasta de origem nao encontrada: {origem}")
         return 1
+
+    if destino == origem:
+        log("Origem e destino sao a mesma pasta: os arquivos das subpastas "
+            "sobem para ela.")
 
     arquivos = coletar_arquivos(origem, destino, extensoes, incluir_ocultos)
     if not arquivos:
@@ -120,7 +126,10 @@ def extrair(origem: Path, destino: Path, mover: bool, conflito: str,
 def remover_pastas_vazias(origem: Path, destino: Path, log=print) -> None:
     """Apaga as subpastas que ficaram vazias depois de mover os arquivos."""
     for pasta in sorted(origem.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-        if not pasta.is_dir() or pasta == destino or destino in pasta.parents:
+        if not pasta.is_dir() or pasta == destino:
+            continue
+        # So protege o interior do destino quando ele fica dentro da origem.
+        if destino != origem and destino in pasta.parents:
             continue
         try:
             pasta.rmdir()

@@ -95,6 +95,13 @@ Nomes de pasta com espaco precisam de aspas:
 python extrair_arquivos.py "Tarragona A" "Tarragona A-extract"
 ```
 
+Para achatar a propria pasta, sem criar outra, e so repetir o caminho. Os arquivos
+das subpastas sobem para a raiz e o que ja estava solto la fica onde esta:
+
+```cmd
+python extrair_arquivos.py "Tarragona A" "Tarragona A" --mover --limpar-vazias
+```
+
 ## listar_documentos.py
 
 Monta um Excel com a lista dos documentos: nome, caminho, titulo, versao, conteudo e mais.

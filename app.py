@@ -325,9 +325,15 @@ class App(tk.Tk):
         if not destino:
             messagebox.showwarning(TITULO, "Escolha a pasta de destino.")
             return
-        if self.modo.get() == "mover" and not simular:
-            if not messagebox.askyesno(
-                    TITULO, "Mover tira os arquivos das pastas originais.\n\nContinuar?"):
+        if not simular:
+            avisos = []
+            if Path(origem).expanduser().resolve() == Path(destino).expanduser().resolve():
+                avisos.append("A pasta de origem e a de destino sao a mesma: os arquivos "
+                              "das subpastas vao subir para ela.")
+            if self.modo.get() == "mover":
+                avisos.append("Mover tira os arquivos das pastas originais.")
+            if avisos and not messagebox.askyesno(
+                    TITULO, "\n\n".join(avisos) + "\n\nContinuar?"):
                 return
 
         self.encadear = self.depois.get() == "listar" and not simular
