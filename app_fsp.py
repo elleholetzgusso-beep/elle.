@@ -237,7 +237,7 @@ class AppFSP(tk.Tk):
         # ---- Rodape ----
         rod = tk.Frame(self, bg=COR_FUNDO)
         rod.pack(fill="x", padx=PADX, pady=(10, 16))
-        tk.Label(rod, text="O ficheiro é escrito com o nome do projeto (ex.: FSP_EXC2025-...xlsx) dentro da pasta do projeto.",
+        tk.Label(rod, text="O ficheiro é escrito com a referência do projeto (ex.: EXC2026-...-FSP-01.xlsx) dentro da pasta do projeto.",
                  bg=COR_FUNDO, fg=COR_SUAVE, font=(FONTE, 8)).pack(side="left")
         tk.Label(rod, text="DELIVERING EXCELLENCE", bg=COR_FUNDO, fg=COR_LARANJA,
                  font=(FONTE, 8, "bold")).pack(side="right")

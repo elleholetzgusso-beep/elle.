@@ -497,15 +497,16 @@ def ref_fsp_de(lpa_ref):
 
 
 def nome_ficheiro_fsp(dados):
-    """Nome do ficheiro de saida com a referencia/expediente reais do projeto.
-    Cai em 'FSP_GERADO.xlsx' se nao houver dados suficientes."""
+    """Nome do ficheiro de saida = a propria referencia do FSP.
+    Ex.: EXC2026-04019-000-FSP-01.xlsx. Cai em 'FSP_GERADO.xlsx' se nao
+    houver dados suficientes para montar a referencia."""
     ref = ref_fsp_de(dados.get("lpa_ref", ""))
     if ref and ref != dados.get("lpa_ref", ""):
         base = ref
     else:
         base = dados.get("expediente") or ""
     base = re.sub(r'[\\/:*?"<>|]', "-", base).strip(" -")
-    return f"FSP_{base}.xlsx" if base else "FSP_GERADO.xlsx"
+    return f"{base}.xlsx" if base else "FSP_GERADO.xlsx"
 
 
 def popular_portada(ws, dados):
