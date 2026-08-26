@@ -1,0 +1,142 @@
+<title>Gerador de FSP</title>
+<style>
+  :root{
+    --laranja:#f15722; --laranja-d:#d94e14; --laranja-cl:#fde7d9;
+    --fundo:#ffffff; --sunken:#f2f2f2; --borda:#c1c2c4; --borda-f:#1a1a1a;
+    --texto:#1a1a1a; --texto2:#4a4a4a; --suave:#7a7a7a; --ok:#2e7d4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--sunken);
+    color:var(--texto);
+    font-family:Arial, Helvetica, "Liberation Sans", sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:40px 20px 64px;
+  }
+  .intro{max-width:860px; width:100%; margin-bottom:20px;}
+  .eyebrow{font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--laranja); font-weight:700; margin:0 0 6px;}
+  .intro h1{margin:0 0 8px; font-size:24px; font-weight:700;}
+  .intro p{margin:0; color:var(--texto2); font-size:14px; line-height:1.55; max-width:64ch;}
+
+  /* moldura da janela */
+  .win{width:100%; max-width:860px; background:var(--fundo);
+    border:1px solid var(--borda); box-shadow:0 24px 60px -30px #0007;}
+  .titlebar{display:flex; align-items:center; gap:8px; padding:9px 12px;
+    background:var(--sunken); border-bottom:1px solid var(--borda);}
+  .dot{width:11px; height:11px; border-radius:50%;}
+  .dot.r{background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
+  .titlebar .t{margin-left:8px; font-size:12px; color:var(--suave);}
+
+  .body{padding:26px 30px 22px;}
+  .brandline{display:flex; align-items:baseline; justify-content:space-between;}
+  .brandline .mark{font-size:20px; font-weight:700;}
+  .brandline .mark b{color:var(--laranja);}
+  .brandline .ver{font-size:9px; font-weight:700; letter-spacing:.08em; color:var(--suave);}
+  .lead{margin:6px 0 0; color:var(--texto2); font-size:12.5px; max-width:70ch;}
+  .rule{height:3px; background:var(--laranja); margin:16px 0 22px;}
+
+  .step{font-size:11px; font-weight:700; letter-spacing:.05em; margin:0 0 10px;}
+  .step b{color:var(--laranja); margin-right:6px;}
+
+  .field-row{display:flex; gap:8px; margin-bottom:22px;}
+  .field{flex:1; border:1px solid var(--borda); padding:11px 12px;
+    font-family:"Courier New", monospace; font-size:12.5px; color:var(--texto);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .btn{font-family:inherit; font-weight:700; cursor:default; border:0;}
+  .btn.escolher{background:#fff; color:var(--laranja); border:1px solid var(--laranja);
+    padding:11px 18px; font-size:12.5px;}
+  .btn.gerar{background:var(--laranja); color:#fff; border:0; padding:13px 28px;
+    font-size:14px; letter-spacing:.02em;}
+  .btn.abrir{background:#fff; color:var(--texto); border:1px solid var(--borda-f);
+    padding:12px 18px; font-size:12.5px;}
+  .actions{display:flex; gap:12px; align-items:center; margin-bottom:22px;}
+
+  .estado{display:flex; align-items:stretch; margin-bottom:20px;}
+  .estado .tick{width:3px; background:var(--ok);}
+  .estado .cx{background:#eef6f0; color:var(--ok); font-weight:700; font-size:12.5px;
+    padding:8px 14px;}
+
+  .logtop{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .logtop .k{font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--suave);}
+  .logtop .n{font-family:"Courier New",monospace; font-size:11px; color:var(--suave);}
+  .log{border:1px solid var(--borda-f); background:#fff; padding:12px 14px;
+    font-family:"Courier New", monospace; font-size:12px; line-height:1.7;
+    color:var(--texto); max-height:220px; overflow:auto;}
+  .log .n{color:var(--borda);}
+  .log .ok{color:var(--ok); font-weight:700;}
+
+  .foot{display:flex; justify-content:space-between; align-items:center;
+    margin-top:14px; font-size:9px; color:var(--suave);}
+  .foot .tag{color:var(--laranja); font-weight:700; letter-spacing:.06em;}
+
+  .note{max-width:860px; width:100%; margin-top:22px; color:var(--texto2);
+    font-size:12.5px; line-height:1.6;}
+  .note b{color:var(--texto);}
+</style>
+
+<div class="intro">
+  <p class="eyebrow">Pré-visualização · identidade Exceltic</p>
+  <h1>Gerador de FSP</h1>
+  <p>Assim fica a janela que o Roberto vê — laranja Exceltic sobre branco, Arial,
+     passos numerados. Escolhe a pasta, clica em <b style="color:var(--laranja)">GERAR FSP</b>
+     e acompanha o progresso. Sem linha de comandos.</p>
+</div>
+
+<div class="win">
+  <div class="titlebar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="t">Gerador de FSP — Exceltic</span>
+  </div>
+  <div class="body">
+    <div class="brandline">
+      <div class="mark"><b>FSP.</b> Gerador de Ficha de Seguimiento</div>
+      <div class="ver">VERSÃO 1.0</div>
+    </div>
+    <p class="lead">Gera a Ficha de Seguimiento del Proyecto a partir do último LPA e das
+       pastas 1_ Doc Recibida e 3_ Doc Generada.</p>
+    <div class="rule"></div>
+
+    <p class="step"><b>1.</b>PASTA DO PROJETO</p>
+    <div class="field-row">
+      <div class="field">C:\Projetos\2025-4263-1-PC POSADAS</div>
+      <button class="btn escolher">Escolher pasta…</button>
+    </div>
+
+    <p class="step"><b>2.</b>GERAR O FICHEIRO</p>
+    <div class="actions">
+      <button class="btn gerar">GERAR FSP</button>
+      <button class="btn abrir">Abrir ficheiro gerado</button>
+    </div>
+
+    <div class="estado">
+      <div class="tick"></div>
+      <div class="cx">FSP gerado com sucesso</div>
+    </div>
+
+    <div class="logtop"><span class="k">PROGRESSO</span><span class="n">14 linhas</span></div>
+    <div class="log"><span class="n">01</span>  Projeto: 2025-4263-1-PC POSADAS
+<span class="n">02</span>  Expediente: 2025-4263-1
+<span class="n">03</span>  Avaliadores: SM/RAM
+<span class="n">04</span>  Remitente: ESTEYCO
+<span class="n">05</span>  Docs avaliados: 14
+<span class="n">06</span>  Ficheiros gerados: 9
+<span class="n">07</span>  Doc Recibida: '1_ Doc Recibida' (4 envios, 27 docs)
+<span class="n">08</span>  Populando sheets:
+<span class="n">09</span>    Envios de Cliente: 4 envios (27 docs)
+<span class="n">10</span>    Doc Aportados: 14 documentos
+<span class="n">11</span>    Control doc. Generados: 9 entradas
+<span class="n">12</span>  <span class="ok">FSP_GERADO.xlsx escrito com sucesso.</span></div>
+
+    <div class="foot">
+      <span>O ficheiro é escrito em FSP_GERADO.xlsx dentro da pasta do projeto.</span>
+      <span class="tag">DELIVERING EXCELLENCE</span>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Nota:</b> pré-visualização do design (para veres e partilhares). A app real corre
+  em Windows a partir do <b>GerarFSP.exe</b> ou do <b>GerarFSP.bat</b>. As cores são as do
+  design system Exceltic — definidas nos tokens <b>COR_*</b> no topo de <b>app_fsp.py</b>.
+</div>
