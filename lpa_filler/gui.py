@@ -433,6 +433,10 @@ class Janela(tk.Tk):
         ttk.Checkbutton(c, text="Dejar la pestaña LPA vacía para completar a mano",
                         variable=self._skip_lpa,
                         command=self._modo_mudou).pack(anchor="w")
+        self._sugerir = tk.BooleanVar(value=True)
+        ttk.Checkbutton(c, text="Proponer hallazgos del histórico (paso 3)",
+                        variable=self._sugerir,
+                        command=self._modo_mudou).pack(anchor="w", pady=(3, 0))
         self._substituir = tk.BooleanVar(value=False)
         ttk.Checkbutton(c, text="Al sugerir, sustituir las sugerencias anteriores",
                         variable=self._substituir).pack(anchor="w", pady=(3, 16))
@@ -603,6 +607,7 @@ class Janela(tk.Tk):
             excluir_obra=self._campos["excluir_obra"].get().strip(),
             min_score=float(self._min_score.get()),
             skip_lpa=bool(self._skip_lpa.get()),
+            sugerir=bool(self._sugerir.get()),
             substituir_sugestoes=bool(self._substituir.get()),
             revisao=bool(self._revisao.get()),
             lpa_existente=caminho("lpa_existente"),

@@ -84,15 +84,17 @@ arrancar).
 
 ### Passos dispensáveis
 
-Com **«Deixar a aba LPA vazia»** ligada, os passos 2 (analisar) e 3 (sugerir)
-ficam marcados `DISPENSÁVEL` e o botão salta-os. A razão é simples: ambos
-existem para propor conteúdo para a aba LPA, e essa aba vai ficar vazia para se
-escrever à mão. O passo 2 é também o mais lento — abre todos os `.pdf`
-recebidos.
+Duas caixas marcam passos como `PRESCINDIBLE`:
 
-**Dispensável não é bloqueado.** Os cartões continuam clicáveis: o `radar.txt` é
-útil mesmo quando se escreve tudo à mão, só deixa de ser obrigatório passar por
-ele para chegar ao fim.
+| Caixa | O que fica dispensável | Porquê |
+|---|---|---|
+| **«Deixar a aba LPA vazia»** | 2 (analisar) e 3 (sugerir) | Ambos existem para propor conteúdo para a aba LPA, e essa aba vai ficar vazia para se escrever à mão. O passo 2 é também o mais lento — abre todos os `.pdf` recebidos. |
+| **«Propor hallazgos do histórico»** desligada | 3 (sugerir) | Quem já sabe o que vai escrever não precisa de candidatos da base. O passo 2 continua a valer: o `radar.txt` diz onde procurar, e isso serve na mesma. |
+
+**Dispensável não é saltado.** O botão principal avança sempre um passo de cada
+vez; a etiqueta informa, e quem decide saltar é quem clica no cartão seguinte.
+Já foi ao contrário — o botão saltava sozinho, e o resultado era um LPA com 0
+puntos sem um único erro na consola, porque o passo 3 nunca chegava a correr.
 
 A janela **não sabe fazer nada** que a linha de comandos não faça: monta os
 mesmos comandos e chama-os. Um teste garante que todos os comandos que a janela

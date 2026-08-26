@@ -279,3 +279,63 @@ def test_scan_estrutura_normal_nao_muda(tmp_path):
     docs = scan.scan(raiz)
     assert len(docs) == 1                      # mesmo nome nos dois envíos
     assert [e["envio"] for e in docs[0]["envios"]] == [1, 2]
+
+
+def test_fecha_sai_do_nome_do_documento_e_nao_do_ficheiro_em_disco(tmp_path):
+    """A 'Fecha' de Doc Evaluados é a data do documento, não a do envío nem a
+    do ficheiro em disco — essa passa a ser a da cópia assim que se descarrega.
+    """
+    from lpa_filler.scan import _data_do_nome
+    import datetime as _dt
+
+    assert _data_do_nome("20260202_Esq_Elec_SVC") == _dt.date(2026, 2, 2)
+    assert _data_do_nome("250810_ER DMMDH-G-60") == _dt.date(2025, 8, 10)
+    assert _data_do_nome("Esquema eléctrico SVC 03_02_2026") == _dt.date(2026, 2, 3)
+    assert _data_do_nome("CZE-000105_001.V1.0_16062025") == _dt.date(2025, 6, 16)
+    assert _data_do_nome("SEÑALES LTV_Hito 4_08SEP25") == _dt.date(2025, 9, 8)
+    assert _data_do_nome("Telefonema PES 080925") == _dt.date(2025, 9, 8)
+
+
+def test_codigos_sem_data_ficam_por_preencher():
+    """Uma data errada num registo de conformidade é pior que uma célula vazia."""
+    from lpa_filler.scan import _data_do_nome
+
+    # 000105 é um sequencial, não o ano 2000; 213461 daria mês 34.
+    assert _data_do_nome("CZE-000105 - ESSADF18630D820_001") is None
+    assert _data_do_nome("213461-CV-INECO-FT-V04-A0_SUJEC") is None
+    assert _data_do_nome("GEN-83PO00107-S0045_v10.0") is None
+    assert _data_do_nome("24-30-V-F09A-REP-VLC-SUD-V1.0") is None
+
+
+def test_scan_separa_a_data_do_documento_da_data_do_envio(tmp_path):
+    envio = tmp_path / "Envío 44 20260727"
+    envio.mkdir()
+    (envio / "20260202_Esq_Elec_SVC.pdf").write_bytes(b"%PDF-1.4")
+
+    env = scan.scan(envio, autor="FGV")[0]["envios"][0]
+    assert env["fecha"] == dt.date(2026, 2, 2)        # do nome do documento
+    assert env["fecha_envio"] == dt.date(2026, 7, 27)  # da pasta do envío
+    assert env["autor"] == "FGV"
+
+
+def test_data_interna_do_docx_quando_o_nome_nao_a_traz(tmp_path):
+    """Segunda fonte da 'Fecha': o que o .docx traz dentro (docProps/core.xml).
+
+    Ao contrário da data do ficheiro em disco, esta viaja com o documento — não
+    muda ao copiar nem ao descarregar.
+    """
+    import zipfile
+
+    core = ('<?xml version="1.0"?><cp:coreProperties xmlns:cp="x" xmlns:dcterms="y">'
+            "<dcterms:created>2026-05-14T08:30:00Z</dcterms:created></cp:coreProperties>")
+    envio = tmp_path / "Envío 44 20260727"
+    envio.mkdir()
+    for nome in ("Informe sin fecha en el nombre.docx", "20260202_Con fecha.docx"):
+        with zipfile.ZipFile(envio / nome, "w") as z:
+            z.writestr("docProps/core.xml", core)
+            z.writestr("word/document.xml", "<w:document/>")
+
+    por_nome = {d["nombre"]: d["envios"][0] for d in scan.scan(envio)}
+    assert por_nome["Informe sin fecha en el nombre"]["fecha"] == dt.date(2026, 5, 14)
+    # O nome ganha aos metadados: é lá que quem emite põe a data da versão.
+    assert por_nome["20260202_Con fecha"]["fecha"] == dt.date(2026, 2, 2)

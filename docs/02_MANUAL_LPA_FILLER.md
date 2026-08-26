@@ -54,9 +54,24 @@ listados para revisão. Actas de *pruebas* FAT/SAT contam como avaliáveis.
 | Opção | Para quê |
 |---|---|
 | `--group-by {file,folder}` | Agrupar por ficheiro ou por pasta |
-| `--autor` | Autor por omissão dos envíos |
+| `--autor` | Autor por omissão dos envíos — enche a coluna *Autor* de Doc Evaluados |
 | `--estado` | Estado por omissão dos documentos |
 | `--no-triage` | Desligar a triagem PE/01 |
+
+**As duas datas não são a mesma coisa.** *Fecha Envío* é a data da pasta do envío;
+*Fecha* é a data **do documento**, e sai de duas fontes, por esta ordem:
+
+1. **O nome do ficheiro** — `20260202_Esq_Elec_SVC`, `250810_ER...`, `..._16062025`,
+   `03_02_2026`, `08SEP25`. É onde quem emite costuma pôr a data da versão.
+2. **Os metadados do `.docx`** (`docProps/core.xml`). Ao contrário da data do
+   ficheiro em disco, esta viaja com o documento: não muda ao copiar nem ao
+   descarregar. Os `.pdf` ficam de fora — abri-los para ler metadados obrigaria o
+   `scan` a interpretar cada ficheiro, e um `.pdf` mal formado prendê-lo-ia.
+
+Sem nenhuma das duas, a célula fica **vazia** e o comando diz quantas ficaram assim.
+É deliberado: uma data errada num registo de conformidade é pior do que uma célula
+por preencher, porque parece verdadeira. (Antes vinha da data de modificação do
+ficheiro, que passa a ser a da cópia assim que alguém o descarrega.)
 
 ### `from-docx` — a portada, a partir do PES
 

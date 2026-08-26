@@ -131,6 +131,19 @@ def _cmd_scan(args) -> int:
     )
     _dump_yaml({"documentos": documentos}, args.out)
     print(f"# {len(documentos)} documentos encontrados", file=sys.stderr)
+    # A 'Fecha' de Doc Evaluados sai do nome do ficheiro ou dos metadados do
+    # .docx. Quando não há nem uma coisa nem outra fica vazia de propósito —
+    # mas tem de se saber quantas, senão descobre-se a olhar para o Excel.
+    sem_fecha = sum(
+        1 for d in documentos for e in (d.get("envios") or []) if not e.get("fecha")
+    )
+    if sem_fecha:
+        print(f"# {sem_fecha} envío(s) sin fecha del documento (ni en el nombre ni en "
+              f"los metadatos): la columna 'Fecha' queda vacía, complétala a mano.",
+              file=sys.stderr)
+    if not any(e.get("autor") for d in documentos for e in (d.get("envios") or [])):
+        print("# columna 'Autor' vacía: usa --autor \"FGV\" (o rellena el Solicitante "
+              "en la ventana) para que salga rellena.", file=sys.stderr)
     desviados = [d for d in documentos if d.get("_triage") == "desviado"]
     incertos = [d for d in documentos if d.get("_triage") == "incerto"]
     if desviados:

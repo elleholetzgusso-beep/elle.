@@ -25,6 +25,7 @@ class Config:
     excluir_obra: str = ""
     min_score: float = 12.0
     skip_lpa: bool = False        # o normal é querer os puntos na folha
+    sugerir: bool = True          # propor hallazgos do histórico no passo 3
     substituir_sugestoes: bool = False
     revisao: bool = False
     lpa_existente: Path | None = None
@@ -131,7 +132,7 @@ def _cmd_preparar(cfg: Config) -> list[list[str]]:
         return _cmd_preparar_revisao(cfg)
     cmds = [
         ["from-docx", "-i", _s(cfg.pes), "-o", _s(cfg.meta)],
-        ["scan", "-r", _s(cfg.recibida), "-o", _s(cfg.documentos)],
+        _scan(cfg),
     ]
     merge = ["merge", "-m", _s(cfg.meta), "-d", _s(cfg.documentos), "-o", _s(cfg.projeto)]
     if cfg.solicitante:
@@ -140,11 +141,23 @@ def _cmd_preparar(cfg: Config) -> list[list[str]]:
     return cmds
 
 
+def _scan(cfg: Config) -> list[str]:
+    """O scan, com o solicitante como autor por omissão dos documentos.
+
+    Quem faz os envíos é, na esmagadora maioria, quem assina os documentos. Sem
+    isto a coluna 'Autor' da aba Doc Evaluados saía sempre vazia: a janela pedia
+    o solicitante e depois só o usava na descrição da versão."""
+    cmd = ["scan", "-r", _s(cfg.recibida), "-o", _s(cfg.documentos)]
+    if cfg.solicitante:
+        cmd += ["--autor", cfg.solicitante]
+    return cmd
+
+
 def _cmd_preparar_revisao(cfg: Config) -> list[list[str]]:
     cmds: list[list[str]] = []
     if not cfg.projeto.exists() and cfg.lpa_existente:
         cmds.append(["extract", "-i", _s(cfg.lpa_existente), "-o", _s(cfg.projeto)])
-    cmds.append(["scan", "-r", _s(cfg.recibida), "-o", _s(cfg.documentos)])
+    cmds.append(_scan(cfg))
     cmds.append(["update", "-p", _s(cfg.projeto), "-d", _s(cfg.documentos)])
     rev = ["rev", "-p", _s(cfg.projeto)]
     if cfg.solicitante:
@@ -282,7 +295,7 @@ PASSOS: list[Passo] = [
         "Prescindible si la pestaña LPA va a quedar vacía para escribirla a mano.",
         _cmd_sugerir,
         _exige_sugerir,
-        lambda cfg: cfg.skip_lpa,
+        lambda cfg: cfg.skip_lpa or not cfg.sugerir,
     ),
     Passo(
         "lpa",

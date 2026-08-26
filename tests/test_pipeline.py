@@ -369,3 +369,44 @@ def test_sem_lpa_anterior_nao_ha_comparacao(cfg: Config):
     assert "--anterior" not in _argv_de("lpa", cfg)[0]           # projeto novo
     cfg.revisao = True
     assert "--anterior" not in _argv_de("lpa", cfg)[0]           # revisão sem apontar o anterior
+
+
+# ------------------------------------------------- sugerir é uma escolha
+
+
+def test_caixa_desligada_dispensa_o_passo_de_sugerir(cfg: Config):
+    cfg.skip_lpa = False
+    assert not pipeline.passo("sugerir").opcional(cfg)   # ligada por omissão
+    cfg.sugerir = False
+    assert pipeline.passo("sugerir").opcional(cfg)
+    # Só o passo 3: analisar os documentos continua a valer.
+    assert not pipeline.passo("analisar").opcional(cfg)
+
+
+def test_desligar_sugerir_nao_impede_de_correr(cfg: Config):
+    # Dispensável nunca é bloqueado — quem clicar no cartão corre-o na mesma.
+    cfg.sugerir = False
+    cfg.projeto.write_text("puntos: []\n", encoding="utf-8")
+    assert pipeline.passo("sugerir").em_falta(cfg) == []
+
+
+# --------------------------------------------- o autor chega ao Doc Evaluados
+
+
+def test_solicitante_entra_como_autor_no_scan(cfg: Config):
+    """A janela pedia o solicitante e só o usava na descrição da versão — a
+    coluna 'Autor' de Doc Evaluados saía sempre vazia."""
+    scan_cmd = _argv_de("preparar", cfg)[1]
+    assert "--autor" not in scan_cmd                      # sem solicitante, não força nada
+
+    cfg.solicitante = "FGV"
+    scan_cmd = _argv_de("preparar", cfg)[1]
+    assert scan_cmd[scan_cmd.index("--autor") + 1] == "FGV"
+
+
+def test_o_autor_tambem_chega_no_modo_revisao(cfg: Config):
+    cfg.revisao = True
+    cfg.solicitante = "ADIF"
+    cfg.projeto.write_text(yaml.safe_dump({"puntos": [{"id": "H-001"}]}), encoding="utf-8")
+    scan_cmd = next(c for c in _argv_de("preparar", cfg) if c[0] == "scan")
+    assert scan_cmd[scan_cmd.index("--autor") + 1] == "ADIF"
