@@ -21,8 +21,11 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, ttk
 
+#: ``True`` cuando el programa corre como .exe hecho con PyInstaller.
+EMPAQUETADO = getattr(sys, "frozen", False)
+
 _RAIZ = Path(__file__).resolve().parent
-if str(_RAIZ) not in sys.path:
+if not EMPAQUETADO and str(_RAIZ) not in sys.path:
     sys.path.insert(0, str(_RAIZ))
 
 from organizador.arrumador import ErroDeOrganizacao, organizar
@@ -31,6 +34,18 @@ from organizador.desfazer import desfazer_operacao
 from organizador.historico import Historico, resumir
 from organizador.modelos import ErroDeModelo
 from organizador.projetos import ErroDeProjeto, criar_envio, criar_projeto
+
+
+def _raiz_recursos() -> Path:
+    """Carpeta de donde se leen los assets (logos).
+
+    Empaquetado como .exe no vale ``__file__``: PyInstaller descomprime los
+    datos en otro sitio y lo anuncia en ``sys._MEIPASS``. Sin esto el
+    programa arranca igual, pero se queda sin logo y sin icono de ventana,
+    y sin decir por qué.
+    """
+    descomprimido = getattr(sys, "_MEIPASS", None)
+    return Path(descomprimido) if descomprimido else _RAIZ
 
 # --------------------------------------------------------------------- identidad
 NARANJA = "#f15722"
@@ -196,7 +211,7 @@ class App(tk.Tk):
         self.minsize(ancho_min, alto_min)
         self.configure(bg=GRIS_FONDO)
 
-        icono = _cargar_logo(_RAIZ / "assets" / "logo-mark.png", 48)
+        icono = _cargar_logo(_raiz_recursos() / "assets" / "logo-mark.png", 48)
         if icono:
             self._icono = icono  # referencia viva: evita que el GC se lo lleve
             self.iconphoto(True, icono)
@@ -263,7 +278,7 @@ class App(tk.Tk):
         barra = tk.Frame(self, bg=PETROLEO, height=40)
         barra.pack(fill="x")
         barra.pack_propagate(False)
-        marca = _cargar_logo(_RAIZ / "assets" / "logo-mark.png", 20)
+        marca = _cargar_logo(_raiz_recursos() / "assets" / "logo-mark.png", 20)
         if marca:
             self._logo_mark = marca
             tk.Label(barra, image=marca, bg=PETROLEO).pack(side="left", padx=(14, 10))
@@ -275,7 +290,7 @@ class App(tk.Tk):
         interior = tk.Frame(cabecera, bg=BLANCO)
         interior.pack(fill="x", padx=26, pady=(16, 12))
 
-        lockup = _cargar_logo(_RAIZ / "assets" / "logo-lockup.png", 44)
+        lockup = _cargar_logo(_raiz_recursos() / "assets" / "logo-lockup.png", 44)
         if lockup:
             self._logo = lockup
             tk.Label(interior, image=lockup, bg=BLANCO).pack(side="left", padx=(0, 18))

@@ -32,6 +32,9 @@ Python instalado, linha de comandos ou permissões de administrador.
 - **`Preparar_Tkinter.bat`** — corre-se **uma única vez**, a partir de um PC
   com Python instalado, para completar o `python-embed` com o Tkinter que o
   pacote *embeddable* não traz. Detalhes em `docs/INSTALACION_VENTANA.md`.
+- **`Crear_Ejecutable.bat`** — a alternativa: gera um `.exe` autónomo, um
+  ícone com duplo clique, sem Python nem `python-embed` na máquina de
+  destino. Corre-se uma vez no teu PC. Ver "Aplicação clicável" abaixo.
 - **`assets/`** — `logo-mark.png` e `logo-lockup.png`. Se existirem, a janela
   mostra o logótipo; se não, mostra o nome em texto.
 - **`LEEME.txt`** — instruções em espanhol para o Roberto (o único ficheiro
@@ -75,13 +78,28 @@ Nunca distribuir por anexo de e-mail/Teams — além do peso, ficheiros `.bat`
 e `.exe` vindos de anexo são bloqueados/quarentenados por padrão pela
 maioria dos antivírus corporativos. A pasta de rede é o canal correto.
 
-### Opção de reserva: `.exe` com PyInstaller
+## Aplicação clicável: `.exe` com PyInstaller
 
-Se a pasta de rede não puder ter uma subpasta `python-embed\` (política de
-TI, por exemplo), gera um executável autónomo:
+A alternativa ao `.bat` + `python-embed`: um **único ícone** que abre a
+janela com duplo clique. Sem Python, sem `python-embed`, sem
+`Preparar_Tkinter.bat`, sem consola preta a piscar. É o caminho a preferir
+se o `python-embed` te estiver a dar trabalho.
+
+Corre-se **uma vez, no teu PC** (o que tem Python 3.12 com `tcl/tk`):
+
+```
+Crear_Ejecutable.bat        ← duplo clique
+```
+
+O `.bat` confirma que há Python e Tkinter, instala o PyInstaller se faltar,
+e gera `dist\OrganizadorExceltic\`. Copia essa **pasta inteira** (não só o
+`.exe`) para a unidade de rede.
+
+O comando por baixo, se preferires correr à mão:
 
 ```bash
-pyinstaller --onedir --console --noupx --clean --name OrganizadorExceltic lanzador.py
+pyinstaller --onedir --windowed --noupx --clean \
+    --name OrganizadorExceltic --add-data "assets;assets" interfaz.py
 ```
 
 - `--onedir` — gera uma **pasta** com o `.exe` + dependências, em vez de um
@@ -89,32 +107,38 @@ pyinstaller --onedir --console --noupx --clean --name OrganizadorExceltic lanzad
   em cada execução, o que é exatamente o padrão que heurísticas de
   antivírus associam a droppers/trojans — `--onedir` reduz bastante os
   falsos positivos.
-- `--console` — mantém a janela de consola aberta (o programa é interativo,
-  com menu e `input()`; `--windowed` esconderia a janela e quebraria isso).
+- `--windowed` — sem consola por trás da janela. (A versão de consola,
+  `lanzador.py`, precisaria de `--console`; esta não.)
 - `--noupx` — desativa a compressão UPX. Executáveis comprimidos com UPX são
   outro gatilho clássico de deteção heurística; sem UPX o `.exe` fica maior
   mas muito menos suspeito.
 - `--clean` — limpa cache do PyInstaller antes de gerar (evita builds
   "sujos" com resíduos de uma versão anterior).
+- `--add-data "assets;assets"` — mete os logótipos dentro do pacote. Sem
+  isto o programa abre na mesma, mas sem logótipo e sem ícone de janela.
+  No Windows o separador é `;`; em Linux/macOS é `:`.
 - `--name OrganizadorExceltic` — nome da pasta/executável final.
 
-Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
-(não só o `.exe`) pela mesma unidade de rede, nunca por e-mail/Teams.
+Dentro do `.exe` os assets deixam de estar ao lado do `.py`: o PyInstaller
+descomprime-os noutro sítio e anuncia-o em `sys._MEIPASS`. É o que a função
+`_raiz_recursos()` do `interfaz.py` trata, com prova em
+`tests/test_interfaz.py`.
 
-**Mesmo assim pode dar falso positivo.** Mitigação:
+**Pode dar falso positivo no antivírus.** Mitigação:
 - Assinar o executável digitalmente, se a Exceltic tiver certificado
   (elimina a maioria dos avisos do Windows SmartScreen/Defender).
 - Submeter o `.exe` ao [VirusTotal](https://www.virustotal.com) antes de
   distribuir; se algum motor acusar, pedir ao TI para o colocar em
   allowlist (hash do ficheiro) em vez de desativar o antivírus.
-- Preferir sempre a opção `.bat` + `python-embed` — não é compilado, não
-  soa a "executável desconhecido" para o antivírus, e é mais fácil de o TI
-  inspecionar (é código Python legível, não um binário).
+- A opção `.bat` + `python-embed` não é compilada, não soa a "executável
+  desconhecido" para o antivírus, e é mais fácil de o TI inspecionar (é
+  código Python legível, não um binário). Se o TI for restritivo, essa
+  continua a ser a via mais fácil de justificar.
 
 ## Checklist antes de entregar ao Roberto
 
 - [ ] `python -m unittest discover -s tests -v` — todos os testes a passar
-      (62 testes: 48 do motor `organizador/` e 14 da
+      (63 testes: 48 do motor `organizador/` e 15 da
       janela — estes saltam se o PC não tiver Tkinter ou ecrã, confirma que
       dizem `ok` e não `skipped`).
 - [ ] Correr `interfaz.py` no meu PC: as 4 operações da janela (organizar,
@@ -163,11 +187,11 @@ Resultado em `dist/OrganizadorExceltic/`. Distribui **a pasta inteira**
 python -m unittest discover -s tests -v
 ```
 
-São 62, em dois ficheiros:
+São 63, em dois ficheiros:
 
 - **`tests/test_organizador.py`** (48) — o motor. Não abre janela nenhuma,
   corre em qualquer sítio.
-- **`tests/test_interfaz.py`** (14) — a janela, com **cliques reais**. Os
+- **`tests/test_interfaz.py`** (15) — a janela, com **cliques reais**. Os
   botões da interface são `tk.Label` com um binding `<Button-1>` próprio (não
   `tk.Button`), por isso os testes entregam um evento de rato de verdade
   (`event_generate`) em vez de chamar os métodos por dentro: assim um binding

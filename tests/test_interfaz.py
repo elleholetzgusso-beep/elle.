@@ -305,6 +305,23 @@ class TestJanela(unittest.TestCase):
             with self.subTest(criterio=titulo):
                 self.por_texto(self.app.contenido, titulo)
 
+    def test_encontra_os_assets_tambem_empacotado_como_exe(self):
+        """Dentro de um .exe do PyInstaller os assets nao estao ao lado do
+        .py: estao onde ``sys._MEIPASS`` aponta. Sem isto o programa arranca
+        na mesma, mas sem logotipo e sem icone de janela — uma falha muda,
+        que so se ve no Windows."""
+        import sys as _sys
+
+        # Sem empacotar: ao lado do proprio interfaz.py, onde os assets estao.
+        raiz = self.interfaz._raiz_recursos()
+        self.assertTrue((raiz / "assets" / "logo-mark.png").is_file())
+
+        # Empacotado: manda o que o PyInstaller anuncia.
+        self.assertFalse(hasattr(_sys, "_MEIPASS"), "a prueba corre sin empaquetar")
+        _sys._MEIPASS = str(self.base)
+        self.addCleanup(lambda: delattr(_sys, "_MEIPASS"))
+        self.assertEqual(self.interfaz._raiz_recursos(), self.base)
+
     def test_geometria_cabe_na_pantalla(self):
         self.app.update_idletasks()
         self.assertLessEqual(self.app.winfo_width(), self.app.winfo_screenwidth())
